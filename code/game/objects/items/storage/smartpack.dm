@@ -10,8 +10,8 @@
 #define IMMOBILE_FORM_COLOR "#2B719E"
 
 /obj/item/storage/backpack/marine/smartpack
-	name = "\improper S-V42 prototype smartpack"
-	desc = "A joint project between the USCM and Wey-Yu. It is said to be top-class engineering and state of the art technology. Given to USCM deployed synthetic units and the intended usage involve assisting in battlefield support. Can be recharged by grabbing onto an APC and completing the circuit with one's fingers (procedure not advised for non-synthetic personnel). WARNING - User is advised to take precautions."
+	name = "\improper S-V42 synthetic prototype smartpack"
+	desc = "A joint project between the USCM and Weyland Yutani. It is said to be top-class engineering and state of the art technology. Given to USCM deployed synthetic units and the intended usage involve assisting in battlefield support. Can be recharged by grabbing onto an APC and completing the circuit with one's fingers (procedure not advised for non-synthetic personnel). WARNING - User is advised to take precautions."
 	item_state = "smartpack"
 	icon_state = "smartpack"
 	icon = 'icons/obj/items/clothing/backpack/smartpack.dmi'
@@ -413,6 +413,10 @@
 /obj/item/storage/backpack/marine/smartpack/a1/white
 	item_state = "w_smartpack_a1"
 	icon_state = "w_smartpack_a1"
+
+/obj/item/storage/backpack/marine/smartpack/a1/darkblue
+	item_state = "d_smartpack_a1"
+	icon_state = "d_smartpack_a1"
 
 #undef BACKPACK_LIGHT_LEVEL
 
