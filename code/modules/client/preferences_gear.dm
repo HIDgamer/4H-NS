@@ -1150,6 +1150,11 @@ GLOBAL_LIST_EMPTY(roles_with_gear)
 	path = /obj/item/clothing/gloves/marine/grey
 	fluff_cost = 2
 
+/datum/gear/misc/fingerless_gloves
+	display_name = "fingerless combat gloves"
+	path = /obj/item/clothing/gloves/marine/fingerless
+	fluff_cost = 2
+
 /datum/gear/misc/pdt_kit
 	display_name = "PDT/L kit"
 	path = /obj/item/storage/box/pdt_kit
