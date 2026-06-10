@@ -45,7 +45,10 @@
 	/// Determines whether the combat acid generation is on or off
 	var/combat_gen_active = FALSE
 
+	/// How much acid is required to melt something
 	var/melt_acid_cost = 100
+	/// How much acid is required to fill a trap
+	var/fill_acid_cost = 75
 
 	var/list/caboom_sound = list('sound/effects/runner_charging_1.ogg','sound/effects/runner_charging_2.ogg')
 	var/caboom_loop = 1
@@ -57,10 +60,12 @@
 
 	var/drool_overlay_active = FALSE
 	var/mutable_appearance/drool_applied_icon
+	var/mutable_appearance/acid_overlays_icon
 
 /datum/behavior_delegate/runner_acider/New()
 	. = ..()
 	drool_applied_icon = mutable_appearance('icons/mob/xenos/castes/tier_1/runner_strain_overlays.dmi', "Acider Runner Walking")
+	acid_overlays_icon = mutable_appearance('icons/mob/xenos/castes/tier_1/runner_strain_overlays.dmi', "empty")
 
 /datum/behavior_delegate/runner_acider/proc/modify_acid(amount)
 	acid_amount += amount
@@ -86,11 +91,11 @@
 		if(target_human.stat == DEAD)
 			return
 
-	for(var/datum/effects/acid/acid_effect in target_mob.effects_list)
-		qdel(acid_effect)
-		break
-
-	new /datum/effects/acid(target_mob, bound_xeno, initial(bound_xeno.caste_type))
+	var/datum/effects/acid/acid_effect = locate() in target_mob.effects_list
+	if(acid_effect)
+		acid_effect.prolong_duration()
+	else
+		new /datum/effects/acid(target_mob, bound_xeno, initial(bound_xeno.caste_type))
 	if(isxeno_human(target_mob)) //Will the runner get acid stacks
 		var/obj/item/alien_embryo/embryo = locate(/obj/item/alien_embryo) in target_mob.contents
 		if(embryo?.stage >= 4) //very late stage hugged in case the runner unnests them
@@ -141,6 +146,7 @@
 /datum/behavior_delegate/runner_acider/handle_death(mob/M)
 	var/image/holder = bound_xeno.hud_list[PLASMA_HUD]
 	holder.overlays.Cut()
+	STOP_PROCESSING(SSfasteffects, src)
 
 /datum/behavior_delegate/runner_acider/proc/do_caboom()
 	if(!bound_xeno)
@@ -186,7 +192,7 @@
 			addtimer(CALLBACK(bound_xeno.hive, TYPE_PROC_REF(/datum/hive_status, respawn_on_turf), bound_xeno.client, spawning_turf), 0.5 SECONDS)
 		else
 			addtimer(CALLBACK(bound_xeno.hive, TYPE_PROC_REF(/datum/hive_status, free_respawn), bound_xeno.client), 5 SECONDS)
-	bound_xeno.gib()
+	bound_xeno.gib(create_cause_data("internal acid rupture", src))
 
 /mob/living/carbon/xenomorph/runner/ventcrawl_carry()
 	var/datum/behavior_delegate/runner_acider/behavior_delegates = behavior_delegate
@@ -195,27 +201,68 @@
 		return FALSE
 	return ..()
 
+/mob/living/carbon/xenomorph/runner/get_examine_text(mob/user)
+	. = ..()
+	var/datum/behavior_delegate/runner_acider/behavior = behavior_delegate
+	if(istype(behavior) && isxeno(user))
+		. += "it has [SPAN_GREEN(behavior.acid_amount)] acid!"
+
 /datum/behavior_delegate/runner_acider/proc/combat_gen_end() //This proc is triggerd once the combat acid timer runs out.
 	combat_gen_active = FALSE //turns combat acid off
-
-	drool_overlay_active = FALSE //turns the drool overlay off
-	bound_xeno.update_icons()
+	drool_overlay_active = FALSE
+	bound_xeno.behavior_delegate?.on_update_icons()
 
 /datum/behavior_delegate/runner_acider/on_update_icons()
-	bound_xeno.overlays -= drool_applied_icon
+	var/mob/living/carbon/xenomorph/runner/bound_runner = bound_xeno
+	update_acid_overlays()
+
+	bound_runner.overlays -= drool_applied_icon
 	drool_applied_icon.overlays.Cut()
 
 	if(!drool_overlay_active)
 		return
 
-	if(bound_xeno.stat == DEAD)
+	if(bound_runner.stat == DEAD)
 		drool_applied_icon.icon_state = "Acider Runner Dead"
-	else if(bound_xeno.body_position == LYING_DOWN)
-		if(!HAS_TRAIT(bound_xeno, TRAIT_INCAPACITATED) && !HAS_TRAIT(bound_xeno, TRAIT_FLOORED))
+	else if(bound_runner.body_position == LYING_DOWN)
+		if(!HAS_TRAIT(bound_runner, TRAIT_INCAPACITATED) && !HAS_TRAIT(bound_runner, TRAIT_FLOORED))
 			drool_applied_icon.icon_state = "Acider Runner Sleeping"
 		else
 			drool_applied_icon.icon_state = "Acider Runner Knocked Down"
 	else
 		drool_applied_icon.icon_state = "Acider Runner Walking"
 
-	bound_xeno.overlays += drool_applied_icon
+	bound_runner.overlays += drool_applied_icon
+
+
+/datum/behavior_delegate/runner_acider/proc/update_acid_overlays()
+	var/mob/living/carbon/xenomorph/runner/bound_runner = bound_xeno
+
+	if(!acid_overlays_icon || !istype(bound_runner))
+		return
+
+	bound_runner.overlays -= acid_overlays_icon
+	acid_overlays_icon.overlays.Cut()
+
+	if(!acid_amount)
+		return
+
+	///Simplified image index change.
+	var/perc_index = 0
+	if(acid_amount > max_acid * 0.8)
+		perc_index = 3
+	else if (acid_amount > max_acid * 0.5)
+		perc_index = 2
+	else if (acid_amount > max_acid * 0.2)
+		perc_index = 1
+
+	if(perc_index && bound_runner.stat != DEAD)
+		if(bound_runner.body_position == LYING_DOWN)
+			if(!HAS_TRAIT(src, TRAIT_INCAPACITATED) && !HAS_TRAIT(src, TRAIT_FLOORED))
+				acid_overlays_icon.overlays += icon('icons/mob/xenos/castes/tier_1/runner_strain_overlays.dmi', "acidsac_[perc_index] Sleeping")
+			else
+				acid_overlays_icon.overlays += icon('icons/mob/xenos/castes/tier_1/runner_strain_overlays.dmi', "acidsac_[perc_index] Knocked Down")
+		else
+			acid_overlays_icon.overlays += icon('icons/mob/xenos/castes/tier_1/runner_strain_overlays.dmi', "acidsac_[perc_index]")
+
+	bound_runner.overlays += acid_overlays_icon

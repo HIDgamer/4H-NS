@@ -91,6 +91,9 @@
 		var/mob/living/carbon/human/affected_human = affected_atom
 		affected_human.update_effects()
 
+/datum/effects/acid/proc/prolong_duration()
+	duration = original_duration
+
 /datum/effects/acid/proc/cleanse_acid()
 	acid_goopiness--
 	if(acid_goopiness <= 0)
