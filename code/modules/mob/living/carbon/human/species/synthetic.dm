@@ -39,8 +39,8 @@
 		"brain" = /datum/internal_organ/brain/prosthetic,
 		)
 
-	knock_down_reduction = 2.5
-	stun_reduction = 2.5
+	knock_down_reduction = 5
+	stun_reduction = 5
 	acid_blood_dodge_chance = 25
 
 	inherent_verbs = list(
@@ -89,8 +89,8 @@
 
 	default_lighting_alpha = LIGHTING_PLANE_ALPHA_SOMEWHAT_INVISIBLE
 
-	knock_down_reduction = 2.5
-	stun_reduction = 2.5
+	knock_down_reduction = 3.5
+	stun_reduction = 3.5
 
 
 /datum/species/synthetic/colonial/colonial_gen_two
