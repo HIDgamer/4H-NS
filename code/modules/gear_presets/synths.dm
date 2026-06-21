@@ -60,7 +60,6 @@
 	role_comm_title = "Syn"
 
 	minimap_icon = "synth"
-	paygrades = list(PAY_SHORT_ME8 = JOB_PLAYTIME_TIER_0)
 
 /datum/equipment_preset/synth/uscm/load_gear(mob/living/carbon/human/new_human)
 	var/back_item = /obj/item/storage/backpack/marine/satchel
@@ -84,7 +83,6 @@
 	assignment = JOB_SYNTH
 	rank = "Synthetic"
 	role_comm_title = "Syn"
-	paygrades = list(PAY_SHORT_ME9 = JOB_PLAYTIME_TIER_0)
 
 /datum/equipment_preset/synth/uscm/councillor/load_gear(mob/living/carbon/human/new_human)
 	var/back_item = /obj/item/storage/backpack/satchel
@@ -103,7 +101,6 @@
 /datum/equipment_preset/synth/uscm/wo
 	name = "WO Support Synthetic"
 	flags = EQUIPMENT_PRESET_START_OF_ROUND_WO
-	paygrades = list(PAY_SHORT_ME8 = JOB_PLAYTIME_TIER_0)
 
 /datum/equipment_preset/synth/uscm/wo/load_gear(mob/living/carbon/human/new_human)
 
