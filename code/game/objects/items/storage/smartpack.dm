@@ -19,7 +19,7 @@
 		WEAR_BACK = 'icons/mob/humans/onmob/clothing/back/smartpack.dmi'
 	)
 	flags_atom = FPRINT|NO_GAMEMODE_SKIN // same sprite for all gamemodes
-	max_storage_space = 14
+	max_storage_space = 15
 	worn_accessible = TRUE
 	actions_types = list(/datum/action/item_action/toggle)
 	xeno_types = null
@@ -92,20 +92,20 @@
 	if(user)
 		user.update_inv_back()
 
-	for(var/datum/action/A in actions)
-		A.update_button_icon()
+	for(var/datum/action/backpack_actions in actions)
+		backpack_actions.update_button_icon()
 
 	if(issynth(user))
-		var/mob/living/M = user
-		for(var/datum/action/A in M.actions)
-			A.update_button_icon()
+		var/mob/living/living_mob = user
+		for(var/datum/action/living_mob_actions in living_mob.actions)
+			living_mob_actions.update_button_icon()
 
 	if(content_watchers) //If someone's looking inside it, don't close the flap.
 		return
 
 	var/sum_storage_cost = 0
-	for(var/obj/item/I in contents)
-		sum_storage_cost += I.get_storage_cost()
+	for(var/obj/item/items_in_bag in contents)
+		sum_storage_cost += items_in_bag.get_storage_cost()
 	if(!sum_storage_cost)
 		return
 	else if(sum_storage_cost <= max_storage_space * 0.5)
@@ -125,7 +125,7 @@
 
 	return ret
 
-/obj/item/storage/backpack/marine/smartpack/pickup(mob/living/M)
+/obj/item/storage/backpack/marine/smartpack/pickup(mob/living/carbon/human/M)
 	if(issynth(M))
 		for(var/action_type in subtypesof(/datum/action/human_action/smartpack))
 			if(locate(action_type) in M.actions)
@@ -137,7 +137,7 @@
 
 	..()
 
-/obj/item/storage/backpack/marine/smartpack/dropped(mob/living/M)
+/obj/item/storage/backpack/marine/smartpack/dropped(mob/living/carbon/human/M)
 	for(var/datum/action/human_action/smartpack/S in M.actions)
 		S.remove_from(M)
 
@@ -149,7 +149,68 @@
 		M.status_flags |= CANPUSH
 		M.anchored = FALSE
 		REMOVE_TRAIT(M, TRAIT_IMMOBILIZED, TRAIT_SOURCE_EQUIPMENT(WEAR_BACK))
+
+	if(activated_form)
+		activated_form = FALSE
+		flags_item &= ~NODROP
+		flags_inventory &= ~CANTSTRIP
+		M.melee_allowed = saved_melee_allowed
+		M.throw_allowed = saved_throw_allowed
+		M.allow_gun_usage = saved_gun_allowed
+		LAZYREMOVE(M.brute_mod_override, src)
+		LAZYREMOVE(M.burn_mod_override, src)
+		M.remove_filter("synth_protective_form")
 	..()
+
+	return ..()
+
+/obj/item/storage/backpack/marine/smartpack/proc/handle_apc_charge(mob/living/carbon/human/user, obj/structure/machinery/power/apc/apc)
+	SIGNAL_HANDLER
+
+	if(!istype(user))
+		return FALSE
+
+	if(!(user.species.flags & IS_SYNTHETIC) || user.a_intent != INTENT_GRAB)
+		return FALSE
+
+	if(user.action_busy)
+		return FALSE
+
+	INVOKE_ASYNC(src, .proc/complete_apc_charge, user, apc)
+
+	return FALSE
+
+/obj/item/storage/backpack/marine/smartpack/proc/complete_apc_charge(mob/living/carbon/human/user, obj/structure/machinery/power/apc/apc)
+	if(!do_after(user, 2 SECONDS, INTERRUPT_ALL, BUSY_ICON_GENERIC))
+		return
+
+	playsound(apc.loc, 'sound/effects/sparks2.ogg', 25, 1)
+
+	if(apc.stat & BROKEN)
+		var/datum/effect_system/spark_spread/s = new /datum/effect_system/spark_spread
+		s.set_up(3, 1, apc)
+		s.start()
+		to_chat(user, SPAN_DANGER("The APC's power currents surge eratically, damaging your chassis!"))
+		user.apply_damage(10, 0, BURN)
+	else if(apc.cell?.charge > 0)
+		if(battery_charge < initial(battery_charge))
+			var/charge_to_use = min(apc.cell.charge, initial(battery_charge) - battery_charge)
+			if(!(apc.cell.use(charge_to_use)))
+				return
+			battery_charge += charge_to_use
+			to_chat(user, SPAN_NOTICE("You slot your fingers into the APC interface and siphon off some of the stored charge. \The [src] now has <b>[battery_charge]/[initial(battery_charge)]</b>."))
+			apc.charging = 1
+		else
+			to_chat(user, SPAN_WARNING("\The [src] is already fully charged."))
+	else
+		to_chat(user, SPAN_WARNING("There is no charge to draw from that APC."))
+
+/obj/item/storage/backpack/marine/smartpack/Destroy()
+	if(ismob(loc))
+		loc.set_light_on(FALSE)
+	else
+		set_light_on(FALSE)
+	. = ..()
 
 /obj/item/storage/backpack/marine/smartpack/attack_self(mob/user)
 	..()
@@ -331,8 +392,30 @@
 
 /obj/item/storage/backpack/marine/smartpack/white/drained
 	battery_charge = 0
+/obj/item/storage/backpack/marine/smartpack/a1
+	name = "\improper S-V42A1  backpack"
+	desc = "A revised joint project between the USCM and Weyland-Yutani. It is said to be top-class engineering and state of the art technology with a built in shoulder-lamp."
+	item_state = "smartpack_a1"
+	icon_state = "smartpack_a1"
+
+/obj/item/storage/backpack/marine/smartpack/a1/green
+	item_state = "g_smartpack_a1"
+	icon_state = "g_smartpack_a1"
+
+/obj/item/storage/backpack/marine/smartpack/a1/tan
+	item_state = "t_smartpack_a1"
+	icon_state = "t_smartpack_a1"
+
+/obj/item/storage/backpack/marine/smartpack/a1/black
+	item_state = "b_smartpack_a1"
+	icon_state = "b_smartpack_a1"
+
+/obj/item/storage/backpack/marine/smartpack/a1/white
+	item_state = "w_smartpack_a1"
+	icon_state = "w_smartpack_a1"
 
 #undef BACKPACK_LIGHT_LEVEL
+
 #undef PROTECTIVE_COST
 #undef REPAIR_COST
 #undef IMMOBILE_COST
