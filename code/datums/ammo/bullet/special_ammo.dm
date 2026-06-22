@@ -221,6 +221,7 @@
 	damage = 35
 	penetration = ARMOR_PENETRATION_TIER_7
 	vehicle_pen = VEHICLE_PEN_LIGHT_ARMOR
+	shell_casing = /obj/effect/decal/cleanable/ammo_casing/cartridge
 
 /datum/ammo/bullet/minigun/New()
 	..()
@@ -246,6 +247,7 @@
 	penetration= ARMOR_PENETRATION_TIER_7
 	vehicle_pen = VEHICLE_PEN_LIGHT_ARMOR
 	shrapnel_chance = SHRAPNEL_CHANCE_TIER_2
+	shell_casing = /obj/effect/decal/cleanable/ammo_casing/cartridge
 
 /datum/ammo/bullet/pkp
 	name = "machinegun bullet"

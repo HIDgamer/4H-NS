@@ -18,6 +18,7 @@
 	damage_falloff = DAMAGE_FALLOFF_TIER_7
 	max_range = 24 //So S8 users don't have their bullets magically disappaer at 22 tiles (S8 can see 24 tiles)
 	vehicle_pen = VEHICLE_PEN_SOFT
+	shell_casing = /obj/effect/decal/cleanable/ammo_casing/cartridge
 
 /datum/ammo/bullet/rifle/holo_target
 	name = "holo-targeting rifle bullet"

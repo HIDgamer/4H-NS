@@ -180,3 +180,17 @@
 
 /obj/item/ammo_box/magazine/lever_action/marksman/empty
 	empty = TRUE
+
+/obj/item/ammo_box/magazine/lever_action/xm88
+	name = "\improper .458 bullets box (.458 x 300)"
+	icon_state = "base_458"
+	overlay_ammo_type = "_reg"
+	overlay_gun_type = "_458"
+	overlay_content = "_458"
+	magazine_type = /obj/item/ammo_magazine/lever_action/xm88
+	num_of_magazines = 300
+	handfuls = TRUE
+	handful = "rounds"
+
+/obj/item/ammo_box/magazine/lever_action/xm88/empty
+	empty = TRUE

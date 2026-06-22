@@ -78,6 +78,10 @@
 #define GUN_SUPPORT_PLATFORM (1<<16)
 /// No gun description, only base desc
 #define GUN_NO_DESCRIPTION (1<<17)
+/// If it can automatically eject shell casings
+#define GUN_AUTO_EJECT_CASINGS (1<<18)
+/// If it needs to manually eject shell casings (like bolt actions)
+#define GUN_MANUAL_EJECT_CASINGS (1<<19)
 /// Whether the gun has the smaller smoke particles
 #define GUN_SMOKE_PARTICLES (1<<18)
 /// Whether the gun has the larger smoke particles

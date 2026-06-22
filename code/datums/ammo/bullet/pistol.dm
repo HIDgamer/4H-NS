@@ -14,6 +14,7 @@
 	penetration= 0
 	vehicle_pen = VEHICLE_PEN_SOFT
 	shrapnel_chance = SHRAPNEL_CHANCE_TIER_2
+	shell_casing = /obj/effect/decal/cleanable/ammo_casing
 
 
 /datum/ammo/bullet/pistol/tiny
@@ -107,6 +108,7 @@
 	hit_effect_color = "#00aeff"
 	stamina_damage = 30
 	accuracy = HIT_ACCURACY_TIER_4
+	shell_casing = null
 
 // Used by M1911, Deagle and KT-42
 /datum/ammo/bullet/pistol/heavy

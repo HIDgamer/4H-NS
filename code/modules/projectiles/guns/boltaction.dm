@@ -19,7 +19,7 @@
 	flags_equip_slot = SLOT_BACK
 	w_class = SIZE_LARGE
 	force = 5
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_WIELDED_FIRING_ONLY|GUN_SMOKE_PARTICLES
+	flags_gun_features = GUN_CAN_POINTBLANK|GUN_WIELDED_FIRING_ONLY|GUN_MANUAL_EJECT_CASINGS|GUN_SMOKE_PARTICLES
 	gun_category = GUN_CATEGORY_RIFLE
 	aim_slowdown = SLOWDOWN_ADS_RIFLE
 	wield_delay = WIELD_DELAY_NORMAL
@@ -106,6 +106,7 @@
 	else
 		to_chat(M, SPAN_DANGER("You open the bolt of [src]!"))
 		playsound(get_turf(src), close_bolt_sound, 65, TRUE, 1)
+		eject_casing()
 		unload_chamber(M)
 
 	update_icon()
@@ -167,7 +168,7 @@
 	flags_equip_slot = SLOT_BACK|SLOT_BLOCK_SUIT_STORE
 	w_class = SIZE_LARGE
 	force = 5
-	flags_gun_features = NONE
+	flags_gun_features = GUN_MANUAL_EJECT_CASINGS
 	gun_category = GUN_CATEGORY_HEAVY
 	aim_slowdown = SLOWDOWN_ADS_SPECIALIST // Consider SUPERWEAPON, but it's not like you can fire this without being bipodded
 	wield_delay = WIELD_DELAY_VERY_SLOW
