@@ -26,7 +26,7 @@
 		/obj/item/attachable/magnetic_harness,
 	)
 
-	flags_gun_features = GUN_CAN_POINTBLANK
+	flags_gun_features = GUN_AUTO_EJECTOR|GUN_CAN_POINTBLANK|GUN_SMOKE_PARTICLES
 	gun_category = GUN_CATEGORY_SMG
 	start_automatic = TRUE
 
@@ -70,6 +70,7 @@
 		/obj/item/attachable/angledgrip,
 		/obj/item/attachable/verticalgrip,
 		/obj/item/attachable/flashlight/grip,
+		/obj/item/attachable/attached_gun/extinguisher,
 		/obj/item/attachable/stock/smg,
 		/obj/item/attachable/stock/smg/collapsible,
 		/obj/item/attachable/compensator,
@@ -106,7 +107,7 @@
 		/obj/item/attachable/stock/smg/collapsible/brace,
 	)
 
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_AMMO_COUNTER
+	flags_gun_features = GUN_AUTO_EJECTOR|GUN_CAN_POINTBLANK|GUN_AMMO_COUNTER|GUN_SMOKE_PARTICLES
 	starting_attachment_types = list(/obj/item/attachable/stock/smg/collapsible)
 	map_specific_decoration = TRUE
 
@@ -198,7 +199,7 @@
 	item_state = "m39b2"
 	icon = 'icons/obj/items/weapons/guns/guns_by_faction/WY/smgs.dmi'
 	current_mag = /obj/item/ammo_magazine/smg/m39/ap
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_AMMO_COUNTER|GUN_WY_RESTRICTED
+	flags_gun_features = GUN_AUTO_EJECTOR|GUN_CAN_POINTBLANK|GUN_AMMO_COUNTER|GUN_WY_RESTRICTED|GUN_SMOKE_PARTICLES
 	map_specific_decoration = FALSE
 	starting_attachment_types = list(/obj/item/attachable/stock/smg/collapsible)
 
@@ -255,13 +256,13 @@
 		WEAR_BACK = 'icons/obj/items/weapons/guns/guns_by_map/snow/back.dmi',
 		WEAR_J_STORE = 'icons/obj/items/weapons/guns/guns_by_map/snow/suit_slot.dmi'
 	)
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_AMMO_COUNTER|GUN_WY_RESTRICTED
+	flags_gun_features = GUN_AUTO_EJECTOR|GUN_CAN_POINTBLANK|GUN_AMMO_COUNTER|GUN_WY_RESTRICTED|GUN_SMOKE_PARTICLES
 	map_specific_decoration = FALSE
 	starting_attachment_types = list(/obj/item/attachable/stock/smg/collapsible)
 
 /obj/item/weapon/gun/smg/m39/corporate/no_lock //for PMC nightmares.
 	desc = "A Weyland-Yutani creation, this M-39 comes equipped in corporate white. Uses 10x20mm caseless ammunition. This one had its IFF electronics removed."
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_AMMO_COUNTER
+	flags_gun_features = GUN_AUTO_EJECTOR|GUN_CAN_POINTBLANK|GUN_AMMO_COUNTER|GUN_SMOKE_PARTICLES
 
 /obj/item/weapon/gun/smg/m39/elite/whiteout//attachies + heap mag for whiteout.
 	starting_attachment_types = list(/obj/item/attachable/stock/smg, /obj/item/attachable/suppressor, /obj/item/attachable/angledgrip, /obj/item/attachable/magnetic_harness)
@@ -307,9 +308,10 @@
 		/obj/item/attachable/bipod,
 		/obj/item/attachable/burstfire_assembly,
 		/obj/item/attachable/attached_gun/grenade/m203,
+		/obj/item/attachable/attached_gun/extinguisher,
 		)
 
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_ANTIQUE
+	flags_gun_features = GUN_CAN_POINTBLANK|GUN_ANTIQUE|GUN_SMOKE_PARTICLES
 
 	random_spawn_chance = 10
 	random_spawn_under = list(
@@ -369,6 +371,7 @@
 		/obj/item/attachable/flashlight/grip,
 		/obj/item/attachable/burstfire_assembly,
 		/obj/item/attachable/attached_gun/grenade/m203,
+		/obj/item/attachable/attached_gun/extinguisher,
 		/obj/item/attachable/stock/smg/collapsible/mp5a5,
 		)
 
@@ -440,9 +443,10 @@
 		/obj/item/attachable/gyro,
 		/obj/item/attachable/bipod,
 		/obj/item/attachable/burstfire_assembly,
+		/obj/item/attachable/attached_gun/extinguisher,
 		)
 
-	flags_gun_features = GUN_CAN_POINTBLANK
+	flags_gun_features = GUN_AUTO_EJECTOR|GUN_CAN_POINTBLANK|GUN_SMOKE_PARTICLES
 	aim_slowdown = SLOWDOWN_ADS_NONE
 
 
@@ -474,10 +478,12 @@
 	icon_state = "ppsh17b"
 	item_state = "ppsh17b"
 
+	pixel_x = -3
+	hud_offset = -3
+
 	fire_sound = 'sound/weapons/smg_heavy.ogg'
 	current_mag = /obj/item/ammo_magazine/smg/ppsh
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_ANTIQUE
-	starting_attachment_types = list(/obj/item/attachable/stock/ppsh)
+	flags_gun_features = GUN_CAN_POINTBLANK|GUN_ANTIQUE|GUN_SMOKE_PARTICLES
 	var/jammed = FALSE
 
 /obj/item/weapon/gun/smg/ppsh/set_gun_attachment_offsets()
@@ -572,7 +578,7 @@
 
 	fire_sound = 'sound/weapons/smg_heavy.ogg'
 	current_mag = /obj/item/ammo_magazine/smg/pps43
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_AMMO_COUNTER
+	flags_gun_features = GUN_AUTO_EJECTOR|GUN_CAN_POINTBLANK|GUN_AMMO_COUNTER|GUN_SMOKE_PARTICLES
 	attachable_allowed = list(
 		/obj/item/attachable/suppressor,
 		/obj/item/attachable/reddot,
@@ -616,7 +622,7 @@
 
 	fire_sound = 'sound/weapons/smg_heavy.ogg'
 	current_mag = /obj/item/ammo_magazine/smg/bizon
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_AMMO_COUNTER
+	flags_gun_features = GUN_AUTO_EJECTOR|GUN_CAN_POINTBLANK|GUN_AMMO_COUNTER|GUN_SMOKE_PARTICLES
 	wield_delay = WIELD_DELAY_MIN
 	aim_slowdown = SLOWDOWN_ADS_QUICK_MINUS
 
@@ -655,7 +661,7 @@
 
 	fire_sound = 'sound/weapons/gun_mac15.ogg'
 	current_mag = /obj/item/ammo_magazine/smg/mac15
-	flags_gun_features = GUN_ANTIQUE|GUN_CAN_POINTBLANK|GUN_ONE_HAND_WIELDED //|GUN_HAS_FULL_AUTO|GUN_FULL_AUTO_ON|GUN_FULL_AUTO_ONLY commented out until better fullauto code
+	flags_gun_features = GUN_ANTIQUE|GUN_CAN_POINTBLANK|GUN_ONE_HAND_WIELDED|GUN_SMOKE_PARTICLES //|GUN_HAS_FULL_AUTO|GUN_FULL_AUTO_ON|GUN_FULL_AUTO_ONLY commented out until better fullauto code
 
 	attachable_allowed = list(
 		/obj/item/attachable/suppressor, // Barrel
@@ -709,7 +715,7 @@
 	flags_equip_slot = SLOT_WAIST
 	fire_sound = 'sound/weapons/gun_uzi.ogg'
 	current_mag = /obj/item/ammo_magazine/smg/uzi
-	flags_gun_features = GUN_ANTIQUE|GUN_CAN_POINTBLANK|GUN_ONE_HAND_WIELDED //|GUN_HAS_FULL_AUTO|GUN_FULL_AUTO_ON|GUN_FULL_AUTO_ONLY commented out until better fullauto code
+	flags_gun_features = GUN_ANTIQUE|GUN_CAN_POINTBLANK|GUN_ONE_HAND_WIELDED|GUN_SMOKE_PARTICLES //|GUN_HAS_FULL_AUTO|GUN_FULL_AUTO_ON|GUN_FULL_AUTO_ONLY commented out until better fullauto code
 
 	attachable_allowed = list(
 		/obj/item/attachable/suppressor, // Barrel
@@ -807,7 +813,7 @@
 		/obj/item/attachable/extended_barrel,
 	)
 
-	flags_gun_features = GUN_CAN_POINTBLANK
+	flags_gun_features = GUN_AUTO_EJECTOR|GUN_CAN_POINTBLANK|GUN_SMOKE_PARTICLES
 
 /obj/item/weapon/gun/smg/fp9000/handle_starting_attachment()
 	..()
@@ -854,8 +860,10 @@
 /obj/item/weapon/gun/smg/fp9000/pmc/set_gun_config_values()
 	..()
 	damage_mult = BASE_BULLET_DAMAGE_MULT + BULLET_DAMAGE_MULT_TIER_4
-	scatter = SCATTER_AMOUNT_TIER_9
+	scatter = SCATTER_AMOUNT_TIER_7
 	accuracy_mult = BASE_ACCURACY_MULT + HIT_ACCURACY_MULT_TIER_7
+	fa_scatter_peak = FULL_AUTO_SCATTER_PEAK_TIER_2
+	fa_max_scatter = SCATTER_AMOUNT_TIER_10
 
 //-------------------------------------------------------
 
@@ -870,9 +878,10 @@
 	item_icons = list(
 		WEAR_WAIST = 'icons/mob/humans/onmob/clothing/belts/guns.dmi',
 		WEAR_J_STORE = 'icons/mob/humans/onmob/clothing/suit_storage/guns_by_type/misc_weapons.dmi',
-		WEAR_L_HAND = 'icons/mob/humans/onmob/inhands/weapons/guns/pistols_lefthand.dmi',
-		WEAR_R_HAND = 'icons/mob/humans/onmob/inhands/weapons/guns/pistols_righthand.dmi'
+		WEAR_L_HAND = 'icons/mob/humans/onmob/inhands/weapons/guns/misc_weapons_lefthand.dmi',
+		WEAR_R_HAND = 'icons/mob/humans/onmob/inhands/weapons/guns/misc_weapons_righthand.dmi'
 	)
+	flags_equip_slot = SLOT_WAIST
 
 	reload_sound = 'sound/weapons/handling/smg_reload.ogg'
 	unload_sound = 'sound/weapons/handling/smg_unload.ogg'
@@ -943,7 +952,7 @@
 
 /obj/item/weapon/gun/smg/p90
 	name = "\improper FN P90 submachinegun"
-	desc = "The FN P90 submachine gun. An archaic design, but still widely used by corporate and mercenary groups, sometimes seen in the hands of civilian populations. This weapon only accepts 5.7×28mm rounds."
+	desc = "The FN P90 submachine gun. An archaic design, but still widely used by corporate and mercenary groups, sometimes seen in the hands of civilian populations. This weapon only accepts 5.7Ã—28mm rounds."
 	icon = 'icons/obj/items/weapons/guns/guns_by_faction/colony/smgs.dmi'
 	icon_state = "p90"
 	item_state = "p90"
@@ -961,7 +970,7 @@
 		/obj/item/attachable/scope/mini,
 		)
 
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_ANTIQUE
+	flags_gun_features = GUN_CAN_POINTBLANK|GUN_ANTIQUE|GUN_SMOKE_PARTICLES
 
 /obj/item/weapon/gun/smg/p90/set_gun_attachment_offsets()
 	attachable_offset = list("muzzle_x" = 32, "muzzle_y" = 17,"rail_x" = 22, "rail_y" = 24, "under_x" = 23, "under_y" = 15, "stock_x" = 28, "stock_y" = 17)
@@ -986,7 +995,7 @@
 
 /obj/item/weapon/gun/smg/p90/twe
 	name = "\improper FN-TWE P90 pulse submachinegun"
-	desc = "The FN Herstal FN-P90 submachinegun. Occasionally carried by light-infantry, scouts, engineers and medics. A lightweight, lower caliber alternative to the various Pulse weapons used the RMC. Fires 10x20mm rounds out of 50 round magazines. This weapon only accepts the 5.7×28mm round."
+	desc = "The FN Herstal FN-P90 submachinegun. Occasionally carried by light-infantry, scouts, engineers and medics. A lightweight, lower caliber alternative to the various Pulse weapons used the RMC. Fires 10x20mm rounds out of 50 round magazines. This weapon only accepts the 5.7Ã—28mm round."
 	icon = 'icons/obj/items/weapons/guns/guns_by_faction/TWE/smgs.dmi'
 	icon_state = "p90_twe"
 	item_state = "p90_twe"
@@ -1009,7 +1018,7 @@
 		/obj/item/ammo_magazine/smg/p90/twe/heap,
 	)
 
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_ANTIQUE
+	flags_gun_features = GUN_CAN_POINTBLANK|GUN_ANTIQUE|GUN_SMOKE_PARTICLES
 	starting_attachment_types = list(/obj/item/attachable/scope/mini_iff,)
 
 /obj/item/weapon/gun/smg/p90/twe/set_gun_attachment_offsets()

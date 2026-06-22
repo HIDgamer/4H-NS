@@ -16,7 +16,7 @@ can cause issues with ammo types getting mixed up during the burst.
 	mouse_pointer = 'icons/effects/mouse_pointer/shotgun_mouse.dmi'
 
 	accuracy_mult = 1.15
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_INTERNAL_MAG
+	flags_gun_features = GUN_CAN_POINTBLANK|GUN_INTERNAL_MAG|GUN_SMOKE_PARTICLES
 	gun_category = GUN_CATEGORY_SHOTGUN
 	aim_slowdown = SLOWDOWN_ADS_SHOTGUN
 	wield_delay = WIELD_DELAY_NORMAL //Shotguns are as hard to pull up as a rifle. They're quite bulky afterall
@@ -207,7 +207,7 @@ can cause issues with ammo types getting mixed up during the burst.
 		/obj/item/attachable/compensator,
 	)
 
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_INTERNAL_MAG
+	flags_gun_features = GUN_CAN_POINTBLANK|GUN_INTERNAL_MAG|GUN_SMOKE_PARTICLES
 
 /obj/item/weapon/gun/shotgun/merc/Initialize(mapload, spawn_empty)
 	. = ..()
@@ -272,6 +272,7 @@ can cause issues with ammo types getting mixed up during the burst.
 		/obj/item/attachable/bayonet,
 		/obj/item/attachable/bayonet/upp,
 		/obj/item/attachable/bayonet/co2,
+
 		/obj/item/attachable/bayonet/antique,
 		/obj/item/attachable/bayonet/custom,
 		/obj/item/attachable/bayonet/custom/red,
@@ -372,9 +373,11 @@ can cause issues with ammo types getting mixed up during the burst.
 	current_mag = /obj/item/ammo_magazine/internal/shotgun/buckshot
 
 	flags_equip_slot = SLOT_WAIST|SLOT_BACK
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_INTERNAL_MAG
+	flags_gun_features = GUN_CAN_POINTBLANK|GUN_INTERNAL_MAG|GUN_SMOKE_PARTICLES
 	auto_retrieval_slot = WEAR_J_STORE
 	start_automatic = TRUE
+
+	starting_attachment_types = list()
 
 /obj/item/weapon/gun/shotgun/combat/marsoc/Initialize(mapload, spawn_empty)
 	. = ..()
@@ -432,7 +435,7 @@ can cause issues with ammo types getting mixed up during the burst.
 		/obj/item/attachable/burstfire_assembly,
 		/obj/item/attachable/stock/type23, // Stock
 		)
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_AMMO_COUNTER|GUN_INTERNAL_MAG
+	flags_gun_features = GUN_CAN_POINTBLANK|GUN_AMMO_COUNTER|GUN_INTERNAL_MAG|GUN_SMOKE_PARTICLES
 	flags_equip_slot = SLOT_BACK
 	map_specific_decoration = FALSE
 	gauge = "8g"
@@ -520,7 +523,7 @@ can cause issues with ammo types getting mixed up during the burst.
 		/obj/item/attachable/verticalgrip, //Underbarrel
 		/obj/item/attachable/stock/type23, //Stock
 	)
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_AMMO_COUNTER|GUN_INTERNAL_MAG
+	flags_gun_features = GUN_CAN_POINTBLANK|GUN_AMMO_COUNTER|GUN_INTERNAL_MAG|GUN_SMOKE_PARTICLES
 	flags_equip_slot = SLOT_BACK
 	map_specific_decoration = FALSE
 	gauge = "8g"
@@ -569,7 +572,7 @@ can cause issues with ammo types getting mixed up during the burst.
 		/obj/item/attachable/stock/double,
 	)
 
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_INTERNAL_MAG
+	flags_gun_features = GUN_CAN_POINTBLANK|GUN_INTERNAL_MAG|GUN_SMOKE_PARTICLES
 	has_open_icon = TRUE
 	civilian_usable_override = TRUE // Come on. It's THE survivor shotgun.
 	additional_fire_group_delay = 1.5 SECONDS
@@ -707,7 +710,7 @@ can cause issues with ammo types getting mixed up during the burst.
 	icon_state = "sshotgun"
 	item_state = "sshotgun"
 	flags_equip_slot = SLOT_WAIST
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_INTERNAL_MAG
+	flags_gun_features = GUN_CAN_POINTBLANK|GUN_INTERNAL_MAG|GUN_SMOKE_PARTICLES
 
 /obj/item/weapon/gun/shotgun/double/sawn/set_gun_attachment_offsets()
 	attachable_offset = list("muzzle_x" = 28, "muzzle_y" = 19, "rail_x" = 11, "rail_y" = 20, "under_x" = 15, "under_y" = 14,  "stock_x" = 18, "stock_y" = 16)
@@ -750,7 +753,7 @@ can cause issues with ammo types getting mixed up during the burst.
 	seal_sound = 'sound/weapons/handling/pkd_close_chamber.ogg'
 	attachable_allowed = list()
 
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_INTERNAL_MAG|GUN_TRIGGER_SAFETY|GUN_ONE_HAND_WIELDED|GUN_ANTIQUE|GUN_NO_DESCRIPTION|GUN_UNUSUAL_DESIGN
+	flags_gun_features = GUN_CAN_POINTBLANK|GUN_INTERNAL_MAG|GUN_TRIGGER_SAFETY|GUN_ONE_HAND_WIELDED|GUN_ANTIQUE|GUN_NO_DESCRIPTION|GUN_UNUSUAL_DESIGN|GUN_SMOKE_PARTICLES
 	flags_item = NO_FLAGS
 
 	inherent_traits = list(TRAIT_GUN_SILENCED)
@@ -821,7 +824,7 @@ can cause issues with ammo types getting mixed up during the burst.
 	fire_sound = 'sound/weapons/gun_mou53.ogg'
 	reload_sound = 'sound/weapons/handling/gun_mou_reload.ogg'//unique shell insert
 	flags_equip_slot = SLOT_BACK
-	flags_gun_features = GUN_CAN_POINTBLANK|GUN_INTERNAL_MAG
+	flags_gun_features = GUN_CAN_POINTBLANK|GUN_INTERNAL_MAG|GUN_SMOKE_PARTICLES
 	current_mag = /obj/item/ammo_magazine/internal/shotgun/double/mou53 //Take care, she comes loaded!
 	attachable_allowed = list(
 		/obj/item/attachable/bayonet,
@@ -846,6 +849,7 @@ can cause issues with ammo types getting mixed up during the burst.
 		/obj/item/attachable/angledgrip,
 		/obj/item/attachable/flashlight/grip,
 		/obj/item/attachable/gyro,
+		/obj/item/attachable/attached_gun/extinguisher,
 		/obj/item/attachable/lasersight,
 		/obj/item/attachable/stock/mou53,
 	)
@@ -1135,8 +1139,8 @@ can cause issues with ammo types getting mixed up during the burst.
 //Shotguns in this category will need to be pumped each shot.
 
 /obj/item/weapon/gun/shotgun/pump
-	name = "\improper M37A2 pump shotgun"
-	desc = "An Armat Battlefield Systems classic design, the M37A2 combines close-range firepower with long term reliability. Requires a pump, which is a Unique Action."
+	name = "\improper M37 pump shotgun"
+	desc = "An Armat Battlefield Systems classic design, the M37 combines close-range firepower with long term reliability. Requires a pump, which is a Unique Action."
 	icon = 'icons/obj/items/weapons/guns/guns_by_faction/USCM/shotguns.dmi'
 	icon_state = "m37"
 	item_state = "m37"
@@ -1405,7 +1409,7 @@ can cause issues with ammo types getting mixed up during the burst.
 
 
 /obj/item/weapon/gun/shotgun/pump/dual_tube/cmb/set_gun_attachment_offsets()
-	attachable_offset = list("muzzle_x" = 31, "muzzle_y" = 17,"rail_x" = 8, "rail_y" = 21, "under_x" = 22, "under_y" = 15, "stock_x" = 24, "stock_y" = 10)
+	attachable_offset = list("muzzle_x" = 37, "muzzle_y" = 17, "rail_x" = 14, "rail_y" = 21, "under_x" = 28, "under_y" = 15, "stock_x" = 24, "stock_y" = 10)
 
 /obj/item/weapon/gun/shotgun/pump/dual_tube/cmb/set_gun_config_values()
 	..()

@@ -40,7 +40,7 @@
 	var/gibbed_anim = "gibbed-h"
 	var/dusted_anim = "dust-h"
 	var/remains_type = /obj/effect/decal/remains/xeno
-	var/bloodsplatter_type = /obj/effect/bloodsplatter/human
+	var/bloodsplatter_type = /obj/effect/temp_visual/dir_setting/bloodsplatter/human
 	var/death_sound
 	var/death_message = "seizes up and falls limp, their eyes dead and lifeless..."
 
@@ -76,6 +76,13 @@
 	var/flesh_color = "#FFC896" //Pink.
 	var/base_color   //Used when setting species.
 	var/hair_color   //If the species only has one hair color
+
+	//Currently, this is only used for flavor in surgery messages. Can be changed for individual species (i.e. synths)
+	var/flesh_type = "flesh"
+	var/nerves_type = "nervous system"
+	var/muscle_type = "muscles"
+	var/vasculature_type = "blood vessels"
+	var/bone_type = "bone"
 
 	//Used in icon caching.
 	var/race_key = 0
@@ -493,14 +500,14 @@
 	// heebie-jebies made me do all this effort, I HATE YOU
 	return
 
-/datum/species/proc/handle_blood_splatter(mob/living/carbon/human/human, splatter_dir)
+/datum/species/proc/handle_blood_splatter(mob/living/carbon/human/human, angle)
 	var/color_override
 	if(human.special_blood)
 		var/datum/reagent/D = GLOB.chemical_reagents_list[human.special_blood]
 		if(D)
 			color_override = D.color
 
-	var/obj/effect/bloodsplatter/bloodsplatter = new bloodsplatter_type(human.loc, splatter_dir, 5, color_override)
+	var/obj/effect/temp_visual/dir_setting/bloodsplatter/bloodsplatter = new bloodsplatter_type(human.loc, angle, 5, color_override)
 	return bloodsplatter
 
 /datum/species/proc/get_status_tab_items()

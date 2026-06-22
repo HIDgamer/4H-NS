@@ -41,9 +41,12 @@
 #define AMMO_MP (1<<21)
 /// Handles sentry flamers glob
 #define AMMO_FLAME (1<<22)
+// If the projectile hits a dense turf it'll do on_hit_turf on the turf just in front of the turf instead of on the turf itself (This one does not work on mobs)
+#define AMMO_STRIKES_SURFACE_ONLY	(1<<23)
 // NOTE: Don't add flags past 1<<23, it'll break things due to BYOND limitations. You can usually use a Component instead.
 #define AMMO_STRIKES_SURFACE_ONLY	(1<<23)
 // NOTE: Don't add flags past 1<<23, it'll break things due to BYOND limitations. You can usually use a Component instead.
+
 
 /// Projectile is shrpanel which allow it to skip some collisions
 #define PROJECTILE_SHRAPNEL  (1<<0)
@@ -75,6 +78,10 @@
 #define GUN_SUPPORT_PLATFORM (1<<16)
 /// No gun description, only base desc
 #define GUN_NO_DESCRIPTION (1<<17)
+/// Whether the gun has the smaller smoke particles
+#define GUN_SMOKE_PARTICLES (1<<18)
+/// Whether the gun has the larger smoke particles
+#define GUN_SMOKE_PARTICLES_LARGE (1<<19)
 // NOTE: Don't add flags past 1<<23, it'll break things due to BYOND limitations. You can usually use a Component instead.
 
 #define USES_STREAKS (1<<0)
@@ -252,6 +259,7 @@
 #define HEALTH_WALL_XENO_MEMBRANE 300
 #define HEALTH_WALL_XENO_REFLECTIVE 300
 #define HEALTH_WALL_XENO_MEMBRANE_THICK 600
+#define HEALTH_WALL_XENO_REFLECTIVE_WEAK 80
 
 #define HEALTH_DOOR 1200
 #define HEALTH_DOOR_XENO 600
