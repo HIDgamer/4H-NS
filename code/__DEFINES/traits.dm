@@ -239,6 +239,10 @@
 #define TRAIT_IN_TUTORIAL "t_in_tutorial"
 /// If the mob is cloaked in any form
 #define TRAIT_CLOAKED "t_cloaked"
+/// If the mob is being carried by another mob
+#define TRAIT_CARRIED "t_carried"
+/// If the mob is being hauled (dragged)
+#define TRAIT_HAULED "t_hauled"
 /// If the mob claimed a specialist set from a vendor
 #define TRAIT_SPEC_VENDOR "t_spec_vendor"
 /// If the mob claimed a specialist set from a kit
@@ -508,6 +512,8 @@ GLOBAL_LIST(trait_name_map)
 #define INTERACTION_TRAIT "interaction"
 /// traits associated with interacting with a dropship
 #define TRAIT_SOURCE_DROPSHIP_INTERACTION "dropship_interaction"
+///Status trait coming from being carried
+#define TRAIT_SOURCE_CARRY "t_s_carry"
 /// traits bound by stunned status effects
 #define STUNNED_TRAIT "stunned"
 /// traits bound by knocked_down status effect
