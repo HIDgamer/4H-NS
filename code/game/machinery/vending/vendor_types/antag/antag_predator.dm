@@ -247,8 +247,8 @@ GLOBAL_LIST_INIT(cm_vending_young_yautja, list(
 	if(!user?.client?.prefs)
 		return
 	var/client/mob_client = user.client
-	if(mob_client.prefs.predator_accessory_type)
-		icon_state = "pred_accessory[mob_client.prefs.predator_accessory_type]_[mob_client.prefs.predator_mask_material]"
+	if(mob_client.prefs.predator_mask_accessory_type)
+		icon_state = "pred_accessory[mob_client.prefs.predator_mask_accessory_type]_[mob_client.prefs.predator_mask_material]"
 	else
 		qdel(src)
 

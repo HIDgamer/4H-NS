@@ -94,7 +94,7 @@
 	.["mask_type"] = prefs.predator_mask_type
 	.["mask_material"] = prefs.predator_mask_material
 
-	.["mask_accessory_type"] = prefs.predator_accessory_type
+	.["mask_accessory_type"] = prefs.predator_mask_accessory_type
 
 	.["caster_material"] = prefs.predator_caster_material
 
@@ -231,7 +231,7 @@
 				return
 
 			accessory = clamp(accessory, 0, PRED_MASK_ACCESSORY_TYPE_MAX)
-			prefs.predator_accessory_type = accessory
+			prefs.predator_mask_accessory_type = accessory
 
 		if("translator_type")
 			var/selected = params["selected"]

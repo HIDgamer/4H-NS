@@ -9,7 +9,7 @@
 
 
 /datum/job/command/commander/proc/check_career_path(client/player)
-	switch(player.prefs.co_career_path)
+	switch(player.prefs.commander_career_path)
 		if("Infantry")
 			gear_preset_whitelist = list(
 			"[JOB_CO][WHITELIST_NORMAL]" = /datum/equipment_preset/uscm_co/infantry,

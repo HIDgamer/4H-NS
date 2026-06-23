@@ -11,7 +11,9 @@
 /obj/item/clothing/accessory/proc/get_inv_overlay()
 	if(!inv_overlay)
 		var/tmp_icon_state = overlay_state? overlay_state : icon_state
-		if(icon_override && ("[tmp_icon_state]_tie" in icon_states(icon_override)))
+		if(inv_overlay_icon)
+			inv_overlay = image(icon = inv_overlay_icon, icon_state = tmp_icon_state, dir = SOUTH)
+		else if(icon_override && ("[tmp_icon_state]_tie" in icon_states(icon_override)))
 			inv_overlay = image(icon = icon_override, icon_state = "[tmp_icon_state]_tie", dir = SOUTH)
 		else if("[tmp_icon_state]_tie" in icon_states(GLOB.default_onmob_icons[WEAR_ACCESSORY]))
 			inv_overlay = image(icon = GLOB.default_onmob_icons[WEAR_ACCESSORY], icon_state = "[tmp_icon_state]_tie", dir = SOUTH)
@@ -19,6 +21,10 @@
 			inv_overlay = image(icon = GLOB.default_onmob_icons[WEAR_ACCESSORY], icon_state = tmp_icon_state, dir = SOUTH)
 	inv_overlay.color = color
 	return inv_overlay
+
+/obj/item/clothing/accessory/proc/is_accessory_allowed_on_hidden_uniform()
+	//Storage accessories like webbing should still show even when uniform hides accessories
+	return istype(src, /obj/item/clothing/accessory/storage)
 
 /obj/item/clothing/accessory/get_mob_overlay(mob/user_mob, slot, default_bodytype = "Default")
 	if(!istype(loc,/obj/item/clothing)) //don't need special handling if it's worn as normal item.
@@ -35,7 +41,8 @@
 		if(istype(loc,/obj/item/clothing/under))
 			var/obj/item/clothing/under/C = loc
 			if(C.flags_jumpsuit & jumpsuit_hide_states && !(C.flags_jumpsuit & UNIFORM_DO_NOT_HIDE_ACCESSORIES))
-				return
+				if(!is_accessory_allowed_on_hidden_uniform(src)) //Some things, like webbing, should still show
+					return
 
 		var/use_sprite_sheet = accessory_icons[slot]
 		var/sprite_sheet_bodytype = LAZYACCESS(sprite_sheets, bodytype)

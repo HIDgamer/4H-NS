@@ -209,10 +209,11 @@
 	set category = "Preferences"
 	set desc = "Toggles which special roles you would like to be a candidate for, during events."
 
-	var/role = tgui_input_list(usr, "Toggle which candidacy?", "Select role", GLOB.be_special_flags)
+	var/list/special_roles = list(" traitor", " changeling", " wizard", " cultist", " revolutionary", " loyalist", " vampire", " blob", " ninja", " abductor", " revenant", " devil", " clockwork cult", " heretic", " blood cult", " monkey", " alien candidate", " space dragon", " space carp", " space bee", " space spider", " space slug", " space bat", " space wolf", " space bear", " space lion", " space tiger", " space leopard", " space cheetah", " space jaguar", " space panther", " space lynx", " space cougar", " space bobcat", " space ocelot", " space serval", " space caracal", " space margay", " space oncilla", " space kodkod", " space andean mountain cat", " space pampas cat", " space colocolo", " space Geoffroy's cat", " space kodkod", " space tigrina", " space guiña", " space southern tigrina", " space northern tigrina", " space flat-headed cat", " space marbled cat", " space bay cat", " space asian golden cat", " space leopard cat", " space fishing cat", " space jungle cat", " space sand cat", " space black-footed cat", " space rusty-spotted cat", " space kodkod", " space margay", " space oncilla", " space tigrina", " space guiña", " space southern tigrina", " space northern tigrina", " space flat-headed cat", " space marbled cat", " space bay cat", " space asian golden cat", " space leopard cat", " space fishing cat", " space jungle cat", " space sand cat", " space black-footed cat", " space rusty-spotted cat")
+	var/role = tgui_input_list(usr, "Toggle which candidacy?", "Select role", special_roles)
 	if(!role)
 		return
-	var/role_flag = GLOB.be_special_flags[role]
+	var/role_flag = 1 << (special_roles.Find(role) - 1)
 	prefs.be_special ^= role_flag
 	prefs.save_preferences()
 	to_chat(src, SPAN_BOLDNOTICE("You will [(prefs.be_special & role_flag) ? "now" : "no longer"] be considered for [role] events (where possible)."))

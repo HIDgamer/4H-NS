@@ -26,10 +26,8 @@
 	var/g_eyes = 0
 	var/b_eyes = 0
 
-	var/skin_color = "Pale 2" // Skin color
-	var/body_size = "Average" // Body Size
-	var/body_type = "Lean" // Body Buffness
-	var/body_presentation
+	var/ethnicity = "Western" // Ethnicity
+	var/body_type = "Mesomorphic (Average)" // Body Type
 
 	//Skin color
 	var/r_skin = 0

@@ -7,11 +7,11 @@
 	if((species.flags & NO_BLOOD) && !(species.flags & IS_SYNTHETIC))
 		return
 
-	if(stat != DEAD && bodytemperature >= BODYTEMP_CRYO_LIQUID_THRESHOLD) //Dead or cryosleep people do not pump the blood.
+	if(stat != DEAD && bodytemperature >= 170) //Dead or cryosleep people do not pump the blood.
 		//Blood regeneration if there is some space
-		if(blood_volume < max_blood && nutrition >= BLOOD_NUTRITION_COST)
+		if(blood_volume < max_blood && nutrition >= 1)
 			blood_volume += 0.1 // regenerate blood VERY slowly
-			nutrition -= BLOOD_NUTRITION_COST
+			nutrition -= 0.25
 		else if(blood_volume > max_blood)
 			blood_volume -= 0.1 // The reverse in case we've gotten too much blood in our body
 			if(blood_volume > limit_blood)
@@ -86,13 +86,9 @@
 	name_plural = "Humans"
 	primitive = /mob/living/carbon/human/monkey
 	unarmed_type = /datum/unarmed_attack/punch
-	flags = HAS_SKIN_TONE|HAS_LIPS|HAS_UNDERWEAR|HAS_HARDCRIT|HAS_SKIN_COLOR
+	flags = HAS_SKIN_TONE|HAS_LIPS|HAS_UNDERWEAR|HAS_HARDCRIT
 	mob_flags = KNOWS_TECHNOLOGY
-	special_body_types = TRUE
-	fire_sprite_prefix = "Standing"
-	fire_sprite_sheet = 'icons/mob/humans/onmob/OnFire.dmi'
-
-	burstscreams = list(MALE = "male_preburst", FEMALE = "female_preburst")
+	uses_ethnicity = TRUE
 
 /datum/species/human/handle_on_fire(humanoidmob)
 	. = ..()
@@ -123,16 +119,24 @@
 	H.status_flags &= ~STATUS_FLAGS_DEBILITATE
 	return ..()
 
-
+//Thralls, humans enthralled by Yautja.
 /datum/species/human/hero/thrall
 	name = "Thrall"
 	name_plural = "Thralls"
-	weed_slowdown_mult = 0
-	acid_blood_dodge_chance = 70
-
-/datum/species/human/hero/thrall/handle_post_spawn(mob/living/carbon/human/thrall)
-	thrall.universal_understand = FALSE
-	return ..()
+	brute_mod = 1.0
+	burn_mod = 1.0
+	unarmed_type = /datum/unarmed_attack/punch
+	pain_type = /datum/pain/human
+	darksight = 5
+	cold_level_1 = 220
+	cold_level_2 = 180
+	cold_level_3 = 80
+	heat_level_1 = 390
+	heat_level_2 = 480
+	heat_level_3 = 1100
+	knock_down_reduction = 0
+	stun_reduction = 0
+	weed_slowdown_mult = 1.0
 
 //Various horrors that spawn in and haunt the living.
 /datum/species/human/spook

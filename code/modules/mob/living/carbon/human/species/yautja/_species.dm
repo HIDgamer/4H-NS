@@ -6,6 +6,7 @@
 	burn_mod = 0.65
 	reagent_tag = IS_YAUTJA
 	mob_flags = KNOWS_TECHNOLOGY
+	uses_ethnicity = TRUE
 	flags = IS_WHITELISTED|HAS_SKIN_COLOR|NO_CLONE_LOSS|NO_POISON|NO_NEURO|SPECIAL_BONEBREAK|NO_SHRAPNEL|HAS_HARDCRIT
 	mob_inherent_traits = list(
 		TRAIT_YAUTJA_TECH,
@@ -13,7 +14,6 @@
 		TRAIT_FOREIGN_BIO,
 		TRAIT_DEXTROUS,
 		TRAIT_EMOTE_CD_EXEMPT,
-		TRAIT_IRON_TEETH,
 	)
 	unarmed_type = /datum/unarmed_attack/punch/strong
 	secondary_unarmed_type = /datum/unarmed_attack/bite/strong
@@ -23,8 +23,7 @@
 	flesh_color = "#907E4A"
 	speech_sounds = list('sound/voice/pred_click1.ogg', 'sound/voice/pred_click2.ogg')
 	speech_chance = 100
-	death_message = "lets out a final bellowing cry, falling motionless and lifeless soon after..."
-	death_sound = "pred_death"
+	death_message = "clicks in agony and falls still, motionless and completely lifeless..."
 	darksight = 5
 	default_lighting_alpha = LIGHTING_PLANE_ALPHA_YAUTJA
 	flags_sight = SEE_MOBS
@@ -33,8 +32,6 @@
 	timed_hug = FALSE
 
 	bloodsplatter_type = /obj/effect/temp_visual/dir_setting/bloodsplatter/yautjasplatter
-
-	burstscreams = list(MALE = "pred_preburst", FEMALE = "pred_preburst")
 
 	heat_level_1 = 500
 	heat_level_2 = 700

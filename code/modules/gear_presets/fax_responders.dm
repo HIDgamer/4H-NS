@@ -49,21 +49,21 @@
 	var/new_name
 	switch(assignment)
 		if(JOB_FAX_RESPONDER_USCM_HC)
-			new_name = target_prefs.fax_name_uscm
+			new_name = target_prefs?.fax_name_uscm
 		if(JOB_FAX_RESPONDER_USCM_PVST)
-			new_name = target_prefs.fax_name_pvst
+			new_name = target_prefs?.fax_name_pvst
 		if(JOB_FAX_RESPONDER_WY)
-			new_name = target_prefs.fax_name_wy
+			new_name = target_prefs?.fax_name_wy
 		if(JOB_FAX_RESPONDER_UPP)
-			new_name = target_prefs.fax_name_upp
+			new_name = target_prefs?.fax_name_upp
 		if(JOB_FAX_RESPONDER_CLF)
-			new_name = target_prefs.fax_name_clf
+			new_name = target_prefs?.fax_name_clf
 		if(JOB_FAX_RESPONDER_CMB)
-			new_name = target_prefs.fax_name_cmb
+			new_name = target_prefs?.fax_name_cmb
 		if(JOB_FAX_RESPONDER_PRESS)
-			new_name = target_prefs.fax_name_press
+			new_name = target_prefs?.fax_name_press
 		if(JOB_FAX_RESPONDER_TWE)
-			new_name = target_prefs.fax_name_twe
+			new_name = target_prefs?.fax_name_twe
 
 	return new_name
 

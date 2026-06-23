@@ -66,6 +66,8 @@
 #define TOGGLE_AMMO_DISPLAY_TYPE (1<<19)
 ///Toggles between automatically shoving xenomorphs in the way as Queen.
 #define TOGGLE_AUTO_SHOVE_OFF (1<<20)
+///Determines whether middle mouse click activates xeno abilities.
+#define TOGGLE_MIDDLE_MOUSE_CLICK (1<<21)
 //=================================================
 
 #define JOB_SLOT_RANDOMISED_SLOT -1

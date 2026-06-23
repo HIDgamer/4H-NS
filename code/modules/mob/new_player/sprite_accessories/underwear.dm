@@ -24,6 +24,9 @@ GLOBAL_LIST_INIT_TYPED(underwear_f, /datum/sprite_accessory/underwear, setup_und
 			var/datum/sprite_accessory/underwear/urban_datum = new underwear_type
 			urban_datum.generate_non_conforming("urban")
 			underwear_list[urban_datum.name] = urban_datum
+			var/datum/sprite_accessory/underwear/black_datum = new underwear_type
+			black_datum.generate_non_conforming("black")
+			underwear_list[black_datum.name] = black_datum
 		else
 			underwear_list[underwear_datum.name] = underwear_datum
 	return underwear_list
@@ -37,38 +40,50 @@ GLOBAL_LIST_INIT_TYPED(underwear_f, /datum/sprite_accessory/underwear, setup_und
 	if(camo_conforming)
 		switch(SSmapping.configs[GROUND_MAP].camouflage_type)
 			if("classic")
-				selected_icon_state = "classic_" + selected_icon_state
+				selected_icon_state = "c_" + selected_icon_state
 			if("jungle")
-				selected_icon_state = "jungle_" + selected_icon_state
+				selected_icon_state = "j_" + selected_icon_state
 			if("desert")
-				selected_icon_state = "desert_" + selected_icon_state
+				selected_icon_state = "d_" + selected_icon_state
 			if("snow")
-				selected_icon_state = "snow_" + selected_icon_state
+				selected_icon_state = "s_" + selected_icon_state
 			if("urban")
-				selected_icon_state = "urban_" + selected_icon_state
+				selected_icon_state = "u_" + selected_icon_state
+			if("black")
+				selected_icon_state = "b_" + selected_icon_state
+
 	if(gender == PLURAL)
 		selected_icon_state += mob_gender == MALE ? "_m" : "_f"
 	return image(icon, selected_icon_state)
 
 /datum/sprite_accessory/underwear/proc/generate_non_conforming(camo_key)
 	camo_conforming = FALSE
-	icon_state = "[camo_key]_[icon_state]"
+	var/camo_prefix
 	switch(camo_key)
 		if("classic")
+			camo_prefix = "c_"
 			name += " (Classic)"
 		if("jungle")
+			camo_prefix = "j_"
 			name += " (Jungle)"
 		if("desert")
+			camo_prefix = "d_"
 			name += " (Desert)"
 		if("snow")
+			camo_prefix = "s_"
 			name += " (Snow)"
 		if("urban")
+			camo_prefix = "u_"
 			name += " (Urban)"
+		if("black")
+			camo_prefix = "b_"
+			name += " (Black)"
+	icon_state = "[camo_prefix][icon_state]"
 
-// Both
-/datum/sprite_accessory/underwear/boxers
-	name = "Boxers"
-	icon_state = "boxers"
+// Plural
+/datum/sprite_accessory/underwear/lowriders
+	name = "Lowriders"
+	icon_state = "lowriders"
 	gender = NEUTER
 	camo_conforming = TRUE
 
@@ -78,20 +93,45 @@ GLOBAL_LIST_INIT_TYPED(underwear_f, /datum/sprite_accessory/underwear, setup_und
 	gender = NEUTER
 	camo_conforming = TRUE
 
-/datum/sprite_accessory/underwear/lowriders
-	name = "Lowriders"
-	icon_state = "lowriders"
-	gender = NEUTER
+// Male
+/datum/sprite_accessory/underwear/boxers_m
+	name = "Boxers"
+	icon_state = "boxers_m"
+	gender = MALE
 	camo_conforming = TRUE
 
-/datum/sprite_accessory/underwear/satin
-	name = "Satin"
-	icon_state = "satin"
-	gender = NEUTER
+/datum/sprite_accessory/underwear/briefs_c
+	name = "Briefs Classic"
+	icon_state = "briefs_c"
+	gender = MALE
+
+/datum/sprite_accessory/underwear/boxers_f
+	name = "Boxers"
+	icon_state = "boxers_f"
+	gender = FEMALE
+	camo_conforming = TRUE
+
+// Female
+/datum/sprite_accessory/underwear/panties
+	name = "Panties"
+	icon_state = "panties"
+	gender = FEMALE
+	camo_conforming = TRUE
+
+/datum/sprite_accessory/underwear/thong
+	name = "Thong"
+	icon_state = "thong"
+	gender = FEMALE
 	camo_conforming = TRUE
 
 /datum/sprite_accessory/underwear/tanga
 	name = "Tanga"
 	icon_state = "tanga"
-	gender = NEUTER
+	gender = FEMALE
+	camo_conforming = TRUE
+
+/datum/sprite_accessory/underwear/satin
+	name = "Satin"
+	icon_state = "satin"
+	gender = FEMALE
 	camo_conforming = TRUE
