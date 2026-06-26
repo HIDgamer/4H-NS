@@ -449,6 +449,7 @@
 
 	GLOB.living_xeno_list += src
 	GLOB.xeno_mob_list += src
+	SSxeno.processable_xeno_list += src
 	xeno_inhand_item_offset = (icon_size - 32) * 0.5
 	// More setup stuff for names, abilities etc
 	update_icon_source()
@@ -696,6 +697,7 @@
 	if(user)
 		user.handle_unhaul()
 		hauled_mob = null
+	SSxeno.processable_xeno_list -= src
 
 	if(tracked_marker)
 		tracked_marker.xenos_tracking -= src

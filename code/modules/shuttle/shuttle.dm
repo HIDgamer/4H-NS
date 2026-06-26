@@ -248,6 +248,7 @@
 		port_destinations = id
 
 	SSshuttle.stationary += src
+	SSshuttle.stationary_by_id[id] = src
 
 /obj/docking_port/stationary/Initialize(mapload)
 	. = ..()
@@ -267,6 +268,8 @@
 /obj/docking_port/stationary/unregister()
 	. = ..()
 	SSshuttle.stationary -= src
+	if(id)
+		SSshuttle.stationary_by_id -= id
 
 /obj/docking_port/stationary/Destroy(force)
 	if(force)
@@ -465,6 +468,8 @@
 /obj/docking_port/mobile/register()
 	. = ..()
 	SSshuttle.mobile += src
+	if(id)
+		SSshuttle.mobile_by_id[id] = src
 
 /**
  * Actions to be taken after shuttle is loaded and has been moved to its final location
@@ -479,6 +484,8 @@
 	if(force)
 		QDEL_NULL(alarm_sound_loop)
 		SSshuttle.mobile -= src
+		if(id)
+			SSshuttle.mobile_by_id -= id
 		destination = null
 		previous = null
 		QDEL_NULL(assigned_transit) //don't need it where we're goin'!

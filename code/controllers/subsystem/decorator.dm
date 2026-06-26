@@ -49,10 +49,22 @@ SUBSYSTEM_DEF(decorator)
 		registered_decorators[i] = sortDecorators(registered_decorators[i])
 
 	decoratable = list() // Put any extras here from there on
-	for(var/atom/object in world)
-		if(!(object.flags_atom & ATOM_DECORATED))
-			object.Decorate(deferable = FALSE)
-		CHECK_TICK
+
+	// SSatoms accumulates all world-scan atoms into pending_decoration during its init pass.
+	// Consuming that list here avoids a second O(world_size) scan.  Falls back to a world
+	// scan when pending_decoration is unavailable (recovery paths, future code paths).
+	var/list/atoms_to_decorate = SSatoms.pending_decoration
+	SSatoms.pending_decoration = null
+	if(atoms_to_decorate)
+		for(var/atom/object in atoms_to_decorate)
+			if(!QDELETED(object))
+				object.Decorate(deferable = FALSE)
+			CHECK_TICK
+	else
+		for(var/atom/object in world)
+			if(!(object.flags_atom & ATOM_DECORATED))
+				object.Decorate(deferable = FALSE)
+			CHECK_TICK
 	return SS_INIT_SUCCESS
 
 /datum/controller/subsystem/decorator/fire(resumed)

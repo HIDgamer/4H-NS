@@ -43,3 +43,9 @@
 #define HAZARD_JOE_EMOTE (1<<1)
 /// UPP Joe emote
 #define UPP_JOE_EMOTE (1<<2)
+
+// /datum/asset boot priority — controls whether SSassets registers the asset at boot or defers it
+/// Registered at boot and included in the transport preload list sent to every connecting client
+#define ASSET_BOOT_CRITICAL 0
+/// Skipped at boot; instantiated on first get_asset_datum() call (e.g. when a UI is first opened)
+#define ASSET_BOOT_LAZY     1

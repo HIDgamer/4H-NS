@@ -5,15 +5,16 @@ SUBSYSTEM_DEF(xeno)
 	priority   = SS_PRIORITY_XENO
 
 	var/list/currentrun = list()
+	var/list/processable_xeno_list = list()
 
 /datum/controller/subsystem/xeno/stat_entry(msg)
-	msg = "P:[length(GLOB.xeno_mob_list)]"
+	msg = "P:[length(processable_xeno_list)]"
 	return ..()
 
 
 /datum/controller/subsystem/xeno/fire(resumed = FALSE)
 	if (!resumed)
-		currentrun = GLOB.xeno_mob_list.Copy()
+		currentrun = processable_xeno_list.Copy()
 
 	while (length(currentrun))
 		var/mob/living/carbon/xenomorph/M = currentrun[length(currentrun)]

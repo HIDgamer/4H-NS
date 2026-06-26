@@ -1,5 +1,7 @@
 /datum/asset/spritesheet/medal
 	name = "medal"
+	// Iterates and processes every medal subtype at registration — defer until player records are viewed
+	boot_priority = ASSET_BOOT_LAZY
 
 /datum/asset/spritesheet/medal/register()
 	for(var/obj/item/clothing/accessory/medal/medal as anything in subtypesof(/obj/item/clothing/accessory/medal))

@@ -19,13 +19,21 @@ SUBSYSTEM_DEF(atoms)
 
 	var/list/BadInitializeCalls = list()
 
+	/// Accumulated Initialize() time per type in world.time deciseconds, written to atom_init_costs.log on shutdown
+	var/list/init_costs = list()
+	/// Call count per type for Initialize(), paired with init_costs
+	var/list/init_counts = list()
+
 	///initAtom() adds the atom its creating to this list iff InitializeAtoms() has been given a list to populate as an argument
 	var/list/created_atoms
+	/// All atoms initialized during the initial world scan; consumed and nulled by SSdecorator to avoid a redundant world scan
+	var/list/pending_decoration
 
 	initialized = INITIALIZATION_INSSATOMS
 
 /datum/controller/subsystem/atoms/Initialize(timeofday)
 	init_start_time = world.time
+	pending_decoration = list()
 	initialized = INITIALIZATION_INNEW_MAPLOAD
 	InitializeAtoms()
 	initialized = INITIALIZATION_INNEW_REGULAR
@@ -103,6 +111,8 @@ SUBSYSTEM_DEF(atoms)
 		for(var/atom/A as anything in world)
 			if(!(A.flags_atom & INITIALIZED))
 				InitAtom(A, FALSE, mapload_arg)
+				if(pending_decoration != null && !QDELETED(A))
+					pending_decoration += A
 				#ifdef TESTING
 				++count
 				#endif
@@ -121,15 +131,14 @@ SUBSYSTEM_DEF(atoms)
 			BadInitializeCalls[the_type] |= BAD_INIT_QDEL_BEFORE
 		return TRUE
 
-	// This is handled and battle tested by dreamchecker. Limit to UNIT_TESTS just in case that ever fails.
-	#ifdef UNIT_TESTS
-	var/start_tick = world.time
-	#endif
-
+	var/t0 = world.time
 	var/result = A.Initialize(arglist(arguments))
-
+	var/elapsed = world.time - t0
+	init_costs[the_type] = (init_costs[the_type] || 0) + elapsed
+	init_counts[the_type] = (init_counts[the_type] || 0) + 1
+	// elapsed > 0 means Initialize() slept, which dreamchecker flags; keep UNIT_TESTS guard for CI
 	#ifdef UNIT_TESTS
-	if(start_tick != world.time)
+	if(elapsed)
 		BadInitializeCalls[the_type] |= BAD_INIT_SLEPT
 	#endif
 
@@ -231,3 +240,8 @@ SUBSYSTEM_DEF(atoms)
 	var/initlog = InitLog()
 	if(initlog)
 		text2file(initlog, "[GLOB.log_directory]/initialize.log")
+	if(length(init_costs))
+		var/costlog = "type\tcalls\ttotal_time_ds\n"
+		for(var/path in init_costs)
+			costlog += "[path]\t[init_counts[path] || 0]\t[init_costs[path]]\n"
+		text2file(costlog, "[GLOB.log_directory]/atom_init_costs.log")

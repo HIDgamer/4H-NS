@@ -11,6 +11,10 @@ SUBSYSTEM_DEF(projectiles)
 	VAR_PRIVATE/list/obj/projectile/sleepers
 	/// List of projectiles handled this controller firing
 	VAR_PRIVATE/list/obj/projectile/flying
+	/// Real-world time of last fire cycle start, used to compensate for server lag
+	VAR_PRIVATE/last_fire_real_time = 0
+	/// Delta time calculated at the start of each fire cycle, shared with resumed continuations
+	VAR_PRIVATE/current_delta_time = 0
 
 	/*
 	 * Scheduling notes:
@@ -39,13 +43,20 @@ SUBSYSTEM_DEF(projectiles)
 
 /datum/controller/subsystem/projectiles/fire(resumed = FALSE)
 	if(!resumed)
+		var/real_now = REALTIMEOFDAY
+		var/normal_delta = wait * world.tick_lag * (1 SECONDS)
+		var/real_delta = last_fire_real_time ? (real_now - last_fire_real_time) * (1 SECONDS) : normal_delta
+		if(real_delta < 0) // REALTIMEOFDAY midnight rollover guard
+			real_delta = normal_delta
+		last_fire_real_time = real_now
+		// Cap at 4x normal tick to prevent bullet teleportation during extreme lag or pauses
+		current_delta_time = clamp(real_delta, normal_delta, normal_delta * 4)
 		flying = projectiles.Copy()
 		flying -= sleepers
 	while(length(flying))
 		var/obj/projectile/projectile = flying[length(flying)]
 		flying.len--
-		var/delta_time = wait * world.tick_lag * (1 SECONDS)
-		handle_projectile_flight(projectile, delta_time)
+		handle_projectile_flight(projectile, current_delta_time)
 		if(MC_TICK_CHECK)
 			return
 

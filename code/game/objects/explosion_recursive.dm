@@ -77,8 +77,7 @@ explosion resistance exactly as much as their health
 	var/mob/causing_mob = explosion_cause_data?.resolve_mob()
 	msg_admin_attack("Explosion with Power: [power], Falloff: [falloff],[causing_obj ? " from [causing_obj]" : ""][causing_mob ? " by [key_name(causing_mob)]" : ""] in area [epicenter.loc.name] ([epicenter.x],[epicenter.y],[epicenter.z]).", loc.x, loc.y, loc.z)
 
-	playsound(epicenter, 'sound/effects/explosionfar.ogg', 100, 1, round(power^2,1))
-	playsound(epicenter, "explosion", 90, 1, max(round(power,1),7) )
+	play_explosion_sound(epicenter, power)
 
 	explosion_in_progress = 1
 	explosion_turfs = list()

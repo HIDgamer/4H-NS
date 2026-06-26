@@ -85,6 +85,7 @@
 	set_languages(list(LANGUAGE_HELLHOUND, LANGUAGE_YAUTJA))
 
 	GLOB.xeno_mob_list -= src
+	SSxeno.processable_xeno_list -= src
 	SSmob.living_misc_mobs += src
 	GLOB.hellhound_list += src
 	RegisterSignal(src, COMSIG_MOB_WEED_SLOWDOWN, PROC_REF(handle_weed_slowdown))

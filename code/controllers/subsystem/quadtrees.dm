@@ -1,6 +1,6 @@
 SUBSYSTEM_DEF(quadtree)
 	name = "Quadtree"
-	wait = 0.5 SECONDS
+	wait = 1 SECONDS
 	priority = SS_PRIORITY_QUADTREE
 
 	var/list/cur_quadtrees
@@ -26,8 +26,20 @@ SUBSYSTEM_DEF(quadtree)
 		cur_quadtrees = new_quadtrees.Copy()
 		if(length(new_quadtrees) < world.maxz)
 			new_quadtrees.len = world.maxz
+
+		// Determine which z-levels have active clients this cycle
+		var/list/active_z = new/list(world.maxz)
+		for(var/client/C as anything in player_feed)
+			var/turf/T = get_turf(C?.mob)
+			if(T?.z && T.z <= world.maxz)
+				active_z[T.z] = TRUE
+
+		// Only rebuild trees for z-levels that have players; clear the rest
 		for(var/i in 1 to world.maxz)
-			new_quadtrees[i] = QTREE(RECT(world.maxx/2,world.maxy/2, world.maxx, world.maxy), i)
+			if(active_z[i])
+				new_quadtrees[i] = QTREE(RECT(world.maxx/2, world.maxy/2, world.maxx, world.maxy), i)
+			else
+				new_quadtrees[i] = null
 
 	while(length(player_feed))
 		var/client/C = player_feed[length(player_feed)]

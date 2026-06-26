@@ -1,5 +1,7 @@
 /datum/asset/spritesheet/vending
 	name = "goods-vending"
+	// Instantiates every vending machine type at registration — defer until first UI open
+	boot_priority = ASSET_BOOT_LAZY
 
 /datum/asset/spritesheet/vending/register()
 	// initialising the list of items we need

@@ -78,9 +78,6 @@ SUBSYSTEM_DEF(mapping)
 /datum/controller/subsystem/mapping/fire(resumed)
 	// Cache for sonic speed
 	var/list/unused_turfs = src.unused_turfs
-	// CM TODO: figure out if these 2 are needed. Might be required by updated versions of map reader
-	//var/list/world_contents = GLOB.areas_by_type[world.area].contents
-	//var/list/world_turf_contents = GLOB.areas_by_type[world.area].contained_turfs
 	var/list/lists_to_reserve = src.lists_to_reserve
 	var/index = 0
 	while(index < length(lists_to_reserve))
@@ -95,11 +92,7 @@ SUBSYSTEM_DEF(mapping)
 			T.empty(RESERVED_TURF_TYPE, RESERVED_TURF_TYPE, null, TRUE)
 			LAZYINITLIST(unused_turfs["[T.z]"])
 			unused_turfs["[T.z]"] |= T
-			//var/area/old_area = T.loc
-			//old_area.turfs_to_uncontain += T
 			T.turf_flags |= UNUSED_RESERVATION_TURF
-			//world_contents += T
-			//world_turf_contents += T
 			packet.len--
 			packetlen = length(packet)
 

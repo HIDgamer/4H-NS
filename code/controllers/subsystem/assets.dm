@@ -22,9 +22,12 @@ SUBSYSTEM_DEF(assets)
 	transport.Load()
 
 /datum/controller/subsystem/assets/Initialize()
+	// Only instantiate critical assets at boot.  Lazy assets (ASSET_BOOT_LAZY) are skipped
+	// here and created on first access via get_asset_datum(), so they don't bloat boot time
+	// or appear in the transport preload list sent to every connecting client.
 	for(var/type in typesof(/datum/asset))
 		var/datum/asset/A = type
-		if(type != initial(A._abstract))
+		if(type != initial(A._abstract) && initial(A.boot_priority) == ASSET_BOOT_CRITICAL)
 			get_asset_datum(type)
 
 	transport.Initialize(cache)

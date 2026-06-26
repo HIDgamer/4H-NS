@@ -13,6 +13,9 @@ GLOBAL_LIST_EMPTY(asset_datums)
 
 /datum/asset
 	var/_abstract = /datum/asset
+	/// ASSET_BOOT_CRITICAL: registered at server boot (in SSassets preload).
+	/// ASSET_BOOT_LAZY: skipped at boot; instantiated on first get_asset_datum() call.
+	var/boot_priority = ASSET_BOOT_CRITICAL
 	var/cached_serialized_url_mappings
 	var/cached_serialized_url_mappings_transport_type
 

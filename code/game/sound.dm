@@ -42,6 +42,37 @@
 	if(cur_chan > FREE_CHAN_END)
 		cur_chan = 1
 
+#define EXPLOSION_SOUND_COALESCE_TILE_SIZE 4
+
+/// Plays the paired near/far explosion sounds while suppressing duplicate sound fanout
+/// for clustered explosions in the same tick and coarse map bucket.
+/proc/play_explosion_sound(atom/source, power)
+	var/turf/turf_source = get_turf(source)
+	if(!turf_source || !turf_source.z)
+		return FALSE
+
+	var/static/last_explosion_sound_tick = 0
+	var/static/list/explosion_sound_buckets = list()
+	if(last_explosion_sound_tick != world.time)
+		last_explosion_sound_tick = world.time
+		explosion_sound_buckets.Cut()
+
+	var/bucket_x = FLOOR(turf_source.x, EXPLOSION_SOUND_COALESCE_TILE_SIZE)
+	var/bucket_y = FLOOR(turf_source.y, EXPLOSION_SOUND_COALESCE_TILE_SIZE)
+	var/bucket_key = "[turf_source.z]:[bucket_x]:[bucket_y]"
+	if(explosion_sound_buckets[bucket_key])
+		return FALSE
+	explosion_sound_buckets[bucket_key] = TRUE
+
+	playsound(turf_source, 'sound/effects/explosionfar.ogg', 100, TRUE, round(power^2, 1))
+	if(power >= 300)
+		playsound(turf_source, "bigboom", 80, TRUE, max(round(power, 1), 7))
+	else
+		playsound(turf_source, "explosion", 90, TRUE, max(round(power, 1), 7))
+	return TRUE
+
+#undef EXPLOSION_SOUND_COALESCE_TILE_SIZE
+
 //Proc used to play a sound effect. Avoid using this proc for non-IC sounds, as there are others
 //source: self-explanatory.
 //soundin: the .ogg to use.

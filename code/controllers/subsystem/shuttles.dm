@@ -25,6 +25,11 @@ SUBSYSTEM_DEF(shuttle)
 	/// Now it's only for ID generation in /obj/docking_port/stationary/register()
 	var/list/assoc_stationary = list()
 
+	/// O(1) lookup of mobile ports by id; kept in sync with mobile list by register()/Destroy()
+	var/list/mobile_by_id = list()
+	/// O(1) lookup of stationary ports by id; kept in sync with stationary list by register()/unregister()
+	var/list/stationary_by_id = list()
+
 	/// A list of all the mobile docking ports currently requesting a spot in hyperspace.
 	var/list/transit_requesters = list()
 	/// An associative list of the mobile docking ports that have failed a transit request, with the amount of times they've actually failed that transit request, up to MAX_TRANSIT_REQUEST_RETRIES
@@ -112,9 +117,9 @@ SUBSYSTEM_DEF(shuttle)
 				break
 
 /datum/controller/subsystem/shuttle/proc/getShuttle(id, warn = TRUE)
-	for(var/obj/docking_port/mobile/shuttle in mobile)
-		if(shuttle.id == id)
-			return shuttle
+	var/obj/docking_port/mobile/found = mobile_by_id[id]
+	if(found)
+		return found
 	if(!warn)
 		return null
 	WARNING("couldn't find shuttle with id: [id]")
@@ -129,9 +134,9 @@ SUBSYSTEM_DEF(shuttle)
 	WARNING("couldn't find template shuttle with id: [id]")
 
 /datum/controller/subsystem/shuttle/proc/getDock(id)
-	for(var/obj/docking_port/stationary/S in stationary)
-		if(S.id == id)
-			return S
+	var/obj/docking_port/stationary/found = stationary_by_id[id]
+	if(found)
+		return found
 	WARNING("couldn't find dock with id: [id]")
 
 //try to move/request to dock_home if possible, otherwise dock_away. Mainly used for admin buttons
