@@ -825,7 +825,48 @@ GLOBAL_LIST_INIT(apc_wire_descriptions, alist(
 
 		if(grabber.a_intent == INTENT_GRAB)
 
-			//Synthpack recharge
+			// SIMI bracer recharge — also charges any equipped smartpack in the same session
+			if((grabber.species.flags & IS_SYNTHETIC) && istype(grabber.gloves, /obj/item/clothing/gloves/synth))
+				var/obj/item/clothing/gloves/synth/simi = grabber.gloves
+				if(grabber.action_busy)
+					return
+				simi.start_charging(grabber)
+				if(!do_after(grabber, 40, INTERRUPT_ALL, BUSY_ICON_GENERIC))
+					simi.stop_charging(grabber)
+					return
+				playsound(src.loc, 'sound/effects/sparks2.ogg', 25, 1)
+				if(stat & BROKEN)
+					var/datum/effect_system/spark_spread/spark = new()
+					spark.set_up(3, 1, src)
+					spark.start()
+					to_chat(grabber, SPAN_DANGER("The APC's power currents surge eratically, damaging your chassis!"))
+					grabber.apply_damage(10, 0, BURN)
+				else if(cell && cell.charge > 0)
+					if(simi.battery_charge < simi.battery_charge_max)
+						var/bracer_charge = min(cell.charge, simi.battery_charge_max - simi.battery_charge)
+						if(cell.use(bracer_charge))
+							simi.battery_charge += bracer_charge
+							to_chat(grabber, SPAN_NOTICE("You slot your fingers into the APC interface and siphon off some of the stored charge. [simi.name] now has <b>[simi.battery_charge]/[simi.battery_charge_max]</b>."))
+							charging = APC_CHARGING
+					else
+						to_chat(grabber, SPAN_WARNING("[simi.name] is already fully charged."))
+					// Also charge any smartpack on the back during the same connection
+					var/obj/item/storage/backpack/marine/smartpack/s_pack = grabber.back
+					if(istype(s_pack) && cell && cell.charge > 0)
+						if(s_pack.battery_charge < SMARTPACK_MAX_POWER_STORED)
+							var/pack_charge = min(cell.charge, SMARTPACK_MAX_POWER_STORED - s_pack.battery_charge)
+							if(cell.use(pack_charge))
+								s_pack.battery_charge += pack_charge
+								to_chat(grabber, SPAN_NOTICE("[s_pack.name] also charges to <b>[s_pack.battery_charge]/[SMARTPACK_MAX_POWER_STORED]</b>."))
+								charging = APC_CHARGING
+						else
+							to_chat(grabber, SPAN_WARNING("[s_pack.name] is already fully charged."))
+				else
+					to_chat(grabber, SPAN_WARNING("There is no charge to draw from that APC."))
+				simi.stop_charging(grabber)
+				return
+
+			//Synthpack recharge (no SIMI bracer worn)
 			if((grabber.species.flags & IS_SYNTHETIC) && istype(grabber.back, /obj/item/storage/backpack/marine/smartpack))
 				var/obj/item/storage/backpack/marine/smartpack/s_pack = grabber.back
 				if(grabber.action_busy)
