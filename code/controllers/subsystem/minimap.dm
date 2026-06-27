@@ -1113,6 +1113,24 @@ SUBSYSTEM_DEF(minimaps)
 	distribute_current_map_png(faction)
 	last_update_time = world.time
 
+/datum/proc/send_tacmap_assets_latejoin(mob/user)
+	if(!user.client)
+		return
+
+	var/is_observer = user.faction == FACTION_NEUTRAL && isobserver(user)
+	if((is_observer || user.faction == FACTION_MARINE) && length(GLOB.uscm_flat_tacmap_data))
+		// Send marine maps
+		var/datum/flattened_tacmap/latest = GLOB.uscm_flat_tacmap_data[length(GLOB.uscm_flat_tacmap_data)]
+		if(latest)
+			SSassets.transport.send_assets(user.client, latest.asset_key)
+
+	var/mob/living/carbon/xenomorph/xeno = user
+	if((is_observer || istype(xeno) && xeno.hivenumber == XENO_HIVE_NORMAL) && length(GLOB.xeno_flat_tacmap_data))
+		// Send xeno maps
+		var/datum/flattened_tacmap/latest = GLOB.xeno_flat_tacmap_data[length(GLOB.xeno_flat_tacmap_data)]
+		if(latest)
+			SSassets.transport.send_assets(user.client, latest.asset_key)
+
 /// Gets the MINIMAP_FLAG for the provided faction or hivenumber if one exists
 /proc/get_minimap_flag_for_faction(faction)
 	switch(faction)

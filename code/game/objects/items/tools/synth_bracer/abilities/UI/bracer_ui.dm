@@ -36,7 +36,9 @@
 		if(battery_charge <= 0)
 			to_chat(user, SPAN_WARNING("\The [src] has no power."))
 			return
-		drain_charge(user, 5, report_charge = FALSE)
+		drain_charge(user, 1, report_charge = FALSE)
+		ui_displaying = TRUE
+		START_PROCESSING(SSobj, src)
 		ui = new(user, src, "SynthBracer", name)
 		ui.open()
 
@@ -51,6 +53,11 @@
 	else
 		current_menu = "login"
 		last_menu = "main"
+	ui_displaying = FALSE
+	ui_display_tick = 0
+	ui_drain_tick = 0
+	if(!motion_detector_active)
+		STOP_PROCESSING(SSobj, src)
 
 /obj/item/clothing/gloves/synth/ui_data(mob/user)
 	var/list/data = list()

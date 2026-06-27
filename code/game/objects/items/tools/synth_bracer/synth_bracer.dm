@@ -190,6 +190,12 @@
 			ability_chips += new_chip
 			to_chat(user, SPAN_NOTICE("You slot [new_chip] into [src]!"))
 			playsound(src, 'sound/machines/terminal_processing.ogg', 15, TRUE)
+			if(istype(new_chip, /obj/item/device/simi_chip/laser_designator))
+				upgrade_binos()
+			if(istype(new_chip, /obj/item/device/simi_chip/battery_upgrade))
+				battery_charge_max = SMARTPACK_MAX_POWER_STORED * 2
+			if(istype(new_chip, /obj/item/device/simi_chip/live_tactical_map))
+				AddComponent(/datum/component/tacmap, FALSE, MINIMAP_FLAG_USCM, FALSE, FALSE)
 			if(user.gloves && (user.gloves == src))
 				update_actions(SIMI_ACTIONS_RELOAD, user)
 			else
@@ -204,13 +210,33 @@
 			return
 
 		var/removed_chips = FALSE
+		var/laser_removed = FALSE
+		var/battery_removed = FALSE
+		var/live_tacmap_removed = FALSE
 		for (var/obj/item/device/simi_chip/chip in ability_chips)
 			if(chip.secret)
 				continue
+			if(istype(chip, /obj/item/device/simi_chip/laser_designator))
+				laser_removed = TRUE
+			if(istype(chip, /obj/item/device/simi_chip/battery_upgrade))
+				battery_removed = TRUE
+			if(istype(chip, /obj/item/device/simi_chip/live_tactical_map))
+				live_tacmap_removed = TRUE
 			chip.forceMove(T)
 			ability_chips -= chip
 			removed_chips = TRUE
 		if(removed_chips)
+			if(laser_removed)
+				downgrade_binos()
+			if(battery_removed)
+				battery_charge_max = SMARTPACK_MAX_POWER_STORED
+				battery_charge = min(battery_charge, battery_charge_max)
+			if(live_tacmap_removed)
+				var/datum/component/tacmap/tc = GetComponent(/datum/component/tacmap)
+				if(tc)
+					for(var/mob/M in tc.interactees.Copy())
+						tc.on_unset_interaction(M)
+					qdel(tc)
 			if(user.gloves && (user.gloves == src))
 				update_actions(SIMI_ACTIONS_RELOAD, user)
 			else
