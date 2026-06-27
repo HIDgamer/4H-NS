@@ -4,6 +4,46 @@
  * @license MIT
  */
 
+export type CrtThemeConfig = {
+  fg: string;
+  bg: string;
+  bgDark: string;
+  label: string;
+};
+
+export const CRT_THEMES: Record<string, CrtThemeConfig> = {
+  'crt-green': {
+    fg: '#00e94e',
+    bg: '#001100',
+    bgDark: '#000d00',
+    label: 'CRT Green',
+  },
+  'crt-amber': {
+    fg: '#ffbf00',
+    bg: '#111100',
+    bgDark: '#0a0a00',
+    label: 'CRT Amber',
+  },
+  'crt-blue': {
+    fg: '#8ac8ff',
+    bg: '#001122',
+    bgDark: '#000d1a',
+    label: 'CRT Blue',
+  },
+  'crt-red': {
+    fg: '#ff3c3c',
+    bg: '#110000',
+    bgDark: '#0a0000',
+    label: 'CRT Red',
+  },
+  'crt-purple': {
+    fg: '#cc88ff',
+    bg: '#110022',
+    bgDark: '#0a001a',
+    label: 'CRT Purple',
+  },
+};
+
 export const THEMES = ['dark', 'light'];
 
 const COLOR_DARK_BG = '#202020';
@@ -13,25 +53,51 @@ const COLOR_DARK_TEXT = '#a4bad6';
 let setClientThemeTimer: NodeJS.Timeout;
 
 /**
- * Darkmode preference, originally by Kmc2000.
- *
- * This lets you switch client themes by using winset.
+ * Theme switching via winset.
+ * baseTheme controls TGUI dark/light CSS.
+ * colorPreset applies a CRT color overlay on top (null = no overlay).
  *
  * If you change ANYTHING in interface/skin.dmf you need to change it here.
- *
- * There's no way round it. We're essentially changing the skin by hand.
- * It's painful but it works, and is the way Lummox suggested.
  */
-export const setClientTheme = (name) => {
-  // Transmit once for fast updates and again in a little while in case we won
-  // the race against statbrowser init.
+export const setClientTheme = (baseTheme: string, colorPreset: string | null = null) => {
+  const effectiveName = colorPreset || baseTheme;
   clearInterval(setClientThemeTimer);
-  Byond.command(`.output statbrowser:set_theme ${name}`);
+  Byond.command(`.output statbrowser:set_theme ${effectiveName}`);
   setClientThemeTimer = setTimeout(() => {
-    Byond.command(`.output statbrowser:set_theme ${name}`);
+    Byond.command(`.output statbrowser:set_theme ${effectiveName}`);
   }, 1500);
 
-  if (name === 'light') {
+  const crtConfig = colorPreset ? CRT_THEMES[colorPreset] : null;
+  if (crtConfig) {
+    return Byond.winset({
+      'infowindow.background-color': crtConfig.bg,
+      'infowindow.text-color': crtConfig.fg,
+      'info.background-color': crtConfig.bg,
+      'info.text-color': crtConfig.fg,
+      'browseroutput.background-color': crtConfig.bg,
+      'browseroutput.text-color': crtConfig.fg,
+      'outputwindow.background-color': crtConfig.bg,
+      'outputwindow.text-color': crtConfig.fg,
+      'mainwindow.background-color': crtConfig.bg,
+      'split.background-color': crtConfig.bg,
+      'output.background-color': crtConfig.bgDark,
+      'output.text-color': crtConfig.fg,
+      'statwindow.background-color': crtConfig.bgDark,
+      'statwindow.text-color': crtConfig.fg,
+      'saybutton.background-color': crtConfig.bg,
+      'saybutton.text-color': crtConfig.fg,
+      'input.background-color': crtConfig.bg,
+      'input.text-color': crtConfig.fg,
+      'oocbutton.background-color': crtConfig.bg,
+      'oocbutton.text-color': crtConfig.fg,
+      'mebutton.background-color': crtConfig.bg,
+      'mebutton.text-color': crtConfig.fg,
+      'asset_cache_browser.background-color': crtConfig.bg,
+      'asset_cache_browser.text-color': crtConfig.fg,
+    });
+  }
+
+  if (baseTheme === 'light') {
     return Byond.winset({
       // Main windows
       'infowindow.background-color': 'none',
@@ -62,35 +128,35 @@ export const setClientTheme = (name) => {
       'asset_cache_browser.text-color': '#000000',
     });
   }
-  if (name === 'dark') {
-    Byond.winset({
-      // Main windows
-      'infowindow.background-color': COLOR_DARK_BG,
-      'infowindow.text-color': COLOR_DARK_TEXT,
-      'info.background-color': COLOR_DARK_BG,
-      'info.text-color': COLOR_DARK_TEXT,
-      'browseroutput.background-color': COLOR_DARK_BG,
-      'browseroutput.text-color': COLOR_DARK_TEXT,
-      'outputwindow.background-color': COLOR_DARK_BG,
-      'outputwindow.text-color': COLOR_DARK_TEXT,
-      'mainwindow.background-color': COLOR_DARK_BG,
-      'split.background-color': COLOR_DARK_BG,
-      // Status and verb tabs
-      'output.background-color': COLOR_DARK_BG_DARKER,
-      'output.text-color': COLOR_DARK_TEXT,
-      'statwindow.background-color': COLOR_DARK_BG_DARKER,
-      'statwindow.text-color': COLOR_DARK_TEXT,
-      // Say, OOC, me Buttons etc.
-      'saybutton.background-color': COLOR_DARK_BG,
-      'saybutton.text-color': COLOR_DARK_TEXT,
-      'input.background-color': COLOR_DARK_BG,
-      'input.text-color': COLOR_DARK_TEXT,
-      'oocbutton.background-color': COLOR_DARK_BG,
-      'oocbutton.text-color': COLOR_DARK_TEXT,
-      'mebutton.background-color': COLOR_DARK_BG,
-      'mebutton.text-color': COLOR_DARK_TEXT,
-      'asset_cache_browser.background-color': COLOR_DARK_BG,
-      'asset_cache_browser.text-color': COLOR_DARK_TEXT,
-    });
-  }
+
+  // Default: dark theme
+  Byond.winset({
+    // Main windows
+    'infowindow.background-color': COLOR_DARK_BG,
+    'infowindow.text-color': COLOR_DARK_TEXT,
+    'info.background-color': COLOR_DARK_BG,
+    'info.text-color': COLOR_DARK_TEXT,
+    'browseroutput.background-color': COLOR_DARK_BG,
+    'browseroutput.text-color': COLOR_DARK_TEXT,
+    'outputwindow.background-color': COLOR_DARK_BG,
+    'outputwindow.text-color': COLOR_DARK_TEXT,
+    'mainwindow.background-color': COLOR_DARK_BG,
+    'split.background-color': COLOR_DARK_BG,
+    // Status and verb tabs
+    'output.background-color': COLOR_DARK_BG_DARKER,
+    'output.text-color': COLOR_DARK_TEXT,
+    'statwindow.background-color': COLOR_DARK_BG_DARKER,
+    'statwindow.text-color': COLOR_DARK_TEXT,
+    // Say, OOC, me Buttons etc.
+    'saybutton.background-color': COLOR_DARK_BG,
+    'saybutton.text-color': COLOR_DARK_TEXT,
+    'input.background-color': COLOR_DARK_BG,
+    'input.text-color': COLOR_DARK_TEXT,
+    'oocbutton.background-color': COLOR_DARK_BG,
+    'oocbutton.text-color': COLOR_DARK_TEXT,
+    'mebutton.background-color': COLOR_DARK_BG,
+    'mebutton.text-color': COLOR_DARK_TEXT,
+    'asset_cache_browser.background-color': COLOR_DARK_BG,
+    'asset_cache_browser.text-color': COLOR_DARK_TEXT,
+  });
 };

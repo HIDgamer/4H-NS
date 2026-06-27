@@ -72,6 +72,7 @@ Also change the icon to reflect the amount of sheets, if possible.*/
 /obj/item/stack/Destroy()
 	if (usr && usr.interactee == src)
 		close_browser(src, "stack")
+	SStgui.close_uis(src)
 	return ..()
 
 /obj/item/stack/get_examine_text(mob/user)
@@ -80,7 +81,7 @@ Also change the icon to reflect the amount of sheets, if possible.*/
 
 /obj/item/stack/attack_self(mob/user)
 	..()
-	if(!recipes)
+	if (!recipes)
 		return
 	tgui_interact(user)
 

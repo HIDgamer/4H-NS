@@ -58,3 +58,6 @@
 
 // Goonchat styles
 @include meta.load-css('./goon/chat-dark.scss');
+
+// CRT panel theme overrides
+@include meta.load-css('./themes/crt-panel.scss');

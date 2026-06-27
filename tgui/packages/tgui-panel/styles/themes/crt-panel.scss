@@ -1,0 +1,194 @@
+/**
+ * CRT theme overrides for the chat panel (tgui-panel).
+ * Applied when the user selects a crt-* preset in chat settings.
+ * CSS custom properties --crt-fg and --crt-bg are injected by Panel.tsx.
+ */
+
+// --- Color variable defaults (overridden per-theme via data attribute) ---
+
+[data-crt-theme='crt-green'] {
+  --crt-fg: #00e94e;
+  --crt-bg: #001100;
+}
+
+[data-crt-theme='crt-amber'] {
+  --crt-fg: #ffbf00;
+  --crt-bg: #111100;
+}
+
+[data-crt-theme='crt-blue'] {
+  --crt-fg: #8ac8ff;
+  --crt-bg: #001122;
+}
+
+[data-crt-theme='crt-red'] {
+  --crt-fg: #ff3c3c;
+  --crt-bg: #110000;
+}
+
+[data-crt-theme='crt-purple'] {
+  --crt-fg: #cc88ff;
+  --crt-bg: #110022;
+}
+
+// --- Active CRT panel overrides ---
+
+.crt-panel-active {
+  // Scanline overlay on the entire panel
+  &::before {
+    content: '';
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%,
+        rgba(0, 0, 0, 0.18) 50%
+      ),
+      linear-gradient(
+        90deg,
+        rgba(255, 0, 0, 0.04),
+        rgba(0, 255, 0, 0.02),
+        rgba(0, 0, 255, 0.04)
+      );
+    background-size:
+      100% 2px,
+      3px 100%;
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  // Tabs bar
+  .CrtChatTabs {
+    font-family: monospace;
+    font-weight: bold;
+
+    .Tab {
+      border: 1px solid var(--crt-fg, #00e94e);
+      border-bottom: 3px solid var(--crt-fg, #00e94e);
+      color: var(--crt-fg, #00e94e);
+      background: var(--crt-bg, #001100);
+      font-family: monospace;
+      font-weight: bold;
+      transition: background 0.1s;
+
+      &:hover {
+        background: color-mix(in srgb, var(--crt-fg, #00e94e) 15%, transparent);
+      }
+    }
+
+    .Tab--selected {
+      background: var(--crt-fg, #00e94e);
+      color: var(--crt-bg, #001100);
+      border-bottom: none;
+
+      .Tab__text {
+        color: var(--crt-bg, #001100);
+      }
+
+      &:hover {
+        background: var(--crt-fg, #00e94e);
+      }
+    }
+  }
+
+  // Unread badge using CRT fg color instead of crimson
+  .CrtChatTabs__unread {
+    font-size: 0.7em;
+    border-radius: 0.25em;
+    width: 1.7em;
+    line-height: 1.55em;
+    background-color: var(--crt-fg, #00e94e);
+    color: var(--crt-bg, #001100);
+    text-align: center;
+  }
+
+  // Section header bar in CRT style
+  .Section__title {
+    color: var(--crt-fg, #00e94e);
+    font-family: monospace;
+    font-weight: bold;
+    border-bottom: 1px solid var(--crt-fg, #00e94e);
+  }
+
+  .Section__titleText {
+    color: var(--crt-fg, #00e94e);
+  }
+
+  // Buttons in CRT style
+  .Button {
+    font-family: monospace;
+    font-weight: bold;
+    border: 1px solid var(--crt-fg, #00e94e);
+    color: var(--crt-fg, #00e94e);
+    background: transparent;
+    transition:
+      background 0.08s ease,
+      color 0.08s ease,
+      box-shadow 0.08s ease;
+
+    &:hover {
+      background: var(--crt-fg, #00e94e);
+      color: var(--crt-bg, #001100);
+      box-shadow: 0 0 8px var(--crt-fg, #00e94e);
+    }
+  }
+
+  @keyframes crt-panel-btn-press {
+    0% {
+      background: var(--crt-fg, #00e94e);
+      color: var(--crt-bg, #001100);
+    }
+    70% {
+      background: var(--crt-fg, #00e94e);
+      color: var(--crt-bg, #001100);
+    }
+    100% {
+      background: transparent;
+      color: var(--crt-fg, #00e94e);
+    }
+  }
+
+  .Button:active:not([class*='disabled']) {
+    animation: crt-panel-btn-press 0.18s ease-out forwards;
+  }
+
+  // CRT glow pulse on unread badge when new messages arrive
+  @keyframes crt-badge-pulse {
+    0% {
+      box-shadow: 0 0 2px var(--crt-fg, #00e94e);
+    }
+    50% {
+      box-shadow: 0 0 10px var(--crt-fg, #00e94e);
+    }
+    100% {
+      box-shadow: 0 0 2px var(--crt-fg, #00e94e);
+    }
+  }
+
+  .CrtChatTabs__unread {
+    animation: crt-badge-pulse 1.5s ease-in-out infinite;
+  }
+
+  // Smooth tab hover slide underline
+  .CrtChatTabs .Tab::after {
+    content: '';
+    display: block;
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: var(--crt-fg, #00e94e);
+    transition:
+      width 0.15s ease,
+      left 0.15s ease;
+  }
+
+  .CrtChatTabs .Tab:hover::after {
+    width: 100%;
+    left: 0;
+  }
+}

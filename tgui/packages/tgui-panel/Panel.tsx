@@ -4,8 +4,13 @@
  * @license MIT
  */
 
+import { classes } from 'common/react';
+import type { CSSProperties } from 'react';
+import { useEffect, useRef } from 'react';
 import { Button, Section, Stack } from 'tgui/components';
 import { Pane } from 'tgui/layouts';
+
+import { CRT_THEMES } from './themes';
 
 import { NowPlayingWidget, useAudio } from './audio';
 import { ChatPanel, ChatTabs } from './chat';
@@ -15,10 +20,49 @@ import { PingIndicator } from './ping';
 import { ReconnectButton } from './reconnect';
 import { SettingsPanel, useSettings } from './settings';
 
+// Generates a short CRT-style electronic click via Web Audio API.
+const playCrtClick = (fgColor: string) => {
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.04);
+    gain.gain.setValueAtTime(0.06, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.06);
+    osc.onended = () => ctx.close();
+  } catch {
+    // Web Audio unavailable — silent fallback
+  }
+};
+
 export const Panel = (props) => {
   const audio = useAudio();
   const settings = useSettings();
   const game = useGame();
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const isCrtTheme = !!(settings.colorPreset && CRT_THEMES[settings.colorPreset]);
+  const crtConfig = isCrtTheme ? CRT_THEMES[settings.colorPreset] : null;
+
+  // Attach a delegated mousedown listener for CRT click sounds.
+  useEffect(() => {
+    if (!isCrtTheme || !panelRef.current) return;
+    const el = panelRef.current;
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('.Button')) {
+        playCrtClick(crtConfig?.fg ?? '#00e94e');
+      }
+    };
+    el.addEventListener('mousedown', handleClick);
+    return () => el.removeEventListener('mousedown', handleClick);
+  }, [isCrtTheme, crtConfig]);
   if (process.env.NODE_ENV !== 'production') {
     const { useDebug, KitchenSink } = require('tgui/debug');
     const debug = useDebug();
@@ -28,7 +72,23 @@ export const Panel = (props) => {
   }
 
   return (
-    <Pane theme={settings.theme}>
+    <div
+      ref={panelRef}
+      style={{ height: '100%', width: '100%', display: 'contents' } as CSSProperties}
+    >
+    <Pane
+      theme={settings.theme}
+      className={classes([isCrtTheme && 'crt-panel-active'])}
+      data-crt-theme={isCrtTheme ? settings.colorPreset : undefined}
+      style={
+        isCrtTheme && crtConfig
+          ? ({
+              '--crt-fg': crtConfig.fg,
+              '--crt-bg': crtConfig.bg,
+            } as CSSProperties)
+          : undefined
+      }
+    >
       <Stack fill vertical>
         <Stack.Item>
           <Section fitted>
@@ -98,5 +158,6 @@ export const Panel = (props) => {
         </Stack.Item>
       </Stack>
     </Pane>
+    </div>
   );
 };
