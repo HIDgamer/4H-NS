@@ -533,6 +533,11 @@
 	desc = "It says it is a plush on the tag, at least."
 	icon_state = "rock"
 
+/obj/item/toy/plush/moth
+	name = "moth plush"
+	desc = "A soft plush toy shaped like a moth. Perfect for any marine with a fondness for the creepy-crawlies."
+	icon_state = "bee"
+
 /obj/item/toy/plush/gnarp
 	name = "gnarp plush"
 	desc = "gnarp gnarp."

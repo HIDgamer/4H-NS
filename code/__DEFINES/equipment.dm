@@ -29,6 +29,8 @@
 #define NO_NAME_OVERRIDE (1<<10)
 /// Used for armors or uniforms that don't have a snow/desert/etc icon state set via select_gamemode_skin.
 #define NO_GAMEMODE_SKIN (1<<11)
+/// Alias for NO_GAMEMODE_SKIN used in older helmet code.
+#define NO_SNOW_TYPE NO_GAMEMODE_SKIN
 
 #define INVULNERABLE (1<<12)
 
