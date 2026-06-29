@@ -9,6 +9,7 @@
 
 //Define for ship alt
 #define COOLDOWN_ALTITUDE_CHANGE "altitude_change"
+#define COOLDOWN_HUD_ORDER "hud_order"
 
 
 //// COOLDOWN SYSTEMS

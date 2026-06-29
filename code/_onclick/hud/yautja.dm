@@ -1,3 +1,8 @@
+/datum/hud/human/yautja/New(mob/living/carbon/human/owner, datum/custom_hud/hud_type, ui_color = "#ffffff", ui_alpha = 255)
+	..()
+	qdel(hide_actions_toggle)
+	hide_actions_toggle = new /atom/movable/screen/action_button/hide_toggle/pred()
+
 /datum/hud/human/yautja/draw_locator_spot(datum/custom_hud/ui_datum)
 	pred_power_icon = new /atom/movable/screen()
 	pred_power_icon.icon = 'icons/mob/hud/hud_yautja.dmi'

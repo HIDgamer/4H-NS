@@ -98,20 +98,32 @@
 /atom/movable/screen/action_button/hide_toggle
 	name = "Hide Buttons"
 	icon = 'icons/mob/hud/actions.dmi'
-	icon_state = "hide"
+	icon_state = "marine_hide"
 	var/hidden = 0
+	var/hide_state = "marine_hide"
+	var/show_state = "marine_show"
 
 /atom/movable/screen/action_button/hide_toggle/clicked(mob/user, list/mods)
 	user.hud_used.action_buttons_hidden = !user.hud_used.action_buttons_hidden
 	hidden = user.hud_used.action_buttons_hidden
 	if(hidden)
 		name = "Show Buttons"
-		icon_state = "show"
+		icon_state = show_state
 	else
 		name = "Hide Buttons"
-		icon_state = "hide"
+		icon_state = hide_state
 	user.update_action_buttons()
 	return TRUE
+
+/atom/movable/screen/action_button/hide_toggle/xeno
+	icon_state = "xeno_hide"
+	hide_state = "xeno_hide"
+	show_state = "xeno_show"
+
+/atom/movable/screen/action_button/hide_toggle/pred
+	icon_state = "pred_hide"
+	hide_state = "pred_hide"
+	show_state = "pred_show"
 
 /atom/movable/screen/action_button/ghost/minimap/get_button_screen_loc(button_number)
 	return "SOUTH:6,CENTER+1:24"

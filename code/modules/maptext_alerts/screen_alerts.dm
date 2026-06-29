@@ -11,15 +11,15 @@
  * * override_color: the color of the text to use
  */
 /mob/proc/play_screen_text(text, alert_type = /atom/movable/screen/text/screen_text, override_color = "#FFFFFF")
-	var/atom/movable/screen/text/screen_text/text_box = new alert_type()
+	var/atom/movable/screen/text/screen_text/text_box = isatom(alert_type) ? alert_type : new alert_type()
 	text_box.text_to_play = text
 	text_box.player = client
 	if(override_color)
 		text_box.color = override_color
-
-	LAZYADD(client.screen_texts, text_box)
-	if(LAZYLEN(client.screen_texts) == 1) //lets only play one at a time, for thematic effect and prevent overlap
-		INVOKE_ASYNC(text_box, TYPE_PROC_REF(/atom/movable/screen/text/screen_text, play_to_client))
+	if(client)
+		LAZYADD(client.screen_texts, text_box)
+		if(LAZYLEN(client.screen_texts) == 1) //lets only play one at a time, for thematic effect and prevent overlap
+			INVOKE_ASYNC(text_box, TYPE_PROC_REF(/atom/movable/screen/text/screen_text, play_to_client))
 
 /atom/movable/screen/text/screen_text
 	icon = null
@@ -54,15 +54,24 @@
 
 /atom/movable/screen/text/screen_text/command_order
 	maptext_height = 64
-	maptext_width = 480
+	maptext_width = 400
 	maptext_x = 0
 	maptext_y = 0
 	screen_loc = "LEFT,TOP-3"
 
 	letters_per_update = 2
-	fade_out_delay = 4.5 SECONDS
-	style_open = "<span class='langchat' style=font-size:16pt;text-align:center valign='top'>"
+	fade_out_delay = 10 SECONDS
+	style_open = "<span class='langchat' style=font-size:24pt;text-align:center valign='top'>"
 	style_close = "</span>"
+
+/atom/movable/screen/text/screen_text/command_order/yautja
+	play_delay = 0.3
+	fade_out_delay = 10 SECONDS
+	fade_out_time = 3 SECONDS
+
+/atom/movable/screen/text/screen_text/command_order/automated
+	fade_out_delay = 3 SECONDS
+	style_open = "<span class='langchat' style=font-size:20pt;text-align:center valign='top'>"
 
 /atom/movable/screen/text/screen_text/command_order/tutorial
 	letters_per_update = 4 // overall, pretty fast while not immediately popping in

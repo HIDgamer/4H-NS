@@ -389,7 +389,7 @@
 
 /datum/action/xeno_action/onclick/xenohide
 	name = "Hide"
-	action_icon_state = "xenohide"
+	action_icon_state = "xeno_hide"
 	plasma_cost = 0
 	xeno_cooldown = 0.5 SECONDS
 	macro_path = /datum/action/xeno_action/verb/verb_hide

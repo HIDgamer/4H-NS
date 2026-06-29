@@ -1662,6 +1662,10 @@
 /datum/job/antag/upp/officer //this is placeholder for stuff that is supposed to be the same for all officers
 	selection_class = "job_command"
 
+/datum/equipment_preset/upp/officer/load_status(mob/living/carbon/human/new_human, client/mob_client)
+	. = ..()
+	give_action(new_human, /datum/action/innate/message_squad)
+
 /datum/equipment_preset/upp/officer/load_gear(mob/living/carbon/human/new_human)
 	. = ..()
 	//face

@@ -3,6 +3,8 @@
 
 /datum/hud/alien/New(mob/living/carbon/xenomorph/owner)
 	..()
+	qdel(hide_actions_toggle)
+	hide_actions_toggle = new /atom/movable/screen/action_button/hide_toggle/xeno()
 	ui_alien_datum = GLOB.custom_huds_list[HUD_ALIEN]
 
 	draw_act_intent(ui_alien_datum)
