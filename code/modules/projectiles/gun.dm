@@ -2000,10 +2000,10 @@ not all weapons use normal magazines etc. load_into_chamber() itself is designed
 	if(iscarbonsizexeno(user))
 		var/mob/living/carbon/xenomorph/xeno = user
 		I.pixel_x = xeno.xeno_inhand_item_offset //To center it on the xeno sprite without being thrown off by rotation.
-	rotate.Translate(0, 5) //Y offset to push the flash overlay outwards.
+	rotate.Translate(0, 10) //Y offset to push the flash overlay outwards.
 	rotate.Turn(angle)
 	I.transform = rotate
-	I.flick_overlay(user, 3)
+	I.flick_overlay(user, 6)
 
 /// called by a timer to remove the light range from muzzle flash
 /obj/item/weapon/gun/proc/reset_light_range(lightrange)

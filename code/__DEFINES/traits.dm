@@ -470,6 +470,8 @@ GLOBAL_LIST(trait_name_map)
 #define TRAIT_SOURCE_TEMPORARY_MUTE "t_s_temporary_mute"
 ///Status trait forced by the xeno action charge
 #define TRAIT_SOURCE_XENO_ACTION_CHARGE "t_s_xeno_action_charge"
+///Status trait coming from xeno hauling
+#define TRAIT_SOURCE_XENO_HAUL "t_s_xeno_haul"
 ///Status trait coming from hivemind interference
 #define TRAIT_SOURCE_HIVEMIND_INTERFERENCE "t_s_hivemind_interference"
 ///Status trait coming from a xeno nest

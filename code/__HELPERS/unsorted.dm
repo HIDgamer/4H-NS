@@ -950,6 +950,13 @@ GLOBAL_DATUM(action_purple_power_up, /image)
 //Takes: Anything that could possibly have variables and a varname to check.
 //Returns: 1 if found, 0 if not.
 /proc/hasvar(datum/A, varname)
+	// "Cannot execute null.Find()" - A.vars itself reads back null when A has
+	// already been hard-deleted (not just null A itself, which would fail
+	// one dereference earlier on A.vars directly) by the time a caller (e.g.
+	// predator loadout prefs, checking an item that got cleaned up mid-preview)
+	// gets around to checking it.
+	if(!A || !A.vars)
+		return 0
 	if(A.vars.Find(lowertext(varname)))
 		return 1
 	else

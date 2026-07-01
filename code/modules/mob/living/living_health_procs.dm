@@ -631,6 +631,7 @@
 	if(ishuman(src))
 		var/mob/living/carbon/human/H = src
 		H.update_body()
+		H.update_inv_back()
 
 /mob/living/keybind_face_direction(direction)
 	if(!canface())

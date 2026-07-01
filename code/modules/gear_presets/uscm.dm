@@ -1030,8 +1030,6 @@
 	new_human.equip_to_slot_or_del(new /obj/item/device/motiondetector(new_human), WEAR_IN_BACK)
 	new_human.equip_to_slot_or_del(new /obj/item/stack/sheet/metal/medium_stack(new_human), WEAR_IN_BACK)
 	new_human.equip_to_slot_or_del(new /obj/item/stack/sheet/plasteel/medium_stack(new_human), WEAR_IN_BACK)
-	new_human.equip_to_slot_or_del(new /obj/item/clothing/accessory/patch/devils(new_human), WEAR_IN_BACK)
-
 	new_human.equip_to_slot_or_del(new /obj/item/weapon/gun/rifle/m41aMK1/ap(new_human), WEAR_J_STORE)
 	new_human.equip_to_slot_or_del(new /obj/item/storage/belt/marine(new_human), WEAR_WAIST)
 	new_human.equip_to_slot_or_del(new /obj/item/ammo_magazine/rifle/m41aMK1(new_human.back), WEAR_IN_BELT)
@@ -1098,9 +1096,7 @@
 	new_human.equip_to_slot_or_del(new /obj/item/tool/surgery/synthgraft, WEAR_IN_BACK)
 	new_human.equip_to_slot_or_del(new /obj/item/device/defibrillator(new_human), WEAR_IN_BACK)
 	new_human.equip_to_slot_or_del(new /obj/item/device/healthanalyzer(new_human), WEAR_IN_BACK)
-	new_human.equip_to_slot_or_del(new /obj/item/clothing/accessory/patch/devils(new_human), WEAR_IN_BACK)
 
-	new_human.equip_to_slot_or_del(new /obj/item/weapon/gun/rifle/m41aMK1/ap(new_human), WEAR_J_STORE)
 	new_human.equip_to_slot_or_del(new /obj/item/storage/belt/medical/lifesaver/full(new_human), WEAR_WAIST)
 	spawn_marine_fluff_items(new_human)
 
@@ -1127,10 +1123,8 @@
 	new_human.equip_to_slot_or_del(new /obj/item/tool/screwdriver/tactical(new_human), WEAR_R_EAR)
 
 	new_human.equip_to_slot_or_del(new /obj/item/clothing/suit/storage/marine/smartgunner(new_human), WEAR_JACKET)
-	new_human.equip_to_slot_or_del(new /obj/item/clothing/accessory/patch/devils(new_human), WEAR_IN_JACKET)
 	new_human.equip_to_slot_or_del(new /obj/item/device/binoculars/range/designator(new_human), WEAR_IN_JACKET)
 
-	new_human.equip_to_slot_or_del(new /obj/item/clothing/accessory/storage/webbing/five_slots(new_human), WEAR_ACCESSORY)
 
 	new_human.equip_to_slot_or_del(new /obj/item/tool/crowbar/tactical(new_human), WEAR_IN_ACCESSORY)
 	new_human.equip_to_slot_or_del(new /obj/item/tool/wirecutters/tactical(new_human), WEAR_IN_ACCESSORY)
@@ -1195,11 +1189,9 @@
 	new_human.equip_to_slot_or_del(new /obj/item/storage/box/packet/high_explosive(new_human), WEAR_IN_BACK)
 	new_human.equip_to_slot_or_del(new /obj/item/device/motiondetector(new_human), WEAR_IN_BACK)
 	new_human.equip_to_slot_or_del(new /obj/item/defenses/handheld/sentry(new_human), WEAR_IN_BACK)
-	new_human.equip_to_slot_or_del(new /obj/item/clothing/accessory/patch/devils(new_human), WEAR_IN_BACK)
 
 	new_human.equip_to_slot_or_del(new /obj/item/weapon/gun/rifle/m41aMK1/ap(new_human), WEAR_J_STORE)
 	new_human.equip_to_slot_or_del(new /obj/item/storage/belt/marine(new_human), WEAR_WAIST)
-	new_human.equip_to_slot_or_del(new /obj/item/ammo_magazine/rifle/m41aMK1(new_human.back), WEAR_IN_BELT)
 	new_human.equip_to_slot_or_del(new /obj/item/ammo_magazine/rifle/m41aMK1(new_human.back), WEAR_IN_BELT)
 	new_human.equip_to_slot_or_del(new /obj/item/ammo_magazine/rifle/m41aMK1(new_human.back), WEAR_IN_BELT)
 	new_human.equip_to_slot_or_del(new /obj/item/ammo_magazine/rifle/m41aMK1/ap(new_human.back), WEAR_IN_BELT)
@@ -1255,11 +1247,9 @@
 	new_human.equip_to_slot_or_del(new /obj/item/storage/firstaid/surgical(new_human), WEAR_IN_BACK)
 	new_human.equip_to_slot_or_del(new /obj/item/device/motiondetector(new_human), WEAR_IN_BACK)
 	new_human.equip_to_slot_or_del(new /obj/item/stack/sheet/metal/large_stack(new_human), WEAR_IN_BACK)
-	new_human.equip_to_slot_or_del(new /obj/item/clothing/accessory/patch/devils(new_human), WEAR_IN_BACK)
 
 	new_human.equip_to_slot_or_del(new /obj/item/weapon/gun/rifle/m41aMK1/ap(new_human), WEAR_J_STORE)
 	new_human.equip_to_slot_or_del(new /obj/item/storage/belt/marine(new_human), WEAR_WAIST)
-	new_human.equip_to_slot_or_del(new /obj/item/ammo_magazine/rifle/m41aMK1(new_human.back), WEAR_IN_BELT)
 	new_human.equip_to_slot_or_del(new /obj/item/ammo_magazine/rifle/m41aMK1(new_human.back), WEAR_IN_BELT)
 	new_human.equip_to_slot_or_del(new /obj/item/ammo_magazine/rifle/m41aMK1(new_human.back), WEAR_IN_BELT)
 	new_human.equip_to_slot_or_del(new /obj/item/ammo_magazine/rifle/m41aMK1/ap(new_human.back), WEAR_IN_BELT)
@@ -1309,11 +1299,9 @@
 	new_human.equip_to_slot_or_del(new /obj/item/storage/toolkit/full(new_human), WEAR_IN_BACK)
 	new_human.equip_to_slot_or_del(new /obj/item/storage/box/packet/high_explosive(new_human), WEAR_IN_BACK)
 	new_human.equip_to_slot_or_del(new /obj/item/storage/box/packet/incendiary(new_human), WEAR_IN_BACK)
-	new_human.equip_to_slot_or_del(new /obj/item/clothing/accessory/patch/devils(new_human), WEAR_IN_BACK)
 
 	new_human.equip_to_slot_or_del(new /obj/item/weapon/gun/rifle/m41aMK1/ap(new_human), WEAR_J_STORE)
 	new_human.equip_to_slot_or_del(new /obj/item/storage/belt/marine(new_human), WEAR_WAIST)
-	new_human.equip_to_slot_or_del(new /obj/item/ammo_magazine/rifle/m41aMK1(new_human.back), WEAR_IN_BELT)
 	new_human.equip_to_slot_or_del(new /obj/item/ammo_magazine/rifle/m41aMK1(new_human.back), WEAR_IN_BELT)
 	new_human.equip_to_slot_or_del(new /obj/item/ammo_magazine/rifle/m41aMK1(new_human.back), WEAR_IN_BELT)
 	new_human.equip_to_slot_or_del(new /obj/item/ammo_magazine/rifle/m41aMK1/ap(new_human.back), WEAR_IN_BELT)
@@ -1352,14 +1340,12 @@
 	new_human.equip_to_slot_or_del(new /obj/item/storage/pouch/firstaid/full(new_human), WEAR_L_STORE)
 	new_human.equip_to_slot_or_del(new /obj/item/clothing/gloves/marine/insulated/black(new_human), WEAR_HANDS)
 	new_human.equip_to_slot_or_del(new /obj/item/clothing/shoes/marine/knife(new_human), WEAR_FEET)
-	new_human.equip_to_slot_or_del(new /obj/item/clothing/accessory/patch/devils(new_human), WEAR_IN_BACK)
 
 	new_human.equip_to_slot_or_del(new /obj/item/weapon/gun/rifle/m41aMK1/ap(new_human), WEAR_J_STORE)
 	new_human.equip_to_slot_or_del(new /obj/item/storage/belt/marine(new_human), WEAR_WAIST)
 	new_human.equip_to_slot_or_del(new /obj/item/ammo_magazine/rifle/m41aMK1(new_human.back), WEAR_IN_BELT)
 	new_human.equip_to_slot_or_del(new /obj/item/ammo_magazine/rifle/m41aMK1(new_human.back), WEAR_IN_BELT)
 	new_human.equip_to_slot_or_del(new /obj/item/ammo_magazine/rifle/m41aMK1(new_human.back), WEAR_IN_BELT)
-	new_human.equip_to_slot_or_del(new /obj/item/ammo_magazine/rifle/m41aMK1/ap(new_human.back), WEAR_IN_BELT)
 	new_human.equip_to_slot_or_del(new /obj/item/ammo_magazine/rifle/m41aMK1/ap(new_human.back), WEAR_IN_BELT)
 	spawn_marine_fluff_items(new_human)
 
@@ -1382,7 +1368,6 @@
 	new_human.equip_to_slot_or_del(new /obj/item/tool/screwdriver/tactical(new_human), WEAR_R_EAR)
 
 	new_human.equip_to_slot_or_del(new /obj/item/clothing/suit/storage/marine/smartgunner(new_human), WEAR_JACKET)
-	new_human.equip_to_slot_or_del(new /obj/item/clothing/accessory/patch/devils(new_human), WEAR_IN_JACKET)
 	new_human.equip_to_slot_or_del(new /obj/item/device/binoculars/range/designator(new_human), WEAR_IN_JACKET)
 
 	new_human.equip_to_slot_or_del(new /obj/item/clothing/accessory/storage/webbing/five_slots(new_human), WEAR_ACCESSORY)
@@ -1390,7 +1375,6 @@
 	new_human.equip_to_slot_or_del(new /obj/item/weapon/gun/smartgun/pve(new_human), WEAR_J_STORE)
 	new_human.equip_to_slot_or_del(new /obj/item/storage/belt/gun/smartgunner/full(new_human), WEAR_WAIST)
 	new_human.equip_to_slot_or_del(new /obj/item/clothing/shoes/marine/knife(new_human), WEAR_FEET)
-	new_human.equip_to_slot_or_del(new /obj/item/clothing/gloves/marine/insulated/black(new_human), WEAR_HANDS)
 	new_human.equip_to_slot_or_del(new /obj/item/clothing/glasses/night/m56_goggles(new_human), WEAR_EYES)
 	new_human.equip_to_slot_or_del(new /obj/item/storage/pouch/firstaid/full(new_human), WEAR_L_STORE)
 	new_human.equip_to_slot_or_del(new /obj/item/storage/pouch/firstaid/full/alternate(new_human), WEAR_R_STORE)

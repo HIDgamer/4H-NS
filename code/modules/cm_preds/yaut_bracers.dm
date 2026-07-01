@@ -125,15 +125,6 @@
 
 	if(!isyautja(owner))
 		if(owner.stat >= DEAD)
-			if(human_owner.undefibbable)
-				SSminimaps.add_marker(owner, wearer_turf.z, MINIMAP_FLAG_YAUTJA, "bracer_stolen", 'icons/ui_icons/map_blips.dmi', overlay_iconstates = list("undefibbable"))
-			else
-				SSminimaps.add_marker(owner, wearer_turf.z, MINIMAP_FLAG_YAUTJA, "bracer_stolen", 'icons/ui_icons/map_blips.dmi', overlay_iconstates = list("defibbable"))
-		else
-			SSminimaps.add_marker(owner, wearer_turf.z, MINIMAP_FLAG_YAUTJA, "bracer_stolen", 'icons/ui_icons/map_blips.dmi')
-	else
-		if(owner?.stat >= DEAD)
-			SSminimaps.add_marker(owner, wearer_turf.z, MINIMAP_FLAG_YAUTJA, human_owner.assigned_equipment_preset.minimap_icon,, 'icons/ui_icons/map_blips.dmi', overlay_iconstates = list("undefibbable")) //defib/undefib status doesn't really matter because they're gonna explode in the end regardless
 		else
 			SSminimaps.add_marker(owner, wearer_turf.z, MINIMAP_FLAG_YAUTJA, human_owner.assigned_equipment_preset.minimap_icon, 'icons/ui_icons/map_blips.dmi')
 /*

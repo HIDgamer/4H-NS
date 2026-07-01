@@ -287,6 +287,12 @@
 		/obj/item/device/motiontracker/adv,
 	)
 
+/obj/item/clothing/suit/storage/webbing/lite
+	name = "light webbing"
+	desc = "A lighter version of the standard external webbing, designed with a much lighter frame but the same storage space."
+	icon_state = "webbing_lite"
+	item_state = "webbing_lite"
+
 /obj/item/clothing/suit/storage/utility_vest
 	name = "utility vest"
 	desc = "A utility vest to hold tools in."

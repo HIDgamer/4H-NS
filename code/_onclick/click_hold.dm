@@ -41,15 +41,10 @@
 
 	/*Used by TOGGLE_COMBAT_CLICKDRAG_OVERRIDE to trigger clicks immediately when depressing the mouse button when on disarm/harm intent to prevent click-dragging
 	from 'eating' attacks. We'll either abort and let Byond behave normally, or override it and do a click immediately even if the button is held down.*/
-	if(prefs && prefs.toggle_prefs & TOGGLE_COMBAT_CLICKDRAG_OVERRIDE && !(HAS_TRAIT(mob, TRAIT_OVERRIDE_CLICKDRAG)) )
+	if(prefs && prefs.toggle_prefs & TOGGLE_COMBAT_CLICKDRAG_OVERRIDE)
 		switch(mob.a_intent) //Only combat intents should override click-drags.
 			if(INTENT_HELP, INTENT_GRAB)
 				return
-
-		//Some combat intent click-drags shouldn't be overridden.
-		var/mob/target_mob = A
-		if(ismob(target_mob) && target_mob.faction == mob.faction && !mods["ctrl"] && !(iscarbonsizexeno(mob) && !mob.get_active_hand())) //Don't attack your allies or yourself, unless you're a xeno with an open hand.
-			return
 
 		if(!isturf(T)) //If clickdragging something in your own inventory, it's probably a deliberate attempt to open something, tactical-reload, etc. Don't click it.
 			return //'T' is actually 'location', and if it isn't a turf, the item is most likely a HUD screen or in inventory somewhere.

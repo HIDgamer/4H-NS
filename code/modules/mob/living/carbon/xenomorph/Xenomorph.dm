@@ -563,6 +563,31 @@
 	if(R.fire_penetrating)
 		return
 
+/**
+ * "Queens and kings are too large T4 casts - when they walk into a tile
+ * that has another lower/smaller mob, they 'walk over them,' stunning
+ * them" - a real trait, not previously implemented anywhere: knocks down
+ * whatever smaller living thing she bumps into and walks straight through
+ * onto that tile instead of just being blocked by it, same as shoving past
+ * someone far weaker than you. Scoped to Queen/King by caste_type directly
+ * (not mob_size - neither of them actually sets mob_size to MOB_SIZE_BIG;
+ * that var is a push-resistance stat other castes use, not a general
+ * "is this thing huge" flag, so gating on it here would've silently
+ * excluded the exact two castes this is for). Same-hive xenos are excluded
+ * outright - this is for shouldering through marines, not daughters.
+ */
+/mob/living/carbon/xenomorph/Bump(atom/bumped_atom)
+	if((caste_type == XENO_CASTE_QUEEN || caste_type == XENO_CASTE_KING) && isliving(bumped_atom) && bumped_atom != src)
+		var/mob/living/bumped_mob = bumped_atom
+		if(bumped_mob.stat != DEAD && bumped_mob.mob_size < mob_size && !(isxeno(bumped_mob) && bumped_mob.hivenumber == hivenumber))
+			var/turf/trample_turf = get_turf(bumped_mob)
+			bumped_mob.apply_effect(2, WEAKEN)
+			bumped_mob.visible_message(SPAN_XENODANGER("[src] tramples over [bumped_mob]!"), SPAN_XENODANGER("[src] tramples over you!"))
+			forceMove(trample_turf)
+			return
+	return ..()
+
+/mob/living/carbon/xenomorph/proc/get_component_flags()
 	. = COMPONENT_NO_BURN
 	// Burrowed xenos also cannot be ignited
 	if((caste.fire_immunity & FIRE_IMMUNITY_NO_IGNITE) || HAS_TRAIT(src, TRAIT_ABILITY_BURROWED))

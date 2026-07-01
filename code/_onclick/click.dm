@@ -3,6 +3,7 @@
 
 /// 1 decisecond click delay (above and beyond mob/next_move)
 /mob/var/next_click = 0
+
 /*
 	client/Click is called every time a client clicks anywhere, it should never be overridden.
 
@@ -36,10 +37,6 @@
 				do_click(TU, location, params)
 		return
 
-	if (world.time < next_click)
-		return
-
-	next_click = world.time + 1 //Maximum code-permitted clickrate 10.26/s, practical maximum manual rate: 8.5, autoclicker maximum: between 7.2/s and 8.5/s.
 	var/list/mods = params2list(params)
 
 	if (!clicked_something)
@@ -126,7 +123,7 @@
 	if (!isturf(loc))
 		return
 
-	if (world.time <= next_move && A.loc != src) // Attack click cooldown check
+	if (world.time <= next_move && !A.Adjacent(src)) // Attack click cooldown check
 		return
 
 	next_move = world.time

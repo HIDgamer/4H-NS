@@ -179,8 +179,14 @@
 
 /datum/soundOutput/proc/on_client_mob_logged_in(datum/source, mob/new_mob)
 	SIGNAL_HANDLER //COMSIG_CLIENT_MOB_LOGGED_IN
-	RegisterSignal(owner.mob, COMSIG_MOVABLE_MOVED, PROC_REF(on_mob_moved))
-	RegisterSignal(owner.mob, COMSIG_MOB_LOGOUT, PROC_REF(on_mob_logout))
+	// An admin ghost-swap/relogin can fire Login() more than once for the same
+	// client in a row without an intervening on_mob_logout() (which is what
+	// normally clears these), so owner.mob can already hold these
+	// registrations from the previous Login() - override = TRUE so a
+	// legitimate re-login doesn't trip the engine's duplicate-registration
+	// warning ("movable_moved/mob_logout overridden").
+	RegisterSignal(owner.mob, COMSIG_MOVABLE_MOVED, PROC_REF(on_mob_moved), override = TRUE)
+	RegisterSignal(owner.mob, COMSIG_MOB_LOGOUT, PROC_REF(on_mob_logout), override = TRUE)
 	update_mob_environment_override()
 
 /client/proc/adjust_volume_prefs(volume_key, prompt = "", channel_update = 0)

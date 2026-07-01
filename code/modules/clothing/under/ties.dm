@@ -809,11 +809,15 @@
 	has_suit.overlays += webbing_overlay
 
 /obj/item/clothing/accessory/storage/on_removed(mob/living/user, obj/item/clothing/C)
+	// "Cannot read null.overlays" - the base on_removed() (ties.dm) nulls
+	// has_suit as one of its own side effects before returning, so it has to
+	// be captured here first rather than read after calling ..() below.
+	var/obj/item/clothing/suit = has_suit
 	. = ..()
 	if(.)
 		C.w_class = initial(C.w_class)
 		C.verbs -= /obj/item/clothing/suit/storage/verb/toggle_draw_mode
-	has_suit.overlays -= webbing_overlay
+	suit?.overlays -= webbing_overlay
 
 /obj/item/storage/internal/accessory/webbing
 	bypass_w_limit = list(
