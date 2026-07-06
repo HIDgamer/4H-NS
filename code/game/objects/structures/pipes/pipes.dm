@@ -149,7 +149,8 @@
 		return
 
 	user.forceMove(next_pipe)
-	user.client.eye = next_pipe //if we don't do this, Byond only updates the eye every tick - required for smooth movement
+	if(user.client) // Defensive guard for any clientless caller (a player always has one here) - kept even though AI xenos no longer vent-crawl.
+		user.client.eye = next_pipe //if we don't do this, Byond only updates the eye every tick - required for smooth movement
 	user.update_pipe_icons(next_pipe)
 
 	if(world.time - user.last_played_vent > VENT_SOUND_DELAY)

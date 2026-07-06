@@ -121,8 +121,13 @@
 /datum/behavior_delegate/warrior_base
 	name = "Base Warrior Behavior Delegate"
 
+	// "The more it attacks, the more it heals - it should be enhanced for
+	// sure." She already lifesteals on every successful melee hit, scaling
+	// with how many marines are in range - the ask is to make it actually
+	// hit harder, not to invent a second mechanic alongside it. Raising the
+	// cap that surrounding herself with enemies scales toward.
 	var/lifesteal_percent = 7
-	var/max_lifesteal = 9
+	var/max_lifesteal = 14
 	var/lifesteal_range =  3 // Marines within 3 tiles of range will give the warrior extra health
 	var/lifesteal_lock_duration = 20 // This will remove the glow effect on warrior after 2 seconds
 	var/color = "#6c6f24"
@@ -160,7 +165,12 @@
 			emote_cooldown = world.time + 5 SECONDS
 		addtimer(CALLBACK(src, PROC_REF(lifesteal_lock)), lifesteal_lock_duration/2)
 
-	bound_xeno.gain_health(clamp(final_lifesteal / 100 * (bound_xeno.maxHealth - bound_xeno.health), 20, 40))
+	// Old (20, 40) clamp dominated the percent/marine-count math outright -
+	// at 50%+ missing health the raw calc already exceeded 40, so the whole
+	// "more enemies around = more healing" scaling barely mattered in
+	// practice. Widened so the cap she scales toward (max_lifesteal above)
+	// actually shows up as a real difference instead of getting clamped away.
+	bound_xeno.gain_health(clamp(final_lifesteal / 100 * (bound_xeno.maxHealth - bound_xeno.health), 25, 55))
 
 /datum/behavior_delegate/warrior_base/proc/lifesteal_lock()
 	bound_xeno.remove_filter("empower_rage")

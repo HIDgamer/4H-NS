@@ -21,7 +21,7 @@
 		/mob/living/proc/ventcrawl,
 		/mob/living/proc/hide,
 	)
-	fire_sprite_prefix = "monkey"
+	fire_sprite_prefix = "Standing" // "monkey" doesn't exist in OnFire.dmi either (see species.dm's own fix) - no dedicated monkey-on-fire sprite exists, so this falls back to the same generic overlay every other non-k9 species now uses.
 	fire_sprite_sheet = 'icons/mob/humans/onmob/OnFire.dmi'
 
 /datum/species/monkey/New()

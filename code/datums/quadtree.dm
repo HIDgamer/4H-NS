@@ -38,14 +38,19 @@
 	return QDEL_HINT_IWILLGC // Shouldn't have to begin with
 
 /datum/coords/qtplayer
-	/// Relevant client the coords are associated to
+	/// Relevant client the coords are associated to. Null for NPC-hostile entries (see npc_mob/is_npc_hostile).
 	var/client/player
 	/// Truthy if player is an observer
 	var/is_observer = FALSE
+	/// The AI-piloted hostile mob these coords represent, when is_npc_hostile is TRUE. Null for ordinary player entries.
+	var/mob/living/npc_mob
+	/// TRUE if this entry represents an AI-piloted hostile mob (no client) rather than a player. Consumers must pass QTREE_INCLUDE_NPC_HOSTILES to see these - opt-in, so untouched callers see only players.
+	var/is_npc_hostile = FALSE
 
 // Related scheme to above
 /datum/coords/qtplayer/Destroy()
 	player = null
+	npc_mob = null
 	..()
 	return QDEL_HINT_IWILLGC
 
@@ -213,6 +218,15 @@
 	if(!player_coords)
 		return
 	for(var/datum/coords/qtplayer/P as anything in player_coords)
+		if(P.is_npc_hostile)
+			if(!(flags & QTREE_INCLUDE_NPC_HOSTILES))
+				continue
+			if(!P.npc_mob || QDELETED(P.npc_mob))
+				continue
+			if(range.contains_coords(P))
+				found_players.Add(P.npc_mob) // NPC entries have no client, so there's nothing to resolve besides the mob itself regardless of QTREE_SCAN_MOBS.
+			continue
+
 		if(!P.player) // Basically client is gone
 			continue
 		if((flags & QTREE_EXCLUDE_OBSERVER) && P.is_observer)

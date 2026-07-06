@@ -26,8 +26,10 @@
 		handle_pheromones()
 		handle_regular_status_updates()
 		handle_overwatch() // For new Xeno hivewide overwatch - Fourk, 6/24/19
-		update_icons()
-		handle_luminosity()
+		// AI-piloted xenos skip purely cosmetic updates (icon/light state) when nobody is around to see them - saves the recompute at scale without touching gameplay-affecting ticking above.
+		if(!is_ai_controlled || has_nearby_watcher())
+			update_icons()
+			handle_luminosity()
 		handle_blood()
 
 		if(behavior_delegate)
@@ -37,6 +39,18 @@
 			handle_environment()
 		if(client)
 			handle_regular_hud_updates()
+
+/**
+ * Cheap presence check reusing SSquadtree's already-maintained per-tick index -
+ * no new scanning, just a bounded lookup against the existing snapshot. Used to
+ * gate purely cosmetic Life() work for AI-piloted xenos (see above); deliberately
+ * does not gate anything that affects actual gameplay state.
+ */
+/mob/living/carbon/xenomorph/proc/has_nearby_watcher(radius = 10)
+	var/turf/my_turf = get_turf(src)
+	if(!my_turf)
+		return FALSE
+	return length(SSquadtree.players_in_range(SQUARE(my_turf.x, my_turf.y, radius), my_turf.z)) > 0
 
 /mob/living/carbon/xenomorph/proc/update_progression()
 	if(isnull(hive))

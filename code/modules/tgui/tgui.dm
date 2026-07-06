@@ -286,6 +286,8 @@
 	// sanity...
 	if(!src_object && !custom_data)
 		return
+	if(!user?.client) // Disconnected mid-update (e.g. a forced SStgui.update_uis() call outside the normal process() cycle, which already guards this) - nothing to send a payload to.
+		return
 
 	var/data = custom_data || with_data && src_object.ui_data(user)
 	if(data)

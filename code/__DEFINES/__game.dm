@@ -500,6 +500,9 @@
 /// Return mob list instead of client list.
 #define QTREE_SCAN_MOBS 2
 
+/// Also include AI-piloted hostile mobs (no client) fed in alongside players. Opt-in per caller.
+#define QTREE_INCLUDE_NPC_HOSTILES 4
+
 // Ship section bounds
 
 #define UPPER_DECK "Upper deck"

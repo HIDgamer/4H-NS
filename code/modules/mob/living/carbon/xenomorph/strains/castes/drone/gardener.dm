@@ -93,7 +93,10 @@
 		return
 
 	if (check_and_use_plasma_owner())
-		if(length(xeno.current_fruits) >= xeno.max_placeable)
+		// Only wither an existing fruit when one actually exists to wither -
+		// max_placeable is 0 (Xenomorph.dm) until a strain's apply_strain()
+		// raises it.
+		if(length(xeno.current_fruits) && length(xeno.current_fruits) >= xeno.max_placeable)
 			to_chat(xeno, SPAN_XENOWARNING("We cannot sustain another fruit, one will wither away to allow this one to live!"))
 			var/obj/effect/alien/resin/fruit/old_fruit = xeno.current_fruits[1]
 			xeno.current_fruits.Remove(old_fruit)

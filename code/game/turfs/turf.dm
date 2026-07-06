@@ -518,6 +518,13 @@
 		W.overlays += thisarea.lighting_effect
 
 	W.levelupdate()
+
+	// ChangeTurf() is the single canonical funnel for every turf type change
+	// (walls built/destroyed, resin placed/melted - PlaceOnTop/ScrapeAway
+	// route through here too), so this one call keeps the xeno AI's native
+	// full-map walkability grid in sync with all of them.
+	SSxeno_pathfinding?.push_delta(W)
+
 	return W
 
 //If you modify this function, ensure it works correctly with lateloaded map templates.
@@ -679,9 +686,6 @@
 //Does NOT return a message, just a 0 or 1.
 /turf/proc/is_weedable()
 	return density ? NOT_WEEDABLE : FULLY_WEEDABLE
-
-/turf/open/space/is_weedable()
-	return NOT_WEEDABLE
 
 /turf/open/gm/grass/is_weedable()
 	return SEMI_WEEDABLE

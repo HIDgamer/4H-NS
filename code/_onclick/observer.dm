@@ -11,6 +11,19 @@
 	else
 		to_chat(src, SPAN_NOTICE(" You will no longer examine things you click on."))
 
+/mob/dead/observer/do_click(atom/A, location, params)
+	. = ..()
+	// check_click_intercept() already runs inside the base do_click() above (click.dm) -
+	// calling it again here double-fires every click-intercept consumer (admin spawn
+	// tools, buildmode, etc.) for any ghost/observer, since spawning tools are almost
+	// always used while spectating. That's what caused "spawn 1, get 2" - InterceptClickOn()
+	// ran do_spawn() twice per click.
+	if(client?.click_intercept || click_intercept)
+		return
+
+	if(SEND_SIGNAL(src, COMSIG_OBSERVER_CLICKON, A, params) & COMSIG_MOB_CLICK_CANCELED)
+		return
+
 /mob/dead/observer/click(atom/target, list/mods)
 	if(..())
 		return TRUE

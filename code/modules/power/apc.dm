@@ -64,8 +64,8 @@ GLOBAL_LIST_INIT(apc_wire_descriptions, alist(
 	anchored = TRUE
 	use_power = USE_POWER_NONE
 	req_one_access = list(ACCESS_CIVILIAN_ENGINEERING, ACCESS_MARINE_ENGINEERING)
-	unslashable = TRUE
 	unacidable = TRUE
+	health = 150 // "AI should slash lights and wall apc's" - was unslashable outright; now takes a real few claws to kill (every /obj defaults to 0 health, which would one-shot it the instant it became slashable at all) rather than dying to a single Runner swipe.
 
 	var/area/area
 	var/areastring = null

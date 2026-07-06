@@ -65,7 +65,7 @@
 
 /datum/action/xeno_action/onclick/toggle_gut_targeting
 	name = "Toggle Gutting Type"
-	action_icon_state = "rav_shard_shed" // starting targetting is SINGLETARGETGUT
+	action_icon_state = "gut" // Was "rav_shard_shed" (Ravager's bone-shard-shedding icon) - unrelated; "gut" is the actual gutting-theme icon (see Queen's own Gut ability, queen_abilities.dm). starting targetting is SINGLETARGETGUT
 	macro_path = /datum/action/xeno_action/verb/verb_toggle_gut_targeting
 	action_type = XENO_ACTION_ACTIVATE
 	ability_primacy = XENO_PRIMARY_ACTION_5

@@ -81,6 +81,10 @@
 /datum/action/xeno_action/onclick/soak/proc/damage_accumulate(owner, damage_data, damage_type)
 	SIGNAL_HANDLER
 
+	if(QDELETED(src)) // Strain/action removed (evolve, strain swap) while the signal was still live - don't schedule a timer on a deleted action.
+		UnregisterSignal(owner, COMSIG_XENO_TAKE_DAMAGE)
+		return
+
 	damage_accumulated += damage_data["damage"]
 
 	if(damage_accumulated >= damage_threshold)
@@ -95,6 +99,8 @@
 	owner.remove_filter("steelcrest_enraging")
 
 /datum/action/xeno_action/onclick/soak/proc/enraged()
+	if(QDELETED(owner))
+		return
 
 	owner.remove_filter("steelcrest_enraging")
 	owner.add_filter("steelcrest_enraged", 1, list("type" = "outline", "color" = "#ad1313", "size" = 1))

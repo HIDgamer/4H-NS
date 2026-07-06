@@ -3,24 +3,9 @@
 	/// TRUE when the laser designator upgrade chip has swapped binos → designator
 	var/binos_upgraded = FALSE
 
-/obj/item/clothing/gloves/synth/Initialize(mapload, ...)
-	. = ..()
-	binos = new(src)
-	RegisterSignal(binos, COMSIG_ITEM_DROPPED, PROC_REF(return_binos))
-
-/obj/item/clothing/gloves/synth/attackby(obj/item/I, mob/user)
-	if(I == binos)
-		return_binos()
-		return
-	return ..()
-
-/obj/item/clothing/gloves/synth/dropped(mob/user)
-	. = ..()
-	return_binos()
-
-/obj/item/clothing/gloves/synth/Destroy()
-	QDEL_NULL(binos)
-	return ..()
+// Initialize()/Destroy()/dropped()/attackby() for this ability are merged into
+// synth_bracer.dm's single definitions of each - see the doc comment on
+// Initialize() there for why.
 
 /obj/item/clothing/gloves/synth/proc/deploy_binos(mob/M)
 	if(!M.put_in_active_hand(binos))

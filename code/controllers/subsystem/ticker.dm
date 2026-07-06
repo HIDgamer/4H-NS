@@ -271,8 +271,14 @@ SUBSYSTEM_DEF(ticker)
 
 	begin_game_recording()
 
-	// Switch back to default automatically
-	save_mode(CONFIG_GET(string/gamemode_default))
+	// Deliberately does NOT reset the saved mode back to the config default
+	// here anymore - this used to unconditionally overwrite data/mode.txt the
+	// instant a round started, silently discarding whatever an admin had just
+	// chosen via the Game Panel (or players via vote) the moment it took
+	// effect. Per explicit design: the current mode should carry over to the
+	// next round exactly as saved (by c_mode2's admin handler, or vote.dm's
+	// result()) until someone actively picks a different one - not snap back
+	// to default every single round regardless.
 
 	if(GLOB.round_statistics)
 		to_chat_spaced(world, html = FONT_SIZE_BIG(SPAN_ROLE_BODY("<B>Welcome to [GLOB.round_statistics.round_name]</B>")))
@@ -357,7 +363,7 @@ SUBSYSTEM_DEF(ticker)
 	if(mode)
 		GLOB.master_mode = SSmapping.configs[GROUND_MAP].force_mode ? SSmapping.configs[GROUND_MAP].force_mode : mode
 	else
-		GLOB.master_mode = "Extended"
+		GLOB.master_mode = "Distress Signal"
 	log_game("Saved mode is '[GLOB.master_mode]'")
 
 

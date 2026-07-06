@@ -29,6 +29,16 @@ jobs:
           sudo apt update || true
           sudo apt install -o APT::Immediate-Configure=false zlib1g-dev:i386 libssl-dev:i386
           bash tools/ci/install_rust_g.sh
+      - name: Install Rust toolchain
+        run: |
+          if ! command -v cargo >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          fi
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - name: Build xeno_pathfind native library
+        run: |
+          cargo build --release --manifest-path tools/rust/xeno_pathfind/Cargo.toml
+          cp tools/rust/xeno_pathfind/target/release/libxeno_pathfind.so ./libxeno_pathfind.so
       - name: Configure version
         run: |
           echo "BYOND_MAJOR=${{ inputs.major }}" >> $GITHUB_ENV

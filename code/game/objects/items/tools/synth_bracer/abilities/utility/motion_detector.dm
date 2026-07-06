@@ -11,10 +11,9 @@
 	var/ui_drain_tick = 0
 	var/ui_drain_interval = 40          // drain 1 charge every 40 ticks (~20 seconds) while UI open
 
-/obj/item/clothing/gloves/synth/Initialize(mapload, ...)
-	. = ..()
-	motion_detector = new /obj/item/device/motiondetector/simi(src)
-	motion_detector.iff_signal = faction
+// Initialize()/Destroy()/dropped() for this ability are merged into
+// synth_bracer.dm's single definitions of each - see the doc comment on
+// Initialize() there for why.
 
 /obj/item/clothing/gloves/synth/process()
 	if(!ishuman(loc))
@@ -62,18 +61,6 @@
 	motion_detector_cooldown = initial(motion_detector_cooldown)
 	motion_detector.scan()
 	drain_charge(loc, motion_detector_cost, FALSE)
-
-/obj/item/clothing/gloves/synth/dropped(mob/user)
-	. = ..()
-	ui_displaying = FALSE
-	ui_display_tick = 0
-	ui_drain_tick = 0
-	if(motion_detector && motion_detector_active)
-		toggle_motion_detector(user)
-
-/obj/item/clothing/gloves/synth/Destroy()
-	QDEL_NULL(motion_detector)
-	. = ..()
 
 /obj/item/clothing/gloves/synth/proc/toggle_motion_detector(mob/user)
 	if(!motion_detector)

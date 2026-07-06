@@ -509,6 +509,29 @@
 	recalculate_health()
 	generate_name()
 
+/**
+ * Reverses make_combat_effective() for admin "spawn as Immature" testing -
+ * meant to be called immediately after construction, before she's acted.
+ * A freshly-spawned Queen is normally combat-effective right away (Initialize()
+ * only defers to the age timer when hive.dynamic_evolution is on), so this
+ * undoes that: give_combat_abilities()'s own hide_from() pass only hides the
+ * action button, it doesn't actually revoke the ability - remove_action() is
+ * what takes Screech/the spit macro/shift_spits back out of pilot.actions so
+ * an immature Queen genuinely can't use them, not just that their buttons
+ * are hidden. Re-arms the real age-up timer afterward so she still matures
+ * naturally after XENO_QUEEN_AGE_TIME, same as any hatched-immature Queen.
+ */
+/mob/living/carbon/xenomorph/queen/proc/force_immature()
+	if(!queen_aged)
+		return
+	queen_aged = FALSE
+	for(var/action_type in mobile_aged_abilities)
+		remove_action(src, action_type)
+	recalculate_health()
+	generate_name()
+	if(queen_age_timer_id == TIMER_ID_NULL)
+		queen_age_timer_id = addtimer(CALLBACK(src, PROC_REF(make_combat_effective)), XENO_QUEEN_AGE_TIME, TIMER_UNIQUE|TIMER_STOPPABLE)
+
 /mob/living/carbon/xenomorph/queen/proc/give_combat_abilities()
 	if(ovipositor)
 		return

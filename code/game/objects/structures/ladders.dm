@@ -107,6 +107,33 @@
 	busy = FALSE
 	add_fingerprint(user)
 
+/**
+ * Non-interactive equivalent of attack_hand() for AI-piloted mobs - same
+ * validity/do_after logic, but takes an explicit "up"/"down" direction instead
+ * of prompting via alert(), which would never resolve for a mob with no client.
+ */
+/obj/structure/ladder/proc/ai_use(mob/living/user, direction)
+	if(!user || user.stat || user.body_position == LYING_DOWN || user.buckled || user.anchored)
+		return FALSE
+	if(busy)
+		return FALSE
+
+	var/obj/structure/ladder/ladder_dest = (direction == "up") ? up : down
+	if(!ladder_dest)
+		return FALSE
+
+	step(user, get_dir(user, src))
+	user.visible_message(SPAN_NOTICE("[user] scrambles [direction] [src]."))
+	busy = TRUE
+	if(do_after(user, 20, INTERRUPT_ALL, BUSY_ICON_GENERIC, src, INTERRUPT_NONE))
+		if(!user.is_mob_incapacitated() && get_dist(user, src) <= 1 && user.body_position != LYING_DOWN && !user.buckled && !user.anchored)
+			ladder_dest.add_fingerprint(user)
+			user.trainteleport(ladder_dest.loc)
+			busy = FALSE
+			return TRUE
+	busy = FALSE
+	return FALSE
+
 /obj/structure/ladder/check_eye(mob/living/user)
 	//Are we capable of looking?
 	if(user.is_mob_incapacitated() || get_dist(user, src) > 1 || user.blinded || user.body_position == LYING_DOWN || !user.client)

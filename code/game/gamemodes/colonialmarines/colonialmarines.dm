@@ -33,6 +33,7 @@
 	 */
 	var/near_lz_protection_delay = 8 MINUTES
 
+
 ////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////
 
@@ -567,10 +568,60 @@
 			//Some Queen is alive, we shouldn't end the game yet
 			return
 
+	if(recover_hive_from_no_queen(hivenumber))
+		return
+
 	if(length(hive.totalXenos) <= 3)
 		round_finished = MODE_INFESTATION_M_MAJOR
 	else
 		round_finished = MODE_INFESTATION_M_MINOR
+
+/**
+ * "If the queen and core die, then game over, unless there is drones, of
+ * which one of the drones will be chosen to evolve into a queen." Called
+ * only once no living Queen exists anywhere (see check_queen_status() above)
+ * - gives the hive that triggered the check one more chance to recover
+ * before the round actually ends. Independent of GLOB.xeno_spawner_enabled/
+ * GLOB.xeno_spawner_hive - this has to hold even with the admin Spawner
+ * toggled off. Returns TRUE if the round should NOT end (a replacement
+ * Queen now exists, one way or the other).
+ */
+/datum/game_mode/colonialmarines/proc/recover_hive_from_no_queen(hivenumber)
+	var/datum/hive_status/dying_hive = GLOB.hive_datum[hivenumber]
+	if(!dying_hive || !dying_hive.allow_queen_evolve)
+		return FALSE
+
+	if(dying_hive.has_structure(XENO_STRUCTURE_CORE))
+		// The Core still stands - spawner_ensure_queen() (xeno_spawner.dm)
+		// already replaces a dead Queen whenever this is true, but only
+		// while the Spawner subsystem is enabled and targeting this hive.
+		// Called directly here too so losing just the Queen is never a
+		// permanent loss regardless of that admin toggle.
+		spawner_ensure_queen(dying_hive)
+		return dying_hive.living_xeno_queen ? TRUE : FALSE
+
+	// Core is also gone - the hive can still recover if a living, AI-piloted
+	// Drone exists to ascend. A player-controlled Drone is deliberately never
+	// forced into this - only the round ending is the fallback in that case.
+	var/mob/living/carbon/xenomorph/drone/candidate_drone
+	for(var/mob/living/carbon/xenomorph/drone/drone as anything in dying_hive.totalXenos)
+		if(drone.stat == DEAD || drone.client || !drone.ai_controller)
+			continue
+		candidate_drone = drone
+		break
+	if(!candidate_drone)
+		return FALSE
+
+	var/mob_type = GLOB.RoleAuthority.get_caste_by_text(XENO_CASTE_QUEEN)
+	if(!mob_type)
+		return FALSE
+	var/mob/living/carbon/xenomorph/queen/new_queen = replace_ai_xeno_mob(candidate_drone, mob_type)
+	if(!istype(new_queen))
+		return FALSE
+
+	new_queen.make_combat_effective()
+	xeno_message(SPAN_XENOANNOUNCE("With the Hive Core lost and no Queen to lead us, one of our sisters ascends to take her place!"), hivenumber = hivenumber)
+	return TRUE
 
 ///////////////////////////////
 //Checks if the round is over//

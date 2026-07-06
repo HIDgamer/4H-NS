@@ -140,6 +140,9 @@
 	#define COMSIG_MOB_CLICK_CANCELED (1<<0)
 	#define COMSIG_MOB_CLICK_HANDLED (1<<1)
 
+/// From /mob/dead/observer/do_click(): (atom/clicked_atom, params) - lets a listener veto a ghost's click same as COMSIG_MOB_CLICK_CANCELED does for living mobs.
+#define COMSIG_OBSERVER_CLICKON "observer_clickon"
+
 #define COMSIG_MOB_DEPLOYED_BIPOD "mob_deployed_bipod"
 #define COMSIG_MOB_UNDEPLOYED_BIPOD "mob_undeployed_bipod"
 

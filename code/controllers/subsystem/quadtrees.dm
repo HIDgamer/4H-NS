@@ -27,10 +27,14 @@ SUBSYSTEM_DEF(quadtree)
 		if(length(new_quadtrees) < world.maxz)
 			new_quadtrees.len = world.maxz
 
-		// Determine which z-levels have active clients this cycle
+		// Determine which z-levels have active clients (or AI-piloted hostiles) this cycle
 		var/list/active_z = new/list(world.maxz)
 		for(var/client/C as anything in player_feed)
 			var/turf/T = get_turf(C?.mob)
+			if(T?.z && T.z <= world.maxz)
+				active_z[T.z] = TRUE
+		for(var/mob/living/npc_xeno as anything in GLOB.ai_xeno_list)
+			var/turf/T = get_turf(npc_xeno)
 			if(T?.z && T.z <= world.maxz)
 				active_z[T.z] = TRUE
 
@@ -57,6 +61,30 @@ SUBSYSTEM_DEF(quadtree)
 		if(isobserver(C.mob))
 			p_coords.is_observer = TRUE
 		var/datum/quadtree/QT = new_quadtrees[T.z]
+		QT.insert_player(p_coords)
+		if(MC_TICK_CHECK)
+			return
+
+	// AI-piloted hostiles never have a client, so they were never covered by
+	// the player_feed loop above - insert them as their own tagged entries
+	// (see QTREE_INCLUDE_NPC_HOSTILES) so turrets/motion detectors/bell
+	// towers can actually see them, same as the active_z pass above already
+	// accounts for.
+	for(var/mob/living/npc_xeno as anything in GLOB.ai_xeno_list)
+		if(QDELETED(npc_xeno) || npc_xeno.stat == DEAD)
+			continue
+		var/turf/T = get_turf(npc_xeno)
+		if(!T?.z || length(new_quadtrees) < T.z)
+			continue
+		var/datum/quadtree/QT = new_quadtrees[T.z]
+		if(!QT)
+			continue
+		var/datum/coords/qtplayer/p_coords = new
+		p_coords.is_npc_hostile = TRUE
+		p_coords.npc_mob = npc_xeno
+		p_coords.x_pos = T.x
+		p_coords.y_pos = T.y
+		p_coords.z_pos = T.z
 		QT.insert_player(p_coords)
 		if(MC_TICK_CHECK)
 			return

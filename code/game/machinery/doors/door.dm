@@ -42,11 +42,13 @@
 	handle_multidoor()
 
 /obj/structure/machinery/door/Destroy()
+	var/turf/final_turf = get_turf(src)
 	. = ..()
 	if(length(filler_turfs) && width > 1)
 		change_filler_opacity(0) // It still doesn't check for walls, might want to add checking that in the future
 		filler_turfs = null
 	density = FALSE
+	SSxeno_pathfinding?.push_delta(final_turf) // A destroyed door frees its tile without any ChangeTurf() - same walkability-grid sync as finish_open()'s.
 
 /obj/structure/machinery/door/initialize_pass_flags(datum/pass_flags_container/PF)
 	..()
@@ -246,6 +248,7 @@
 	layer = open_layer
 	density = FALSE
 	update_icon()
+	SSxeno_pathfinding?.push_delta(get_turf(src)) // Keeps the xeno AI's native walkability grid in sync with door state - doors are objs, so ChangeTurf()'s own hook never sees them.
 
 	operating = DOOR_OPERATING_IDLE
 	if(autoclose)
@@ -276,6 +279,7 @@
 	density = TRUE
 	layer = closed_layer
 	do_animate("closing")
+	SSxeno_pathfinding?.push_delta(get_turf(src)) // Same walkability-grid sync as finish_open()'s.
 	addtimer(CALLBACK(src, PROC_REF(finish_close)), openspeed, TIMER_UNIQUE|TIMER_OVERRIDE|TIMER_NO_HASH_WAIT)
 	return TRUE
 

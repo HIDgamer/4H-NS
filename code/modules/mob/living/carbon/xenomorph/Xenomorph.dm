@@ -77,6 +77,12 @@
 	//
 	//////////////////////////////////////////////////////////////////
 	var/datum/caste_datum/caste // Used to extract determine ALL Xeno stats.
+	/// Composed AI decision-making datum. Null for player-piloted xenos. See code/modules/mob/living/carbon/xenomorph/ai/.
+	var/datum/xeno_ai_controller/ai_controller
+	/// Cheap TRUE/FALSE mirror of (ai_controller != null), kept in sync by the AI lifecycle procs so other systems (e.g. SSquadtree) don't need to null-check ai_controller.
+	var/is_ai_controlled = FALSE
+	/// Sticky flag set once at AI spawn time; survives ghost takeover/give-back so only mobs that started as AI ever fall back to AI on disconnect.
+	var/was_ai_spawned = FALSE
 	var/speaking_key = "x"
 	var/speaking_noise = "alien_talk"
 	slash_verb = "slash"
@@ -559,6 +565,32 @@
 	// Burrowed xenos also cannot be ignited
 	if((caste.fire_immunity & FIRE_IMMUNITY_NO_IGNITE) || HAS_TRAIT(src, TRAIT_ABILITY_BURROWED))
 		. |= COMPONENT_NO_IGNITE
+
+/**
+ * "Queens and kings are too large T4 casts - when they walk into a tile
+ * that has another lower/smaller mob, they 'walk over them,' stunning
+ * them" - a real trait, not previously implemented anywhere: knocks down
+ * whatever smaller living thing she bumps into and walks straight through
+ * onto that tile instead of just being blocked by it, same as shoving past
+ * someone far weaker than you. Scoped to Queen/King by caste_type directly
+ * (not mob_size - neither of them actually sets mob_size to MOB_SIZE_BIG;
+ * that var is a push-resistance stat other castes use, not a general
+ * "is this thing huge" flag, so gating on it here would've silently
+ * excluded the exact two castes this is for). Same-hive xenos are excluded
+ * outright - this is for shouldering through marines, not daughters.
+ */
+/mob/living/carbon/xenomorph/Bump(atom/bumped_atom)
+	if((caste_type == XENO_CASTE_QUEEN || caste_type == XENO_CASTE_KING) && isliving(bumped_atom) && bumped_atom != src)
+		var/mob/living/bumped_mob = bumped_atom
+		if(bumped_mob.stat != DEAD && bumped_mob.mob_size < mob_size && !(isxeno(bumped_mob) && bumped_mob.hivenumber == hivenumber))
+			var/turf/trample_turf = get_turf(bumped_mob)
+			bumped_mob.apply_effect(2, WEAKEN)
+			bumped_mob.visible_message(SPAN_XENODANGER("[src] tramples over [bumped_mob]!"), SPAN_XENODANGER("[src] tramples over you!"))
+			forceMove(trample_turf)
+			return
+	return ..()
+
+/mob/living/carbon/xenomorph/proc/get_component_flags()
 	if(caste.fire_immunity & FIRE_IMMUNITY_XENO_FRENZY)
 		. |= COMPONENT_XENO_FRENZY
 
@@ -698,6 +730,9 @@
 		user.handle_unhaul()
 		hauled_mob = null
 	SSxeno.processable_xeno_list -= src
+
+	if(ai_controller)
+		detach_xeno_ai(src)
 
 	if(tracked_marker)
 		tracked_marker.xenos_tracking -= src

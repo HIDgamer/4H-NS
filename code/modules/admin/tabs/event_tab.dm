@@ -867,6 +867,202 @@
 		admin_holder.chempanel()
 	return
 
+/// Shared by admin_spawn_humans/admin_spawn_xenos - rejects walls, dense turfs, and dense non-climbable structures (lockers, machines, etc.) so a map click can't spawn something inside a wall or on top of a real obstacle. Climbable structures (tables, racks) are still fine, same reasoning xeno_ai_movement.dm's get_blocking_obstacle() uses for what actually blocks movement.
+/proc/is_valid_admin_spawn_turf(turf/T)
+	if(!T || istype(T, /turf/closed) || T.density)
+		return FALSE
+	for(var/obj/structure/blocking_obstacle in T)
+		if(blocking_obstacle.density && !blocking_obstacle.climbable)
+			return FALSE
+	return TRUE
+
+// ─── Create Humans — TGUI datum ──────────────────────────────────────────────
+
+/datum/admin_spawn_humans
+	var/datum/admins/admin_datum
+	/// Spawn params stashed by "spawn" while armed, consumed by InterceptClickOn() once the admin clicks a tile.
+	var/list/pending_params
+
+/datum/admin_spawn_humans/New(datum/admins/AD)
+	admin_datum = AD
+
+/datum/admin_spawn_humans/Destroy()
+	if(admin_datum?.owner?.click_intercept == src)
+		admin_datum.owner.click_intercept = null
+	admin_datum = null
+	pending_params = null
+	return ..()
+
+/datum/admin_spawn_humans/tgui_interact(mob/user, datum/tgui/ui)
+	ui = SStgui.try_update_ui(user, src, ui)
+	if(!ui)
+		ui = new /datum/tgui(user, src, "AdminSpawnHumans", "Create Humans")
+		ui.open()
+
+/// Closing the window (not just cancelling) left the spawn armed forever since nothing else cleared click_intercept - clear it here too.
+/datum/admin_spawn_humans/ui_close(mob/user)
+	. = ..()
+	if(user?.client?.click_intercept == src)
+		user.client.click_intercept = null
+	pending_params = null
+
+/datum/admin_spawn_humans/ui_state(mob/user)
+	return GLOB.admin_state
+
+/datum/admin_spawn_humans/ui_static_data(mob/user)
+	var/list/data = list()
+	var/list/presets = list()
+	for(var/p in GLOB.gear_name_presets_list)
+		presets += p
+	data["presets"] = presets
+	return data
+
+/datum/admin_spawn_humans/ui_data(mob/user)
+	var/list/data = list()
+	data["picking"] = (user.client?.click_intercept == src)
+	return data
+
+/// Pressing Spawn arms this instead of spawning immediately; the admin's next map click (see InterceptClickOn) is where it actually happens.
+/datum/admin_spawn_humans/proc/arm_spawn(mob/user, list/params)
+	pending_params = params.Copy()
+	if(user.client)
+		user.client.click_intercept = src
+	to_chat(user, SPAN_NOTICE("Click tiles to spawn there - stays armed until you right-click to cancel."))
+	SStgui.update_uis(src)
+
+/**
+ * Stays armed after a spawn instead of consuming pending_params on the first
+ * click, so an admin can place a whole squad by clicking tile after tile -
+ * right-click (matching the same LEFT_CLICK/RIGHT_CLICK modifier check
+ * buildmode's own click-intercept modes use) is what actually cancels it.
+ */
+/datum/admin_spawn_humans/proc/InterceptClickOn(mob/user, params, atom/A)
+	var/list/modifiers = params2list(params)
+	if(LAZYACCESS(modifiers, RIGHT_CLICK))
+		if(user.client)
+			user.client.click_intercept = null
+		pending_params = null
+		to_chat(user, SPAN_NOTICE("Spawn cancelled."))
+		SStgui.update_uis(src)
+		return TRUE
+
+	if(!pending_params)
+		return TRUE
+
+	var/turf/spawn_turf = get_turf(A)
+	if(!is_valid_admin_spawn_turf(spawn_turf))
+		to_chat(user, SPAN_WARNING("Can't spawn there - pick an open tile, not a wall or something blocking movement."))
+		return TRUE
+
+	do_spawn(user, spawn_turf, pending_params)
+	return TRUE
+
+/datum/admin_spawn_humans/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
+	. = ..()
+	if(.)
+		return
+	var/mob/user = ui.user
+	if(!check_client_rights(user.client, R_SPAWN))
+		return
+
+	if(action == "cancel_spawn")
+		if(user.client?.click_intercept == src)
+			user.client.click_intercept = null
+		pending_params = null
+		return TRUE
+
+	if(action == "spawn")
+		if(SSticker?.current_state < GAME_STATE_PLAYING)
+			to_chat(user, SPAN_WARNING("Wait until the game has started."))
+			return TRUE
+		var/list/queue = params["queue"]
+		if(!islist(queue) || !length(queue))
+			return TRUE
+		for(var/list/entry in queue)
+			var/job_name = entry["job"]
+			if(!job_name || !(job_name in GLOB.gear_name_presets_list))
+				return TRUE
+		arm_spawn(user, params)
+		return TRUE
+
+/**
+ * "the ability to spawn multiple xenos, multiple different types at once"
+ * applied the same way to humans - params["queue"] is a list of {job, count}
+ * rows built up client-side (see AdminSpawnHumans.jsx's "Add to Queue"), all
+ * spawned together into the same clicked turf/range in one do_spawn() call.
+ */
+/datum/admin_spawn_humans/proc/do_spawn(mob/user, turf/spawn_turf, list/params)
+	if(!spawn_turf)
+		return
+
+	var/list/queue = params["queue"]
+	if(!islist(queue) || !length(queue))
+		return
+	var/spawn_range = clamp(text2num(params["range"]), 0, 10)
+	var/spawn_as = params["spawn_as"] || "npc"
+	var/equip_with = params["equip_with"] || "full"
+
+	var/list/turfs = list()
+	if(spawn_range)
+		for(var/turf/T in range(spawn_range, spawn_turf))
+			if(!is_valid_admin_spawn_turf(T))
+				continue
+			turfs += T
+	else if(is_valid_admin_spawn_turf(spawn_turf))
+		turfs = list(spawn_turf)
+
+	if(!length(turfs))
+		return
+
+	var/list/humans = list()
+	var/total_count = 0
+	var/list/summary = list()
+	for(var/list/entry in queue)
+		var/job_name = entry["job"]
+		if(!job_name || !(job_name in GLOB.gear_name_presets_list))
+			continue
+		var/count = clamp(text2num(entry["count"]), 1, 100)
+
+		for(var/i = 1 to count)
+			var/turf/T = pick(turfs)
+			var/mob/living/carbon/human/H = new(T)
+			if(!H.hud_used)
+				H.create_hud()
+			if(spawn_as == "freed")
+				admin_datum.owner.free_for_ghosts(H)
+			arm_equipment(H, job_name, TRUE, FALSE)
+			humans += H
+
+			if(equip_with == "no_equipment")
+				for(var/obj/item/I in H.contents.Copy()) // Copy first - qdel'ing while iterating H's live contents list skips entries.
+					if(istype(I, /obj/item/card/id))
+						continue
+					qdel(I)
+			else if(equip_with == "no_weapons")
+				for(var/obj/item/I in H.GetAllContents(3).Copy())
+					if(istype(I, /obj/item/ammo_magazine) || istype(I, /obj/item/weapon) || istype(I, /obj/item/explosive))
+						qdel(I)
+
+		total_count += count
+		summary += "[count]x [job_name]"
+
+	if(!length(humans))
+		return
+
+	if(spawn_as == "ert")
+		var/datum/emergency_call/custom/em_call = new()
+		var/name = input(user, "Name your ERT:", "ERT Name", "Admin spawned humans") as text|null
+		em_call.name = name || "Admin spawned humans"
+		em_call.mob_max = length(humans)
+		em_call.players_to_offer = humans
+		em_call.owner = admin_datum.owner
+
+		var/ql = tgui_alert(user, "Broadcast the beacon launch to all players?", "Announce?", list("Yes", "No"), 20 SECONDS)
+		var/ar = tgui_alert(user, "Announce beacon received message?", "Announce?", list("Yes", "No"), 20 SECONDS)
+		em_call.activate(ql != "Yes", ar == "Yes")
+
+	message_admins("[key_name_admin(user)] created [total_count] humans ([summary.Join(", ")]) at [get_area(spawn_turf)]")
+
 /datum/admins/var/create_humans_html = null
 /datum/admins/proc/create_humans(mob/user)
 	if(!GLOB.gear_name_presets_list)
@@ -886,6 +1082,320 @@
 	if(admin_holder)
 		admin_holder.create_humans(usr)
 
+// ─── Create Xenos — TGUI datum ───────────────────────────────────────────────
+
+/datum/admin_spawn_xenos
+	var/datum/admins/admin_datum
+	/// Spawn params stashed by "spawn" while armed, consumed by InterceptClickOn() once the admin clicks a tile.
+	var/list/pending_params
+
+/datum/admin_spawn_xenos/New(datum/admins/AD)
+	admin_datum = AD
+
+/datum/admin_spawn_xenos/Destroy()
+	if(admin_datum?.owner?.click_intercept == src)
+		admin_datum.owner.click_intercept = null
+	admin_datum = null
+	pending_params = null
+	return ..()
+
+/datum/admin_spawn_xenos/tgui_interact(mob/user, datum/tgui/ui)
+	ui = SStgui.try_update_ui(user, src, ui)
+	if(!ui)
+		ui = new /datum/tgui(user, src, "AdminSpawnXenos", "Create Xenos")
+		ui.open()
+
+/// Closing the window (not just cancelling) left the spawn armed forever since nothing else cleared click_intercept - clear it here too.
+/datum/admin_spawn_xenos/ui_close(mob/user)
+	. = ..()
+	if(user?.client?.click_intercept == src)
+		user.client.click_intercept = null
+	pending_params = null
+
+/datum/admin_spawn_xenos/ui_state(mob/user)
+	return GLOB.admin_state
+
+/datum/admin_spawn_xenos/ui_static_data(mob/user)
+	var/list/data = list()
+	var/list/hives = list()
+	for(var/h in ALL_XENO_HIVES)
+		hives += h
+	data["hives"] = hives
+	var/list/castes = list()
+	for(var/c in ALL_XENO_CASTES)
+		castes += c
+	data["castes"] = castes
+	return data
+
+/datum/admin_spawn_xenos/ui_data(mob/user)
+	var/list/data = list()
+	data["picking"] = (user.client?.click_intercept == src)
+	return data
+
+/// Pressing Spawn arms this instead of spawning immediately; the admin's next map click (see InterceptClickOn) is where it actually happens.
+/datum/admin_spawn_xenos/proc/arm_spawn(mob/user, list/params)
+	pending_params = params.Copy()
+	if(user.client)
+		user.client.click_intercept = src
+	if(params["mode"] == "burst")
+		to_chat(user, SPAN_NOTICE("Click a living human to burst - stays armed until you right-click to cancel."))
+	else
+		to_chat(user, SPAN_NOTICE("Click tiles to spawn there - stays armed until you right-click to cancel."))
+	SStgui.update_uis(src)
+
+/**
+ * Stays armed after a spawn instead of consuming pending_params on the first
+ * click, so an admin can place a whole hive by clicking tile after tile -
+ * right-click (matching the same LEFT_CLICK/RIGHT_CLICK modifier check
+ * buildmode's own click-intercept modes use) is what actually cancels it.
+ */
+/datum/admin_spawn_xenos/proc/InterceptClickOn(mob/user, params, atom/A)
+	var/list/modifiers = params2list(params)
+	if(LAZYACCESS(modifiers, RIGHT_CLICK))
+		if(user.client)
+			user.client.click_intercept = null
+		pending_params = null
+		to_chat(user, SPAN_NOTICE("Spawn cancelled."))
+		SStgui.update_uis(src)
+		return TRUE
+
+	if(!pending_params)
+		return TRUE
+
+	if(pending_params["mode"] == "burst")
+		var/mob/living/carbon/human/victim = A
+		if(!istype(victim) || victim.stat == DEAD)
+			to_chat(user, SPAN_WARNING("Click a living human to burst - right-click to cancel."))
+			return TRUE
+		do_burst(user, victim, pending_params)
+		return TRUE
+
+	var/turf/spawn_turf = get_turf(A)
+	if(!is_valid_admin_spawn_turf(spawn_turf))
+		to_chat(user, SPAN_WARNING("Can't spawn there - pick an open tile, not a wall or something blocking movement."))
+		return TRUE
+
+	do_spawn(user, spawn_turf, pending_params)
+	return TRUE
+
+/datum/admin_spawn_xenos/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
+	. = ..()
+	if(.)
+		return
+	var/mob/user = ui.user
+	if(!check_client_rights(user.client, R_SPAWN))
+		return
+
+	if(action == "cancel_spawn")
+		if(user.client?.click_intercept == src)
+			user.client.click_intercept = null
+		pending_params = null
+		return TRUE
+
+	if(action == "spawn")
+		if(SSticker?.current_state < GAME_STATE_PLAYING)
+			to_chat(user, SPAN_WARNING("Wait until the game has started."))
+			return TRUE
+		if(params["mode"] == "burst")
+			var/xeno_hive = params["hive"]
+			var/burst_type = params["burst_type"]
+			if(!xeno_hive || !(burst_type in list("larva", "hugger")))
+				return TRUE
+			arm_spawn(user, params)
+			return TRUE
+		var/list/queue = params["queue"]
+		if(!islist(queue) || !length(queue))
+			return TRUE
+		for(var/list/entry in queue)
+			if(!entry["hive"] || !entry["caste"])
+				return TRUE
+		arm_spawn(user, params)
+		return TRUE
+
+/**
+ * "the ability to spawn multiple xenos, multiple different types at once...
+ * from different hives on different amounts at the same time" - params["queue"]
+ * is a list of {hive, caste, count} rows built up client-side (see
+ * AdminSpawnXenos.jsx's "Add to Queue"), all spawned together into the same
+ * clicked turf/range in one do_spawn() call instead of one caste+hive+count
+ * per spawn action.
+ */
+/datum/admin_spawn_xenos/proc/do_spawn(mob/user, turf/spawn_turf, list/params)
+	if(!spawn_turf)
+		return
+
+	var/list/queue = params["queue"]
+	if(!islist(queue) || !length(queue))
+		return
+	var/spawn_range = clamp(text2num(params["range"]), 0, 10)
+	var/spawn_as = params["spawn_as"] || "npc"
+
+	var/list/turfs = list()
+	if(spawn_range)
+		for(var/turf/T in range(spawn_range, spawn_turf))
+			if(!is_valid_admin_spawn_turf(T))
+				continue
+			turfs += T
+	else if(is_valid_admin_spawn_turf(spawn_turf))
+		turfs = list(spawn_turf)
+
+	if(!length(turfs))
+		return
+
+	var/list/xenos = list()
+	var/ai_attach_failures = 0
+	var/total_count = 0
+	var/list/summary = list()
+	for(var/list/entry in queue)
+		var/xeno_hive = entry["hive"]
+		var/xeno_caste = entry["caste"]
+		var/count = clamp(text2num(entry["count"]), 1, 100)
+
+		var/caste_type = GLOB.RoleAuthority.get_caste_by_text(xeno_caste)
+		if(!caste_type)
+			to_chat(user, SPAN_WARNING("Unknown xeno caste: [xeno_caste]"))
+			continue
+
+		for(var/i = 1 to count)
+			var/turf/T = pick(turfs)
+			var/mob/living/carbon/xenomorph/X = new caste_type(T, null, xeno_hive)
+			if(!X.hud_used)
+				X.create_hud()
+			if(entry["immature"] && istype(X, /mob/living/carbon/xenomorph/queen))
+				var/mob/living/carbon/xenomorph/queen/new_queen = X
+				new_queen.force_immature()
+			if(spawn_as == "freed")
+				admin_datum.owner.free_for_ghosts(X)
+			else if(spawn_as == "ai")
+				if(!attach_xeno_ai(X, T))
+					ai_attach_failures++
+				// "Make the xeno spawner in admin spawn an alien with a
+				// random strain" - matches SSxeno_spawner's own
+				// spawner_maybe_assign_strain() (xeno_spawner.dm), which
+				// this admin tool never called before (it doesn't funnel
+				// through spawn_ai_xeno() at all). Deliberately does NOT
+				// call spawner_max_out_carrier_eggs() here - "the carrier
+				// spawns with no eggs at all still via xeno spawner at
+				// least" - that stays exclusive to the automatic
+				// population-maintenance subsystem, not this manual tool.
+				spawner_maybe_assign_strain(X)
+			xenos += X
+
+		total_count += count
+		summary += "[count]x [xeno_caste] ([xeno_hive])[(xeno_caste == XENO_CASTE_QUEEN) ? (entry["immature"] ? " (Immature)" : " (Mature)") : ""]"
+
+	if(!length(xenos))
+		return
+
+	if(ai_attach_failures)
+		to_chat(user, SPAN_WARNING("[ai_attach_failures] xeno\s spawned without AI control - a per-caste AI cap was reached."))
+
+	if(spawn_as == "ert")
+		var/datum/emergency_call/custom/em_call = new()
+		var/name = input(user, "Name your ERT:", "ERT Name", "Admin spawned xenos") as text|null
+		em_call.name = name || "Admin spawned xenos"
+		em_call.mob_max = length(xenos)
+		em_call.players_to_offer = xenos
+		em_call.owner = admin_datum.owner
+
+		var/ql = tgui_alert(user, "Broadcast the beacon launch to all players?", "Announce?", list("Yes", "No"), 20 SECONDS)
+		var/ar = tgui_alert(user, "Announce beacon received message?", "Announce?", list("Yes", "No"), 20 SECONDS)
+		em_call.activate(ql != "Yes", ar == "Yes")
+
+	message_admins("[key_name_admin(user)] created [total_count] xenos ([summary.Join(", ")]) at [get_area(spawn_turf)]")
+
+/**
+ * "add an option to the xeno spawner which is larva and hugger human burst...
+ * clicked on a living human mob, it starts a burst and then either a hugger
+ * or a larva bursts out." Larva reuses the real embryo pipeline
+ * (Embryo.dm's become_larva()/chest_burst()) but skips its own multi-second
+ * ghost-candidate-offering and the 20-tick autoburst wait, since this is an
+ * instant admin action rather than a natural infection. Hugger has no
+ * equivalent "bursts out of a human" mechanic anywhere in the codebase
+ * (huggers only ever come from eggs) so it's a parallel burst built the same
+ * shape as chest_burst() (scream/shake/kill, then spawn on the turf).
+ */
+/datum/admin_spawn_xenos/proc/do_burst(mob/user, mob/living/carbon/human/victim, list/params)
+	if(!victim || QDELETED(victim) || victim.stat == DEAD)
+		to_chat(user, SPAN_WARNING("That target is no longer valid."))
+		return
+	if(should_block_game_interaction(victim))
+		to_chat(user, SPAN_WARNING("Can't burst that target here."))
+		return
+	if(locate(/obj/item/alien_embryo) in victim)
+		to_chat(user, SPAN_WARNING("[victim] is already hosting an embryo."))
+		return
+
+	var/xeno_hive = params["hive"]
+	var/burst_type = params["burst_type"]
+	var/spawn_as = params["spawn_as"] || "npc"
+
+	if(burst_type == "hugger")
+		burst_hugger(user, victim, xeno_hive, spawn_as)
+		return
+
+	var/obj/item/alien_embryo/embryo = new(victim)
+	embryo.hivenumber = xeno_hive
+
+	var/mob/living/carbon/xenomorph/larva/new_xeno = new(victim)
+	var/datum/hive_status/hive = GLOB.hive_datum[xeno_hive]
+	if(hive)
+		hive.add_xeno(new_xeno)
+	new_xeno.update_icons()
+	new_xeno.cause_unbearable_pain(victim)
+
+	if(spawn_as == "freed")
+		admin_datum.owner.free_for_ghosts(new_xeno)
+	else if(spawn_as == "ai")
+		attach_xeno_ai(new_xeno, get_turf(victim))
+
+	new_xeno.chest_burst(victim) // set waitfor = 0 - kills/gibs victim after its own scream/shake delay, then forceMoves the larva onto victim's turf.
+
+	message_admins("[key_name_admin(user)] burst a larva ([xeno_hive]) out of [key_name(victim)]")
+
+/datum/admin_spawn_xenos/proc/burst_hugger(mob/user, mob/living/carbon/human/victim, xeno_hive, spawn_as)
+	victim.visible_message(SPAN_DANGER("\The [victim] starts shaking uncontrollably!"),
+		SPAN_DANGER("You feel something ripping up your insides!"))
+	victim.apply_effect(20, DAZE)
+	victim.make_jittery(300)
+
+	INVOKE_ASYNC(src, PROC_REF(finish_hugger_burst), user, victim, xeno_hive, spawn_as)
+	message_admins("[key_name_admin(user)] burst a facehugger ([xeno_hive]) out of [key_name(victim)]")
+
+/// Mirrors chest_burst()'s scream/shake/kill pacing (Embryo.dm) since there's no real hugger-burst proc to reuse, then spawns a facehugger mob on the victim's turf instead of a larva.
+/datum/admin_spawn_xenos/proc/finish_hugger_burst(mob/user, mob/living/carbon/human/victim, xeno_hive, spawn_as)
+	set waitfor = 0
+	sleep(30)
+	if(QDELETED(victim) || !victim.loc)
+		return
+	victim.emote("burstscream")
+	sleep(25)
+	if(QDELETED(victim) || !victim.loc)
+		return
+	sleep(10)
+	if(QDELETED(victim) || !victim.loc)
+		return
+
+	victim.spawn_gibs()
+	var/turf/burst_turf = get_turf(victim)
+
+	var/datum/cause_data/cause = create_cause_data("facehugger bursting", src)
+	victim.last_damage_data = cause
+	for(var/organ_name in list("heart", "lungs"))
+		var/datum/internal_organ/removed_organ = victim.internal_organs_by_name[organ_name]
+		victim.internal_organs_by_name -= organ_name
+		victim.internal_organs -= removed_organ
+	victim.undefibbable = TRUE
+	victim.death(cause)
+
+	var/mob/living/carbon/xenomorph/facehugger/new_hugger = new(burst_turf, null, xeno_hive)
+	if(!new_hugger.hud_used)
+		new_hugger.create_hud()
+	if(spawn_as == "freed")
+		admin_datum.owner.free_for_ghosts(new_hugger)
+	else if(spawn_as == "ai")
+		attach_xeno_ai(new_hugger, burst_turf)
+
 /datum/admins/var/create_xenos_html = null
 /datum/admins/proc/create_xenos(mob/user)
 	if(!create_xenos_html)
@@ -903,6 +1413,227 @@
 	set category = "Admin.Events"
 	if(admin_holder)
 		admin_holder.create_xenos(usr)
+
+// ─── AI Difficulty — TGUI datum ──────────────────────────────────────────────
+// Live control surface for the AI xeno population/behavior settings - the
+// dynamic mission system and its own difficulty slider were removed
+// entirely ("remove the automatic spawning, the game mode, and the dynamic
+// missions - the AI should be the only thing left, keep the hive status and
+// difficulty settings"), so this panel is now purely about the AI. Stateless
+// by design (reads everything live off GLOB each poll), so unlike
+// admin_spawn_xenos/admin_spawn_humans it needs no per-instance vars.
+
+/datum/admin_ai_difficulty
+
+/datum/admin_ai_difficulty/tgui_interact(mob/user, datum/tgui/ui)
+	ui = SStgui.try_update_ui(user, src, ui)
+	if(!ui)
+		ui = new /datum/tgui(user, src, "AdminAIDifficulty", "AI Difficulty")
+		ui.open()
+
+/datum/admin_ai_difficulty/ui_state(mob/user)
+	return GLOB.admin_state
+
+/datum/admin_ai_difficulty/ui_data(mob/user)
+	var/list/data = list()
+	data["ai_xeno_count"] = GLOB.ai_xeno_active_count
+	data["ai_flee_multiplier"] = GLOB.ai_flee_multiplier
+	data["ai_distance_multiplier"] = GLOB.ai_distance_multiplier
+	data["difficulty_multiplier"] = GLOB.ai_difficulty_multiplier
+
+	data["spawner_enabled"] = GLOB.xeno_spawner_enabled
+	data["spawner_target_population"] = spawner_target_population()
+	var/datum/hive_status/spawner_hive = GLOB.xeno_spawner_hive ? GLOB.hive_datum[GLOB.xeno_spawner_hive] : null
+	data["spawner_hive_name"] = spawner_hive ? spawner_hive.name : "None"
+	data["spawner_phase"] = SSxeno_spawner.hive_phase
+
+	var/list/castes = list()
+	for(var/c in ALL_XENO_CASTES)
+		castes += c
+	data["ai_castes"] = castes
+	var/list/caste_caps = list()
+	for(var/c in ALL_XENO_CASTES)
+		caste_caps[c] = GLOB.ai_xeno_max_per_caste[c] || 0 // 0 means "uncapped" in the UI, not "cap of zero".
+	data["ai_caste_caps"] = caste_caps
+	var/list/caste_counts = list()
+	for(var/c in ALL_XENO_CASTES)
+		caste_counts[c] = count_active_ai_xenos_of_caste(c)
+	data["ai_caste_counts"] = caste_counts
+
+	return data
+
+/datum/admin_ai_difficulty/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
+	. = ..()
+	if(.)
+		return
+	var/mob/user = ui.user
+	if(!check_client_rights(user.client, R_SPAWN))
+		return
+
+	switch(action)
+		if("set_spawner_enabled")
+			GLOB.xeno_spawner_enabled = !!params["enabled"]
+			message_admins("[key_name_admin(user)] [GLOB.xeno_spawner_enabled ? "enabled" : "disabled"] the Xeno Spawner.")
+			return TRUE
+
+		if("set_spawner_hive")
+			// "I want to be able to select which hive is auto spawned on
+			// round start if any at all" - GLOB.hive_datum always has all 13
+			// XENO_HIVE_* hives instantiated regardless of whether they're
+			// in play this round (global_lists.dm), so this list needs its
+			// own explicit "None" entry rather than assuming an empty
+			// selection is possible some other way.
+			var/list/hive_options = list("None (spawner disabled)" = null)
+			for(var/hivenumber in GLOB.hive_datum)
+				var/datum/hive_status/hive_option = GLOB.hive_datum[hivenumber]
+				hive_options["[hive_option.name]"] = hivenumber
+			var/choice = tgui_input_list(user, "Which hive should the Xeno Spawner reinforce?", "Xeno Spawner Hive", hive_options)
+			if(isnull(choice))
+				return TRUE // Cancelled - distinct from actually picking "None", which is a null *value*, not a null *key*.
+			GLOB.xeno_spawner_hive = hive_options[choice]
+			message_admins("[key_name_admin(user)] set the Xeno Spawner's target hive to [choice].")
+			return TRUE
+
+		if("set_spawner_phase")
+			var/list/phase_options = list(HIVE_PHASE_BUILDUP, HIVE_PHASE_ASSAULT, HIVE_PHASE_LULL)
+			var/choice = tgui_input_list(user, "Force the hive's pressure phase (the normal rhythm resumes from it):", "Hive Phase", phase_options)
+			if(isnull(choice))
+				return TRUE
+			SSxeno_spawner.force_hive_phase(choice)
+			message_admins("[key_name_admin(user)] forced the Xeno Spawner's hive phase to [choice].")
+			return TRUE
+
+		if("set_spawner_difficulty")
+			// Difficulty is purely the Spawner's population/spawn-rate knob
+			// (spawner_target_population()/spawner_maintain_population()'s
+			// max_per_fire scaling, xeno_spawner.dm); AI Behavior's own
+			// presets/sliders are the sole, independent control for
+			// aggression/awareness.
+			var/new_difficulty = clamp(text2num(params["value"]), 0.25, 4)
+			GLOB.ai_difficulty_multiplier = new_difficulty
+			message_admins("[key_name_admin(user)] set the Xeno Spawner difficulty multiplier to [new_difficulty].")
+			return TRUE
+
+		if("set_caste_cap")
+			var/caste = params["caste"]
+			if(!(caste in ALL_XENO_CASTES))
+				return TRUE
+			var/new_cap = clamp(text2num(params["value"]), 0, 100)
+			if(new_cap <= 0)
+				GLOB.ai_xeno_max_per_caste -= caste
+				message_admins("[key_name_admin(user)] removed the per-caste cap on [caste].")
+			else
+				GLOB.ai_xeno_max_per_caste[caste] = new_cap
+				message_admins("[key_name_admin(user)] capped [caste] to [new_cap] active AI xenos.")
+			return TRUE
+
+		if("set_flee_multiplier")
+			var/new_value = clamp(text2num(params["value"]), 0.1, 3)
+			GLOB.ai_flee_multiplier = new_value
+			message_admins("[key_name_admin(user)] set the AI flee multiplier to [new_value].")
+			return TRUE
+
+		if("set_distance_multiplier")
+			var/new_value = clamp(text2num(params["value"]), 0.25, 3)
+			GLOB.ai_distance_multiplier = new_value
+			message_admins("[key_name_admin(user)] set the AI awareness/leash distance multiplier to [new_value].")
+			return TRUE
+
+		if("set_behavior_preset")
+			var/preset = params["preset"]
+			switch(preset)
+				if("passive")
+					GLOB.ai_flee_multiplier = 1.5
+					GLOB.ai_distance_multiplier = 0.7
+				if("balanced")
+					GLOB.ai_flee_multiplier = 1
+					GLOB.ai_distance_multiplier = 1
+				if("aggressive")
+					GLOB.ai_flee_multiplier = 0.6
+					GLOB.ai_distance_multiplier = 1.3
+				if("ruthless")
+					GLOB.ai_flee_multiplier = 0.25
+					GLOB.ai_distance_multiplier = 1.5
+				else
+					return TRUE
+			// No longer syncs GLOB.ai_difficulty_multiplier - see
+			// set_spawner_difficulty's doc comment above. Presets are purely
+			// an aggression/awareness shortcut now, independent of the
+			// Spawner's difficulty/spawn-rate knob.
+			message_admins("[key_name_admin(user)] set the AI behavior preset to [preset].")
+			return TRUE
+
+/datum/admins/proc/ai_difficulty(mob/user)
+	var/datum/admin_ai_difficulty/datum = new()
+	datum.tgui_interact(user)
+
+/client/proc/ai_difficulty()
+	set name = "AI Difficulty"
+	set category = "Admin.Events"
+	if(admin_holder)
+		admin_holder.ai_difficulty(usr)
+
+// ─── Hive Status — TGUI datum ────────────────────────────────────────────────
+
+/datum/admin_hive_status
+
+/datum/admin_hive_status/tgui_interact(mob/user, datum/tgui/ui)
+	ui = SStgui.try_update_ui(user, src, ui)
+	if(!ui)
+		ui = new /datum/tgui(user, src, "AdminHiveStatus", "Hive Status")
+		ui.open()
+
+/datum/admin_hive_status/ui_state(mob/user)
+	return GLOB.admin_state
+
+/// One row per currently AI-piloted xeno - health, location, how long it's been alive, and cumulative damage dealt (see xeno_ai_attack.dm's record_damage_dealt()). Rebuilt fresh every open/poll rather than cached, same as every other admin monitoring panel.
+/datum/admin_hive_status/ui_data(mob/user)
+	var/list/data = list()
+	var/list/xenos = list()
+	for(var/mob/living/carbon/xenomorph/xeno as anything in GLOB.ai_xeno_list)
+		if(!xeno.ai_controller)
+			continue
+		var/datum/xeno_ai_controller/controller = xeno.ai_controller
+		var/list/entry = list()
+		entry["name"] = xeno.name
+		entry["codename"] = controller.codename
+		entry["caste"] = xeno.caste_type
+		entry["health"] = round(xeno.health)
+		entry["max_health"] = round(xeno.maxHealth)
+		entry["area"] = get_area_name(xeno, TRUE)
+		entry["time_lived"] = round((world.time - controller.spawned_at) / 10) // deciseconds -> seconds
+		entry["damage_dealt"] = round(controller.damage_dealt)
+		entry["last_ability_ago"] = controller.last_ability_time ? round((world.time - controller.last_ability_time) / 10) : -1
+		entry["ai_state"] = controller.ai_state
+		entry["idle_activity"] = (controller.ai_state == AI_STATE_IDLE) ? controller.idle_activity : ""
+		entry["ref"] = REF(xeno)
+		xenos += list(entry)
+	data["xenos"] = xenos
+	return data
+
+/datum/admin_hive_status/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
+	. = ..()
+	if(.)
+		return
+	var/mob/user = ui.user
+	if(!check_client_rights(user.client, R_ADMIN))
+		return
+
+	if(action == "jump_to")
+		var/mob/living/carbon/xenomorph/xeno = locate(params["ref"]) in GLOB.ai_xeno_list
+		if(xeno)
+			user.forceMove(get_turf(xeno))
+		return TRUE
+
+/datum/admins/proc/hive_status(mob/user)
+	var/datum/admin_hive_status/datum = new()
+	datum.tgui_interact(user)
+
+/client/proc/hive_status()
+	set name = "Hive Status"
+	set category = "Admin.Events"
+	if(admin_holder)
+		admin_holder.hive_status(usr)
 
 /client/proc/clear_mutineers()
 	set name = "Clear All Mutineers"

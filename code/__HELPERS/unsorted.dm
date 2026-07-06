@@ -556,6 +556,7 @@
 
 ///Will return the contents of an atom recursivly to a depth of 'searchDepth', not including starting atom
 /atom/proc/GetAllContents(searchDepth = 5, list/toReturn = list())
+	RETURN_TYPE(/list)
 	for(var/atom/part as anything in contents)
 		toReturn += part
 		if(length(part.contents) && searchDepth)

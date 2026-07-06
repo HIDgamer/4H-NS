@@ -22,6 +22,7 @@
 
 /obj/structure/Destroy()
 	//before ..() because the parent does loc = null
+	var/turf/final_turf = density ? get_turf(loc) : null
 	for(var/atom/movable/A in contents_recursive())
 		var/obj/O = A
 		if(!istype(O))
@@ -30,6 +31,8 @@
 			O.forceMove(get_turf(loc))
 	debris = null
 	. = ..()
+	if(final_turf)
+		SSxeno_pathfinding?.push_delta(final_turf) // A destroyed dense structure (window, girder) frees its tile in the xeno AI's native walkability grid - same sync door.dm's density flips do.
 
 /obj/structure/attack_animal(mob/living/user)
 	if(breakable)

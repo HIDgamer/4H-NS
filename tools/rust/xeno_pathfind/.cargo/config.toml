@@ -1,0 +1,14 @@
+# Statically link the CRT on Windows so the built xeno_pathfind.dll has no
+# runtime dependency on VCRUNTIME140.dll / the UCRT api-ms-win-crt-*.dll
+# forwarders. Without this, LoadLibrary() fails on any host missing the
+# Visual C++ Redistributable, and BYOND's call_ext() surfaces that as a
+# confusing "specified procedure could not be found" error rather than a
+# clear "module not found" - this bit us during Windows testing. rust-g's
+# own prebuilt rust_g.dll has zero CRT dependencies for the same reason;
+# this matches that. Not applied to non-Windows targets - dynamic linking
+# against glibc on Linux doesn't have this class of problem.
+#
+# Applied via cfg(windows) rather than a single [target.*] key so it covers
+# both i686 (Dream Daemon is a 32-bit process) and x86_64-pc-windows-msvc.
+[target.'cfg(all(windows, target_env = "msvc"))']
+rustflags = ["-C", "target-feature=+crt-static"]

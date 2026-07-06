@@ -199,6 +199,33 @@ GLOBAL_VAR_INIT(next_admin_bioscan, 30 MINUTES)
 						continue
 					num_xenos++
 
+	// GLOB.player_list only holds mobs with a client attached ("all mobs with
+	// clients attached" - see _globalvars/lists/mobs.dm) - an AI-piloted xeno
+	// is deliberately clientless (that's the whole point) and so is never in
+	// it, meaning every AI xeno was invisible to round-end/objective win-loss
+	// checks entirely: mission objectives and the hive-wiped/marines-wiped
+	// win conditions were being decided as if every AI xeno was already dead,
+	// regardless of how many were actually alive and fighting. GLOB.ai_xeno_list
+	// (xeno_ai_lifecycle.dm) tracks exactly the population missing from the
+	// loop above, so it's scanned here with the identical eligibility checks.
+	// No double-count risk: detach_xeno_ai() (login.dm's Login() hook) always
+	// removes a mob from GLOB.ai_xeno_list before a claiming ghost's client
+	// finishes attaching and the mob enters GLOB.player_list.
+	for(var/mob/living/carbon/xenomorph/ai_xeno as anything in GLOB.ai_xeno_list)
+		if(!ai_xeno.z || !(ai_xeno.z in z_levels) || ai_xeno.stat == DEAD)
+			continue
+		if(istype(ai_xeno.loc, /turf/open/space) || istype(ai_xeno.loc, /area/adminlevel/ert_station/fax_response_station))
+			continue
+		if(!ai_xeno.counts_for_roundend)
+			continue
+		var/datum/hive_status/ai_xeno_hive = GLOB.hive_datum[ai_xeno.hivenumber]
+		if(!ai_xeno_hive || (ai_xeno_hive.need_round_end_check && !ai_xeno_hive.can_delay_round_end(ai_xeno)))
+			continue
+		var/area/ai_xeno_area = get_area(ai_xeno)
+		if(ai_xeno_area.flags_area & AREA_AVOID_BIOSCAN)
+			continue
+		num_xenos++
+
 	return list(num_humans,num_xenos)
 
 /datum/game_mode/proc/count_marines_and_pmcs(list/z_levels = SSmapping.levels_by_any_trait(list(ZTRAIT_GROUND, ZTRAIT_RESERVED, ZTRAIT_MARINE_MAIN_SHIP)))

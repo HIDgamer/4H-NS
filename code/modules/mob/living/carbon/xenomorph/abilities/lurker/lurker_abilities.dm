@@ -55,7 +55,7 @@
 
 /datum/action/xeno_action/activable/flurry
 	name = "Flurry"
-	action_icon_state = "rav_spike"
+	action_icon_state = "spin_slash" // Was "rav_spike" (Ravager's ranged bone-spike icon) - Flurry is a melee claw-cleave, not a ranged spike throw.
 	macro_path = /datum/action/xeno_action/verb/verb_flurry
 	ability_primacy = XENO_PRIMARY_ACTION_2
 	action_type = XENO_ACTION_CLICK

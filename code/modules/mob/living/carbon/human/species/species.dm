@@ -119,8 +119,8 @@
 
 	var/has_species_tab_items = FALSE
 
-	/// Fire overlay sprite prefix
-	var/fire_sprite_prefix = "human"
+	/// Fire overlay sprite prefix - must match an actual icon_state in fire_sprite_sheet (OnFire.dmi only has Standing_weak/Standing_medium and k9_weak/k9_medium; update_fire(), human/update_icons.dm, builds the image() from this).
+	var/fire_sprite_prefix = "Standing"
 	/// Fire overlay sprite sheet
 	var/fire_sprite_sheet = 'icons/mob/humans/onmob/OnFire.dmi'
 	/// List of burst scream sound files

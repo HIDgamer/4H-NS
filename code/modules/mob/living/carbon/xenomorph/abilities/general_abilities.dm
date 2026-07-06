@@ -70,7 +70,7 @@
 // Choose Resin
 /datum/action/xeno_action/onclick/choose_resin
 	name = "Choose Resin Structure"
-	action_icon_state = "retrieve_egg"
+	action_icon_state = "fast_resin" // Was "retrieve_egg" (Carrier's egg-pickup icon) - unrelated to picking a resin structure type.
 	plasma_cost = 0
 	macro_path = /datum/action/xeno_action/verb/verb_choose_resin_structure
 	action_type = XENO_ACTION_CLICK
@@ -389,7 +389,7 @@
 
 /datum/action/xeno_action/onclick/xenohide
 	name = "Hide"
-	action_icon_state = "xeno_hide"
+	action_icon_state = "xenohide"
 	plasma_cost = 0
 	xeno_cooldown = 0.5 SECONDS
 	macro_path = /datum/action/xeno_action/verb/verb_hide

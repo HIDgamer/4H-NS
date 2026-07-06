@@ -196,6 +196,44 @@
 		SPAN_XENONOTICE("We pop out through the other side!"))
 		return TRUE
 
+/**
+ * AI-driven traversal to a specific destination tunnel - the same windups,
+ * capacity limits, and hive checks as the player flow (attack_alien() entry
+ * plus pick_tunnel() transit), minus the tgui destination picker a
+ * clientless mob can't drive. Returns TRUE once the xeno has popped out the
+ * far side.
+ */
+/obj/structure/tunnel/proc/ai_travel(mob/living/carbon/xenomorph/traveler, obj/structure/tunnel/destination)
+	if(!istype(traveler) || traveler.is_mob_incapacitated(TRUE) || !isfriendly(traveler) || !hive || traveler.anchored)
+		return FALSE
+	if(!destination || destination == src || destination.hivenumber != hivenumber || !destination.loc)
+		return FALSE
+	if(length(contents) > 2 || length(destination.contents) > 2)
+		return FALSE
+
+	var/enter_time = TUNNEL_ENTER_XENO_DELAY
+	var/transit_time = TUNNEL_MOVEMENT_XENO_DELAY
+	if(traveler.mob_size >= MOB_SIZE_BIG)
+		enter_time = TUNNEL_ENTER_BIG_XENO_DELAY
+		transit_time = TUNNEL_MOVEMENT_BIG_XENO_DELAY
+	else if(islarva(traveler))
+		enter_time = TUNNEL_ENTER_LARVA_DELAY
+		transit_time = TUNNEL_MOVEMENT_LARVA_DELAY
+
+	traveler.visible_message(SPAN_XENONOTICE("[traveler] begins crawling down into [src]."),
+		SPAN_XENONOTICE("We begin crawling down into [src]."))
+	if(!do_after(traveler, enter_time, INTERRUPT_NO_NEEDHAND, BUSY_ICON_GENERIC))
+		return FALSE
+	traveler.forceMove(src)
+	if(!do_after(traveler, transit_time, INTERRUPT_NO_NEEDHAND, 0))
+		exit_tunnel(traveler)
+		return FALSE
+	if(QDELETED(destination) || !destination.loc || length(destination.contents) > 2)
+		exit_tunnel(traveler)
+		return FALSE
+	traveler.forceMove(destination)
+	return destination.exit_tunnel(traveler)
+
 //Used for controling tunnel exiting and returning
 /obj/structure/tunnel/clicked(mob/user, list/mods)
 	if(!isxeno(user) || !isfriendly(user))

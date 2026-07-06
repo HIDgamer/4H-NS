@@ -86,6 +86,48 @@
 	action_icon_state = "xeno_readmit"
 	plasma_cost = 0
 
+/**
+ * These five never had their own type declaration block anywhere - only a
+ * use_ability() override (queen_powers.dm), which in DM implicitly creates
+ * the subtype with every var left at its parent's bare default. In practice
+ * that meant no name (showed the base "Generic Action"), no icon (blank
+ * button - "missing icons like screech"), and, for the ones that check
+ * plasma/cooldown through the action framework, no real cost or cooldown
+ * either - Screech and Give Plasma were both fully free and unlimited-rate.
+ * The sprite sheet already has icon_states named exactly for these
+ * (screech/gut/queen_give_plasma/queen_word) - they were drawn for these
+ * abilities, just never wired up.
+ */
+/datum/action/xeno_action/onclick/screech
+	name = "Screech (250)"
+	action_icon_state = "screech"
+	plasma_cost = 250
+	xeno_cooldown = 30 SECONDS
+
+/datum/action/xeno_action/activable/gut
+	name = "Gut"
+	action_icon_state = "gut"
+	plasma_cost = 0 // Free by design - queen_gut()/use_ability() never check plasma, the real cost is the 8-second interruptible windup itself.
+	xeno_cooldown = 20 SECONDS
+	action_type = XENO_ACTION_CLICK
+
+/datum/action/xeno_action/activable/queen_give_plasma
+	name = "Give Plasma (200)"
+	action_icon_state = "queen_give_plasma"
+	plasma_cost = 200
+	xeno_cooldown = 12 SECONDS
+	action_type = XENO_ACTION_CLICK
+
+/datum/action/xeno_action/onclick/queen_word
+	name = "Queen's Word"
+	action_icon_state = "queen_word"
+	plasma_cost = 0 // hive_message() gates its own cooldown internally (see use_ability()'s comment) - verbs can trigger this too, so the action framework's own cooldown is deliberately left unused here.
+
+/datum/action/xeno_action/onclick/send_thoughts
+	name = "Send Thoughts"
+	action_icon_state = "psychic_whisper"
+	plasma_cost = 0 // Reset per-choice inside use_ability() - Psychic Radiance/Whisper/Give Order each gate their own cost individually.
+
 /datum/action/xeno_action/activable/secrete_resin/remote/queen
 	name = "Projected Resin (100)"
 	action_icon_state = "secrete_resin"

@@ -43,6 +43,17 @@
 	var/list/total_dead_xenos = list()
 	var/xeno_queen_timer
 	var/isSlotOpen = TRUE //Set true for starting alerts only after the hive has reached its full potential
+
+	/// Turf the AI Queen last flagged as a threat - other same-hive AI xenos check this during idle patrol (see xeno_ai_controller.dm's respond_to_hive_alert()) and head there instead of wandering randomly. This is how she "commands" the hive without a hard command hierarchy.
+	var/turf/queen_alert_turf
+	/// world.time queen_alert_turf was last set, so the alert goes stale (see AI_XENO_HIVE_ALERT_WINDOW) instead of calling the whole hive to a fight that's long since over.
+	var/queen_alert_time = 0
+	/// Turf the AI Queen wants nearby idle daughters to personally guard her at - distinct from queen_alert_turf (which points at a threat) since "come fight the thing I'm fighting" and "come stand near me" are different asks. See queen.dm's broadcast_escort_call() and xeno_ai_controller.dm's respond_to_queen_escort().
+	var/turf/queen_escort_turf
+	/// world.time queen_escort_turf was last set - same staleness reasoning as queen_alert_time.
+	var/queen_escort_time = 0
+	/// world.time SSxeno_spawner can next attempt to auto-replace a dead Queen for this hive - see xeno_spawner.dm's spawner_ensure_queen(). Throttles retry attempts rather than hammering a failing spawn every subsystem tick.
+	var/next_queen_spawn_attempt = 0
 	var/allowed_nest_distance = 15 //How far away do we allow nests from an ovied Queen. Default 15 tiles.
 	var/obj/effect/alien/resin/special/pylon/core/hive_location = null //Set to ref every time a core is built, for defining the hive location
 
@@ -191,6 +202,24 @@
 
 	setup_evolution_announcements()
 	setup_pylon_limits()
+	if(allow_queen_evolve)
+		addtimer(CALLBACK(src, PROC_REF(ensure_roundstart_queen)), XENO_ROUNDSTART_QUEEN_GUARANTEE_DELAY)
+
+/**
+ * "One queen should be automatically spawned every round start" - whether a
+ * Queen ever exists is otherwise purely a player-lottery outcome
+ * (cm_initialize.dm's initialize_starting_xenomorph_list() only assigns one
+ * if a candidate actually signed up for the Queen role); if nobody did,
+ * living_xeno_queen stays null for the whole round with nothing to fix it.
+ * Fired once, timed after this proc's own caller (COMSIG_GLOB_MODE_POSTSETUP)
+ * to run well after job assignment/character equip has already resolved any
+ * player Queen pick. Reuses spawner_ensure_queen() (xeno_spawner.dm) rather
+ * than a separate spawn path, and deliberately independent of
+ * GLOB.xeno_spawner_enabled/GLOB.xeno_spawner_hive - this guarantee has to
+ * hold even with the admin Spawner toggled off entirely.
+ */
+/datum/hive_status/proc/ensure_roundstart_queen()
+	spawner_ensure_queen(src)
 
 /datum/hive_status/proc/setup_evolution_announcements()
 	for(var/time in GLOB.xeno_evolve_times)

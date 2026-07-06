@@ -41,3 +41,9 @@ cp -r map_config/* $1/map_config/
 if [ "$(uname -o)" = "Msys" ]; then
 	cp ./*.dll $1/
 fi
+
+#xeno_pathfind native library on linux - unlike rust-g it isn't expected to be
+#installed in a fixed system location, so it has to travel with the deployment
+if [ -f "./libxeno_pathfind.so" ]; then
+	cp ./libxeno_pathfind.so $1/
+fi

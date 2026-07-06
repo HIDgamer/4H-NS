@@ -35,3 +35,6 @@ libprof.so
 
 # OpenDream compatibility stuff
 colonialmarines.json
+
+# Claude Code agent config/state - not part of the project
+.claude/

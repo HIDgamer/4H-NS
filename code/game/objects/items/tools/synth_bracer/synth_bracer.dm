@@ -75,6 +75,15 @@
 	/// Cooldown on abilities that play sounds (and don't internally handle it)
 	COOLDOWN_DECLARE(sound_cooldown)
 
+/**
+ * Single canonical Initialize() for this type - previously ocular_designator.dm
+ * and motion_detector.dm each redefined this proc outright instead of extending
+ * it, which in DM completely replaces rather than chains, so only the
+ * last-loaded file's body ever ran and the other ability's setup (creating
+ * binos or the motion detector object) was silently dead code. Merged here so
+ * all three actually run together. Same reasoning applies to Destroy()/
+ * dropped() below and attackby() further down this file.
+ */
 /obj/item/clothing/gloves/synth/Initialize(mapload, ...)
 	. = ..()
 	update_actions()
@@ -91,12 +100,20 @@
 	internal_transmitter.networks_transmit = list(faction)
 	RegisterSignal(internal_transmitter, COMSIG_TRANSMITTER_UPDATE_ICON, PROC_REF(check_for_ringing))
 
+	binos = new(src)
+	RegisterSignal(binos, COMSIG_ITEM_DROPPED, PROC_REF(return_binos))
+
+	motion_detector = new /obj/item/device/motiondetector/simi(src)
+	motion_detector.iff_signal = faction
+
 /obj/item/clothing/gloves/synth/Destroy()
 	. = ..()
 	QDEL_NULL_LIST(actions_list_actions)
 	QDEL_NULL(internal_transmitter)
 	QDEL_NULL(internal_camera_console)
 	QDEL_NULL(underglove)
+	QDEL_NULL(binos)
+	QDEL_NULL(motion_detector)
 
 /obj/item/clothing/gloves/synth/examine(mob/user)
 	..()
@@ -142,6 +159,14 @@
 		internal_transmitter.phone_id = "[src]"
 		internal_transmitter.enabled = FALSE
 
+	return_binos()
+
+	ui_displaying = FALSE
+	ui_display_tick = 0
+	ui_drain_tick = 0
+	if(motion_detector && motion_detector_active)
+		toggle_motion_detector(user)
+
 	wearer = null
 	return ..()
 
@@ -161,6 +186,10 @@
 			add_fingerprint(usr)
 
 /obj/item/clothing/gloves/synth/attackby(obj/item/attacker, mob/living/carbon/human/user)
+	if(attacker == binos)
+		return_binos()
+		return
+
 	if((istype(attacker, /obj/item/clothing/gloves)) && !(attacker.flags_item & ITEM_PREDATOR))
 		if(underglove)
 			to_chat(user, SPAN_WARNING("[src] is already attached to [underglove], remove them first."))
