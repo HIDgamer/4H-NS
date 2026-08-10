@@ -1,100 +1,108 @@
-#define VV_HTML_ENCODE(thing) ( sanitize ? html_encode(thing) : thing )
-/// Get displayed variable in VV variable list
-/proc/debug_variable(name, value, level, datum/D, sanitize = TRUE) //if D is a list, name will be index, and value will be assoc value.
-	var/header
+/// Get displayed variable in VV variable list, as structured data for the tgui ViewVariables
+/// interface — each row carries its edit/change/mass-edit/remove hrefs as plain data fields
+/// (bare href strings via VV_HREF_TARGET_1V_INTERNAL(), NOT the VV_HREF_TARGET_1V() macro — that
+/// one wraps its output in a full "<a href='...'>text</a>" tag meant for embedding in real HTML,
+/// which is wrong here: storing that whole tag as a data field's value means the row's onClick
+/// handler would send the literal string "<a href='...'>E</a>" as the href, and client.Topic()
+/// can't parse that as a query string) rather than as clickable HTML, since a tgui window can't
+/// resolve byond:// links the way a browse() popup window could. See view_variables_session.dm's
+/// "click_href" ui_act for how these get fired.
+/// If D is a list, name will be index, and value will be assoc value.
+/proc/debug_variable(name, value, level, datum/D, sanitize = TRUE)
+	var/list/row = list()
 	if(D)
 		if(islist(D))
 			var/list/var_list = D
 			var/index = name
-			if (value)
+			if(value)
 				name = var_list[name] //name is really the index until this line
 			else
 				value = var_list[name]
-			header = "<li style='backgroundColor:white'>[VV_HREF_TARGET_1V(D, VV_HK_LIST_EDIT, "E", index)][VV_HREF_TARGET_1V(D, VV_HK_LIST_CHANGE, "C", index)][VV_HREF_TARGET_1V(D, VV_HK_LIST_REMOVE, "-", index)] "
+			row["edit_href"] = VV_HREF_TARGET_1V_INTERNAL(D, VV_HK_LIST_EDIT, index)
+			row["change_href"] = VV_HREF_TARGET_1V_INTERNAL(D, VV_HK_LIST_CHANGE, index)
+			row["remove_href"] = VV_HREF_TARGET_1V_INTERNAL(D, VV_HK_LIST_REMOVE, index)
 		else
-			header = "<li style='backgroundColor:white'>[VV_HREF_TARGET_1V(D, VV_HK_BASIC_EDIT, "E", name)][VV_HREF_TARGET_1V(D, VV_HK_BASIC_CHANGE, "C", name)][VV_HREF_TARGET_1V(D, VV_HK_BASIC_MASSEDIT, "M", name)] "
-	else
-		header = "<li>"
+			row["edit_href"] = VV_HREF_TARGET_1V_INTERNAL(D, VV_HK_BASIC_EDIT, name)
+			row["change_href"] = VV_HREF_TARGET_1V_INTERNAL(D, VV_HK_BASIC_CHANGE, name)
+			row["massedit_href"] = VV_HREF_TARGET_1V_INTERNAL(D, VV_HK_BASIC_MASSEDIT, name)
 
-	var/item
-	var/name_part = VV_HTML_ENCODE(name)
+	row["name"] = "[name]"
 	if(level > 0 || islist(D)) //handling keys in assoc lists
-		if(istype(name,/datum))
-			name_part = "<a href='byond://?_src_=vars;[HrefToken()];Vars=[REF(name)]'>[VV_HTML_ENCODE(name)] [REF(name)]</a>"
+		if(istype(name, /datum))
+			row["name_ref"] = REF(name)
+			row["name_href"] = VV_HREF_NAV_INTERNAL(REF(name))
 		else if(islist(name))
 			var/list/L = name
-			name_part = "<a href='byond://?_src_=vars;[HrefToken()];Vars=[REF(name)]'> /list ([length(L)]) [REF(name)]</a>"
+			row["name_ref"] = REF(name)
+			row["name_href"] = VV_HREF_NAV_INTERNAL(REF(name))
+			row["name_list_length"] = length(L)
 
-	if (isnull(value))
-		item = "[name_part] = <span class='value'>null</span>"
+	if(isnull(value))
+		row["class"] = "null"
 
-	else if (istext(value))
-		item = "[name_part] = <span class='value'>\"[VV_HTML_ENCODE(value)]\"</span>"
+	else if(istext(value))
+		row["class"] = "text"
+		row["value_text"] = value
 
-	else if (isicon(value))
+	else if(isicon(value))
+		row["class"] = "icon"
+		row["value_text"] = "[value]"
 		#ifdef VARSICON
-		var/icon/I = icon(value)
-		var/rnd = rand(1,10000)
-		var/rname = "tmp[REF(I)][rnd].png"
-		usr << browse_rsc(I, rname)
-		item = "[name_part] = (<span class='value'>[value]</span>) <img class=icon src=\"[rname]\">"
-		#else
-		item = "[name_part] = /icon (<span class='value'>[value]</span>)"
+		row["value_icon_b64"] = icon2base64(icon(value))
 		#endif
 
-	else if (isfile(value))
-		item = "[name_part] = <span class='value'>'[value]'</span>"
+	else if(isfile(value))
+		row["class"] = "file"
+		row["value_text"] = "[value]"
 
-	else if(istype(value,/matrix)) // Needs to be before datum
+	else if(istype(value, /matrix)) // Needs to be before datum
 		var/matrix/M = value
-		item = {"[name_part] = <span class='value'>
-			<table class='matrixbrak'><tbody><tr><td class='lbrak'>&nbsp;</td><td>
-			<table class='matrix'>
-			<tbody>
-				<tr><td>[M.a]</td><td>[M.d]</td><td>0</td></tr>
-				<tr><td>[M.b]</td><td>[M.e]</td><td>0</td></tr>
-				<tr><td>[M.c]</td><td>[M.f]</td><td>1</td></tr>
-			</tbody>
-			</table></td><td class='rbrak'>&nbsp;</td></tr></tbody></table></span>"} //TODO link to modify_transform wrapper for all matrices
-	else if (isdatum(value))
+		row["class"] = "matrix"
+		row["matrix"] = list(M.a, M.d, M.b, M.e, M.c, M.f) //TODO link to modify_transform wrapper for all matrices
+
+	else if(isdatum(value))
 		var/datum/DV = value
-		if ("[DV]" != "[DV.type]") //if the thing as a name var, lets use it.
-			item = "[name_part] = <a href='byond://?_src_=vars;[HrefToken()];Vars=[REF(value)]'>[DV] [DV.type] [REF(value)]</a>"
-		else
-			item = "[name_part] = <a href='byond://?_src_=vars;[HrefToken()];Vars=[REF(value)]'>[DV.type] [REF(value)]</a>"
-		if(istype(value,/datum/weakref))
+		row["class"] = "datum"
+		row["value_ref"] = REF(value)
+		row["value_href"] = VV_HREF_NAV_INTERNAL(REF(value))
+		row["value_type"] = "[DV.type]"
+		row["value_text"] = ("[DV]" != "[DV.type]") ? "[DV]" : null //if the thing has a name var, lets use it.
+		if(istype(value, /datum/weakref))
 			var/datum/weakref/weakref = value
-			item += " <a href='byond://?_src_=vars;[HrefToken()];Vars=[weakref.reference]'>(Resolve)</a>"
+			row["weakref_target_ref"] = weakref.reference
+			row["weakref_target_href"] = VV_HREF_NAV_INTERNAL(weakref.reference)
 
-	else if (islist(value))
+	else if(islist(value))
 		var/list/L = value
-		var/list/items = list()
+		row["class"] = "list"
+		row["value_ref"] = REF(value)
+		row["value_href"] = VV_HREF_NAV_INTERNAL(REF(value))
+		row["list_length"] = length(L)
 
-		if (length(L) > 0 && !(name == "underlays" || name == "overlays" || length(L) > (IS_NORMAL_LIST(L) ? VV_NORMAL_LIST_NO_EXPAND_THRESHOLD : VV_SPECIAL_LIST_NO_EXPAND_THRESHOLD)))
-			for (var/i in 1 to length(L))
+		if(length(L) > 0 && !(name == "underlays" || name == "overlays" || length(L) > (IS_NORMAL_LIST(L) ? VV_NORMAL_LIST_NO_EXPAND_THRESHOLD : VV_SPECIAL_LIST_NO_EXPAND_THRESHOLD)))
+			var/list/children = list()
+			for(var/i in 1 to length(L))
 				var/key = L[i]
 				var/val
-				if (IS_NORMAL_LIST(L) && !isnum(key))
+				if(IS_NORMAL_LIST(L) && !isnum(key))
 					val = L[key]
-				if (isnull(val)) // we still want to display non-null false values, such as 0 or ""
+				if(isnull(val)) // we still want to display non-null false values, such as 0 or ""
 					val = key
 					key = i
 
-				items += debug_variable(key, val, level + 1, sanitize = sanitize)
+				children += list(debug_variable(key, val, level + 1, sanitize = sanitize))
+			row["children"] = children
 
-			item = "[name_part] = <a href='byond://?_src_=vars;[HrefToken()];Vars=[REF(value)]'>/list ([length(L)])</a><ul>[items.Join()]</ul>"
-		else
-			item = "[name_part] = <a href='byond://?_src_=vars;[HrefToken()];Vars=[REF(value)]'>/list ([length(L)])</a>"
-
-	else if (name in GLOB.bitfields)
+	else if(name in GLOB.bitfields)
 		var/list/flags = list()
-		for (var/i in GLOB.bitfields[name])
-			if (value & GLOB.bitfields[name][i])
+		for(var/i in GLOB.bitfields[name])
+			if(value & GLOB.bitfields[name][i])
 				flags += i
-			item = "[name_part] = [VV_HTML_ENCODE(jointext(flags, ", "))]"
+		row["class"] = "bitfield"
+		row["value_text"] = jointext(flags, ", ")
+
 	else
-		item = "[name_part] = <span class='value'>[VV_HTML_ENCODE(value)]</span>"
+		row["class"] = "value"
+		row["value_text"] = "[value]"
 
-	return "[header][item]</li>"
-
-#undef VV_HTML_ENCODE
+	return row

@@ -30,6 +30,43 @@ GLOBAL_VAR_INIT(players_preassigned, 0)
 /proc/guest_jobbans(job)
 	return (job in GLOB.ROLES_COMMAND)
 
+/// Department grouping for the Job Preferences/Job Slot Assignment tgui interfaces.
+/// Built on the existing GLOB.ROLES_* role lists (already used for job bans/crew manifests/etc,
+/// see code/__DEFINES/mode.dm) rather than adding a new department var to /datum/job — checked
+/// most-specific-first so department heads (CMO, Chief Engineer, ...) land in their own
+/// department instead of the broader ROLES_CIC/ROLES_COMMAND command list.
+/// Every `in` check below is parenthesized before `||` — DM's `in` operator doesn't reliably
+/// bind tighter than `||` unparenthesized (the exact reason every other `X in list || Y in
+/// list` in this codebase, e.g. communications.dm/ARES_procs.dm, is already written this way);
+/// without the parens every branch here silently evaluated false, so every job fell through to
+/// "Other".
+/proc/get_job_department(role_name)
+	if((role_name in GLOB.ROLES_MARINES) || (role_name in GLOB.ROLES_MARINES_ANTAG))
+		return "Marines"
+	if((role_name in GLOB.ROLES_MEDICAL) || (role_name in GLOB.ROLES_MEDICAL_ANTAG))
+		return "Medical"
+	if((role_name in GLOB.ROLES_ENGINEERING) || (role_name in GLOB.ROLES_ENGINEERING_ANTAG))
+		return "Engineering"
+	if((role_name in GLOB.ROLES_REQUISITION) || (role_name in GLOB.ROLES_REQUISITION_ANTAG))
+		return "Requisition"
+	if((role_name in GLOB.ROLES_POLICE) || (role_name in GLOB.ROLES_POLICE_ANTAG))
+		return "Military Police"
+	if((role_name in GLOB.ROLES_AUXIL_SUPPORT) || (role_name in GLOB.ROLES_AUXIL_SUPPORT_ANTAG))
+		return "Auxiliary Support"
+	if((role_name in GLOB.ROLES_CIC) || (role_name in GLOB.ROLES_CIC_ANTAG))
+		return "Command"
+	if((role_name in GLOB.ROLES_MISC) || (role_name in GLOB.ROLES_MISC_ANTAG))
+		return "Miscellaneous"
+	if(role_name in (ROLES_WY_PMC_ALL + ROLES_WY_CORPORATE + ROLES_WY_LEADERSHIP + ROLES_WY_GOONS))
+		return "Weyland-Yutani"
+	if(role_name in GLOB.ROLES_XENO)
+		return "Xenomorph"
+	if(role_name in GLOB.ROLES_WHITELISTED)
+		return "Whitelisted"
+	if(role_name in GLOB.ROLES_SPECIAL)
+		return "Special"
+	return "Other"
+
 /datum/authority/branch/role
 	var/name = "Role Authority"
 

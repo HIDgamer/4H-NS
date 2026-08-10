@@ -46,6 +46,15 @@
 #define VV_HREF_TARGETREF(targetref, href_key, text) "<a href='[VV_HREF_TARGETREF_INTERNAL(targetref, href_key)]'>[text]</a>"
 #define VV_HREF_TARGET_1V(target, href_key, text, varname) "<a href='[VV_HREF_TARGET_INTERNAL(target, href_key)];[VV_HK_VARNAME]=[varname]'>[text]</a>" //for stuff like basic varedits, one variable
 #define VV_HREF_TARGETREF_1V(targetref, href_key, text, varname) "<a href='[VV_HREF_TARGETREF_INTERNAL(targetref, href_key)];[VV_HK_VARNAME]=[varname]'>[text]</a>"
+/// Bare-href sibling of VV_HREF_TARGET_1V — no <a> wrapper, for tgui rows that carry the href as a
+/// plain data field (see debug_variable() in debug_variables.dm) instead of embedding it in HTML.
+/// Using VV_HREF_TARGET_1V directly here was a real bug: its "<a href='...'>text</a>" output was
+/// getting stored as the click_href action's href param verbatim, so client.Topic()/params2list()
+/// received the literal string "<a href='?_src_=vars;...'>E</a>" instead of a parseable query
+/// string — every VV row button fired an action (visible in tgui.log) that silently did nothing.
+#define VV_HREF_TARGET_1V_INTERNAL(target, href_key, varname) "[VV_HREF_TARGET_INTERNAL(target, href_key)];[VV_HK_VARNAME]=[varname]"
+/// Navigate the VV window to a different datum/list by ref — same href shape debug_variable() used to embed in every <a href='...Vars=...'> link.
+#define VV_HREF_NAV_INTERNAL(ref) "?_src_=vars;[HrefToken()];Vars=[ref]"
 
 #define GET_VV_TARGET locate(href_list[VV_HK_TARGET])
 #define GET_VV_VAR_TARGET href_list[VV_HK_VARNAME]

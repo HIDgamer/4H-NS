@@ -88,7 +88,7 @@ GLOBAL_LIST_EMPTY(shuttle_controls)
 					shuttle.door_override = 0
 					user.visible_message(SPAN_NOTICE("[src] blinks with blue lights."),
 						SPAN_NOTICE("You have successfully taken back the control over the dropship."))
-					ui_interact(user)
+					tgui_interact(user)
 				return
 			else
 				if(world.time < shuttle.last_locked + SHUTTLE_LOCK_COOLDOWN)
@@ -114,13 +114,19 @@ GLOBAL_LIST_EMPTY(shuttle_controls)
 		user.visible_message(SPAN_NOTICE("[src] blinks with red lights."),
 			SPAN_WARNING("Transport terminal unlinked. Manual activation required."))
 		return
-	ui_interact(user)
+	tgui_interact(user)
 
-/obj/structure/machinery/computer/shuttle_control/ui_interact(mob/user, ui_key = "main", datum/nanoui/ui = null, force_open = 0)
+/obj/structure/machinery/computer/shuttle_control/tgui_interact(mob/user, datum/tgui/ui)
+	ui = SStgui.try_update_ui(user, src, ui)
+	if(!ui)
+		ui = new(user, src, "ShuttleControl", name)
+		ui.open()
+
+/obj/structure/machinery/computer/shuttle_control/ui_data(mob/user)
 	var/data[0]
 	var/datum/shuttle/ferry/shuttle = get_shuttle()
 	if (!istype(shuttle))
-		return
+		return data
 
 	var/shuttle_state
 	switch(shuttle.moving_status)
@@ -203,49 +209,49 @@ GLOBAL_LIST_EMPTY(shuttle_controls)
 		"automated" = is_automated,
 		"auto_time" = automated_launch_delay,
 		"auto_time_cdown" = automated_launch_time_left,
+		"is_elevator" = shuttle.iselevator,
 	)
 
-	ui = SSnano.nanomanager.try_update_ui(user, src, ui_key, ui, data, force_open)
+	return data
 
-	if (!ui)
-		ui = new(user, src, ui_key, shuttle.iselevator? "elevator_control_console.tmpl" : "shuttle_control_console.tmpl", shuttle.iselevator? "Elevator Control" : "Shuttle Control", 550, 500)
-		ui.set_initial_data(data)
-		ui.open()
-		ui.set_auto_update(1)
-
-/obj/structure/machinery/computer/shuttle_control/Topic(href, href_list)
-	if(..())
+/obj/structure/machinery/computer/shuttle_control/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
+	. = ..()
+	if(.)
 		return
 
-	add_fingerprint(usr)
+	var/mob/user = ui.user
+	add_fingerprint(user)
 
 	var/datum/shuttle/ferry/shuttle = get_shuttle()
 	if (!istype(shuttle))
-		return
+		return TRUE
 
-	if(href_list["move"])
+	if(action == "move")
 		if(shuttle.recharging) //Prevent the shuttle from moving again until it finishes recharging. This could be made to look better by using the shuttle computer's visual UI.
 			if(shuttle.iselevator)
-				to_chat(usr, SPAN_WARNING("The elevator is loading and unloading. Please hold."))
+				to_chat(user, SPAN_WARNING("The elevator is loading and unloading. Please hold."))
 			else
-				to_chat(usr, SPAN_WARNING("The shuttle's engines are still recharging and cooling down."))
-			return
-		if(shuttle.queen_locked && !isqueen(usr))
-			to_chat(usr, SPAN_WARNING("The shuttle isn't responding to prompts, it looks like remote control was disabled."))
-			return
-		if(SSticker.mode.active_lz != src && !onboard && isqueen(usr))
-			to_chat(usr, SPAN_WARNING("The shuttle isn't responding to prompts, it looks like this isn't the primary shuttle."))
-			return
+				to_chat(user, SPAN_WARNING("The shuttle's engines are still recharging and cooling down."))
+			return TRUE
+		if(shuttle.queen_locked && !isqueen(user))
+			to_chat(user, SPAN_WARNING("The shuttle isn't responding to prompts, it looks like remote control was disabled."))
+			return TRUE
+		if(!skip_time_lock && world.time < SSticker.mode.round_time_lobby + SHUTTLE_TIME_LOCK && istype(shuttle, /datum/shuttle/ferry/marine))
+			to_chat(user, SPAN_WARNING("The shuttle is still undergoing pre-flight fueling and cannot depart yet. Please wait another [floor((SSticker.mode.round_time_lobby + SHUTTLE_TIME_LOCK-world.time)/600)] minutes before trying again."))
+			return TRUE
+		if(SSticker.mode.active_lz != src && !onboard && isqueen(user))
+			to_chat(user, SPAN_WARNING("The shuttle isn't responding to prompts, it looks like this isn't the primary shuttle."))
+			return TRUE
 		if(istype(shuttle, /datum/shuttle/ferry/marine))
 			var/datum/shuttle/ferry/marine/s = shuttle
 			if(!length(s.locs_land) && !s.transit_gun_mission)
-				to_chat(usr, SPAN_WARNING("There is no suitable LZ for this shuttle. Flight configuration changed to fire-mission."))
+				to_chat(user, SPAN_WARNING("There is no suitable LZ for this shuttle. Flight configuration changed to fire-mission."))
 				s.transit_gun_mission = 1
 		if(shuttle.moving_status == SHUTTLE_IDLE) //Multi consoles, hopefully this will work
 
 			if(shuttle.locked)
-				return
-			var/mob/M = usr
+				return TRUE
+			var/mob/M = user
 
 			//Alert code is the Queen is the one calling it, the shuttle is on the ground and the shuttle still allows alerts
 			if(isqueen(M) && shuttle.location == 1 && shuttle.alerts_allowed && onboard && !shuttle.iselevator)
@@ -257,19 +263,19 @@ GLOBAL_LIST_EMPTY(shuttle_controls)
 				// Check if at least half of the hive is onboard. If not, we don't launch.
 				if(count < length(Q.hive.totalXenos) * 0.5)
 					to_chat(Q, SPAN_WARNING("More than half of your hive is not on board. Don't leave without them!"))
-					return
+					return TRUE
 
 				// Allow the queen to choose the ship section to crash into
-				var/crash_target = tgui_input_list(usr, "Choose a ship section to target","Hijack", GLOB.almayer_ship_sections + list("Cancel"))
+				var/crash_target = tgui_input_list(user, "Choose a ship section to target","Hijack", GLOB.almayer_ship_sections + list("Cancel"))
 				if(crash_target == "Cancel")
-					return
+					return TRUE
 
 				var/i = tgui_alert(Q, "Warning: Once you launch the shuttle you will not be able to bring it back. Confirm anyways?", "WARNING", list("Yes", "No"))
 				if(i != "Yes")
-					return
+					return TRUE
 
 				if(shuttle.moving_status != SHUTTLE_IDLE || shuttle.locked || shuttle.location != 1 || !shuttle.alerts_allowed || !shuttle.queen_locked || shuttle.recharging)
-					return
+					return TRUE
 
 				//Shit's about to kick off now
 				if(istype(shuttle, /datum/shuttle/ferry/marine) && is_ground_level(z))
@@ -323,7 +329,7 @@ GLOBAL_LIST_EMPTY(shuttle_controls)
 
 			else if(!onboard && isqueen(M) && shuttle.location == 1 && !shuttle.iselevator)
 				to_chat(M, SPAN_WARNING("Hrm, that didn't work. Maybe try the one on the ship?"))
-				return
+				return TRUE
 			else
 				if(is_ground_level(z))
 					shuttle.transit_gun_mission = 0 //remote launch always do transport flight.
@@ -332,7 +338,7 @@ GLOBAL_LIST_EMPTY(shuttle_controls)
 					M.count_niche_stat(STATISTICS_NICHE_FLIGHT)
 			msg_admin_niche("[M] ([M.key]) launched \a [shuttle.iselevator? "elevator" : "shuttle"] using [src].")
 
-	ui_interact(usr)
+	return TRUE
 
 
 /obj/structure/machinery/computer/shuttle_control/bullet_act(obj/projectile/Proj)

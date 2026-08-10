@@ -36,7 +36,7 @@ export const EscapePodConsole = () => {
       break;
     case 7:
       statusMessage = 'DELAYED';
-      buttonColor = 'yellow';
+      buttonColor = 'average';
       delayed = 1;
       operable = 1;
       break;
@@ -55,14 +55,14 @@ export const EscapePodConsole = () => {
 
   if (!data.door_state) {
     doorStatus = 'OPEN';
-    doorColor = 'yellow';
+    doorColor = 'average';
   } else {
     if (data.door_lock) {
       doorStatus = 'SECURED';
-      doorColor = 'green';
+      doorColor = 'good';
     } else {
       doorStatus = 'UNSECURED';
-      doorColor = 'yellow';
+      doorColor = 'average';
     }
   }
 

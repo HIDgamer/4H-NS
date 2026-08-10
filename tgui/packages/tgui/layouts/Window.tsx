@@ -32,6 +32,7 @@ type Props = Partial<{
   canClose: boolean;
   height: number;
   theme: string;
+  themeAccent: string;
   title: string;
   width: number;
   fitted: boolean;
@@ -43,6 +44,7 @@ export const Window = (props: Props) => {
   const {
     canClose = true,
     theme,
+    themeAccent,
     title,
     children,
     buttons,
@@ -98,7 +100,7 @@ export const Window = (props: Props) => {
       : config.status < UI_INTERACTIVE);
 
   return suspended ? null : (
-    <Layout className="Window" theme={theme}>
+    <Layout className="Window" theme={theme} themeAccent={themeAccent}>
       {!fitted && (
         <TitleBar
           className="Window__titleBar"

@@ -21,7 +21,7 @@ export const PublishedDocsHud = () => {
     })
     .flat() as DocumentRecord[];
   return (
-    <Window width={500} height={400} theme="ntos">
+    <Window width={650} height={450} theme="ntos">
       <Window.Content scrollable>
         <Section title="Published Documents">
           <Stack vertical>

@@ -420,7 +420,6 @@
 	else
 		ready = check_ready()
 		stop_processing()
-	SSnano.nanomanager.update_uis(src)
 
 /obj/structure/machinery/chem_simulator/proc/update_costs()
 	property_costs = list()

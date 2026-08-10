@@ -107,7 +107,10 @@
 				to_chat(src, SPAN_WARNING("DB is still starting up, please wait"))
 				return FALSE
 
-			client.prefs.ShowChoices(src)
+			// "Setup Character" opens the tgui hub instead of the legacy ShowChoices() popup
+			// directly — the hub itself still falls back to ShowChoices() via its "open_legacy"
+			// action for anything not yet covered by a tgui equivalent.
+			client.character_setup()
 			return TRUE
 
 		if("playtimes")

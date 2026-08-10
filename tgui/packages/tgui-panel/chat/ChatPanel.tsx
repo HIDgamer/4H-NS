@@ -23,7 +23,10 @@ export class ChatPanel extends Component<ChatPanelTypes> {
     super(props);
     this.ref = createRef();
     this.state = {
-      scrollTracking: true,
+      // chatRenderer is a persistent singleton, so its current tracking
+      // state may already differ from the default by the time this panel
+      // (re)mounts — read it instead of assuming true.
+      scrollTracking: chatRenderer.scrollTracking,
     };
     this.handleScrollTrackingChange = (value) =>
       this.setState({

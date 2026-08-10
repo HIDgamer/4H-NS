@@ -1,3 +1,5 @@
+import { BooleanLike } from 'common/react';
+
 import { useBackend } from '../backend';
 import {
   Box,
@@ -12,15 +14,38 @@ import {
 } from '../components';
 import { Window } from '../layouts';
 
+type Squad = {
+  squad_name: string;
+  squad_color: string;
+};
+
+type Data = {
+  can_pick_squad: BooleanLike;
+  squad_list: Squad[];
+  current_squad: string | null;
+  nextfiretime: number;
+  worldtime: number;
+  launch_cooldown: number;
+  // NOTE: sent as the raw loaded-crate object reference (or null) rather
+  // than a boolean; only ever used here for a truthy/null check.
+  loaded: unknown;
+  crate_name: string | null;
+  x_offset: number;
+  y_offset: number;
+  z_offset: number;
+};
+
 export const SupplyDropConsole = () => {
-  const { act, data } = useBackend();
+  const { act, data } = useBackend<Data>();
 
   const can_pick_squad = data.can_pick_squad;
 
   const timeLeft = data.nextfiretime - data.worldtime;
   const timeLeftPct = timeLeft / data.launch_cooldown;
 
-  const cantFire = (timeLeft < 0, data.loaded === null);
+  // Can't fire unless the launch cooldown has finished (timeLeft < 0) and a
+  // crate is actually loaded on the pad.
+  const cantFire = timeLeft >= 0 || data.loaded === null;
 
   const squads = data.squad_list;
 
@@ -28,7 +53,7 @@ export const SupplyDropConsole = () => {
     <Window width={350} height={350}>
       <Window.Content scrollable>
         {!!can_pick_squad && (
-          <NoticeBox info={1} fluid textAlign="center">
+          <NoticeBox info textAlign="center">
             {data.current_squad
               ? `Current squad is :
                 ${data.current_squad}`
@@ -93,14 +118,14 @@ export const SupplyDropConsole = () => {
               </Button>
             }
           >
-            <NoticeBox info={1} textAlign="center">
+            <NoticeBox info textAlign="center">
               {data.loaded
                 ? `Supply Pad Status :
                   ${data.crate_name} loaded.`
                 : 'No crate loaded.'}
             </NoticeBox>
             {(timeLeft < 0 && (
-              <NoticeBox success={1} textAlign="center">
+              <NoticeBox success textAlign="center">
                 Ready to fire!
               </NoticeBox>
             )) || (

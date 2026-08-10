@@ -66,6 +66,54 @@
 	.["translators"] = PRED_TRANSLATORS
 	.["legacies"] = PRED_LEGACIES
 
+	// Cape type + background cycling were the two fields the legacy MENU_YAUTJA
+	// panel had that this datum never picked up (cape COLOR was already here).
+	// Dropdown needs a plain array, not the assoc display->raw map (same "assoc list serializes
+	// to a JSON object, not an array" bug class as character_setup.dm's ethnicities field) — send
+	// just the display-name keys; ui_act() rebuilds the map to resolve the raw name.
+	var/list/cape_type_names = list()
+	for(var/display_name in get_available_cape_types(user.client))
+		cape_type_names += display_name
+	.["cape_types"] = cape_type_names
+
+
+/**
+ * Rank/council-gated map of display-name -> raw cape name this client is allowed to pick —
+ * transcribed from the legacy "pred_cape_type" handler (code/modules/client/preferences.dm),
+ * which built this same list inline. Shared by ui_static_data() (sends the display-name keys
+ * as Dropdown options) and ui_act() (re-derives the same map to resolve the chosen display name
+ * back to a raw cape name, rather than trusting a client-supplied raw value directly).
+ */
+/datum/pred_picker/proc/get_available_cape_types(client/owner)
+	var/datum/job/J = GLOB.RoleAuthority.roles_by_name[JOB_PREDATOR]
+	var/whitelist_status = GLOB.clan_ranks_ordered[J.get_whitelist_status(owner)]
+	var/datum/entity/player/player = owner?.player_data
+	var/whitelist_flags = player?.whitelist_flags
+
+	var/list/options = list("None" = "None")
+	for(var/cape_name in GLOB.all_yautja_capes)
+		var/cape_path = GLOB.all_yautja_capes[cape_name]
+		if(!cape_path)
+			continue
+
+		var/rank_req = 0
+		var/council_override = 0
+		if(ispath(cape_path))
+			var/datum/path_ref = cape_path
+			if(hasvar(path_ref, "clan_rank_required"))
+				rank_req = path_ref.vars["clan_rank_required"]
+			if(hasvar(path_ref, "councillor_override"))
+				council_override = path_ref.vars["councillor_override"]
+		else
+			var/datum/instance_ref = cape_path
+			if(hasvar(instance_ref, "clan_rank_required"))
+				rank_req = instance_ref.vars["clan_rank_required"]
+			if(hasvar(instance_ref, "councillor_override"))
+				council_override = instance_ref.vars["councillor_override"]
+
+		if(whitelist_status >= rank_req || (council_override && (whitelist_flags & (WHITELIST_YAUTJA_COUNCIL|WHITELIST_YAUTJA_COUNCIL_LEGACY))))
+			options[capitalize_first_letters(cape_name)] = cape_name
+	return options
 
 /datum/pred_picker/ui_data(mob/user)
 	. = ..()
@@ -99,6 +147,7 @@
 	.["caster_material"] = prefs.predator_caster_material
 
 	.["cape_color"] = prefs.predator_cape_color
+	.["cape_type"] = prefs.predator_cape_type
 
 /datum/pred_picker/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
 	. = ..()
@@ -256,6 +305,17 @@
 				return
 
 			prefs.predator_cape_color = sanitize_hexcolor(color)
+
+		if("cape_type")
+			var/display_name = params["selected"]
+			var/list/options = get_available_cape_types(ui.user.client)
+			if(!display_name || !(display_name in options))
+				return
+
+			prefs.predator_cape_type = options[display_name]
+
+		if("cycle_bg")
+			prefs.bg_state = next_in_list(prefs.bg_state, GLOB.bgstate_options)
 
 	prefs.update_preview_icon()
 	return TRUE

@@ -11,7 +11,10 @@ GLOBAL_LIST_INIT(known_implants, subtypesof(/obj/item/implant))
 /datum/health_scan
 	var/mob/living/target_mob
 	var/detail_level = DETAIL_LEVEL_FULL
-	var/ui_mode = UI_MODE_CLASSIC
+	/// UI mode (classic/minimal) per viewer ref — multiple mobs can view the same scan
+	/// simultaneously, so this must not be a single shared var (was: one viewer's toggle
+	/// changed the display for everyone looking at that scan).
+	var/list/ui_mode_by_viewer = list()
 
 /datum/health_scan/New(mob/target)
 	. = ..()
@@ -106,7 +109,7 @@ GLOBAL_LIST_INIT(known_implants, subtypesof(/obj/item/implant))
 		"blood_amount" = target_mob.blood_volume,
 		"holocard" = get_holo_card_color(target_mob),
 		"hugged" = (locate(/obj/item/alien_embryo) in target_mob),
-		"ui_mode" = ui_mode
+		"ui_mode" = ui_mode_by_viewer[REF(user)] || UI_MODE_CLASSIC
 	)
 
 	var/internal_bleeding = FALSE //do they have internal bleeding anywhere
@@ -494,11 +497,13 @@ GLOBAL_LIST_INIT(known_implants, subtypesof(/obj/item/implant))
 				target_human.change_holo_card(ui.user)
 				return TRUE
 		if("change_ui_mode")
-			switch(ui_mode)
+			var/viewer_ref = REF(ui.user)
+			var/current_mode = ui_mode_by_viewer[viewer_ref] || UI_MODE_CLASSIC
+			switch(current_mode)
 				if(UI_MODE_CLASSIC)
-					ui_mode = UI_MODE_MINIMAL
+					ui_mode_by_viewer[viewer_ref] = UI_MODE_MINIMAL
 				if(UI_MODE_MINIMAL)
-					ui_mode = UI_MODE_CLASSIC
+					ui_mode_by_viewer[viewer_ref] = UI_MODE_CLASSIC
 			return TRUE
 
 /// legacy proc for to_chat messages on health analysers

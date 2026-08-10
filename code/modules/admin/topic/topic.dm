@@ -1,3 +1,130 @@
+/**
+ * Spawns object/turf/mob types from a create_object-shaped href_list (object_list, offset,
+ * offset_type, object_count, object_dir, object_name, object_where). Extracted out of Topic()'s
+ * object_list branch, unchanged, so it's callable both from a genuine href click (the legacy
+ * create_object.dm/create_object.html popup) and directly from the new tgui
+ * AdminCreateObject interface's ui_act() (code/modules/admin/create_object.dm) — same reasoning
+ * as vv_do_href_list() in code/modules/admin/view_variables/topic.dm: relocate the logic once
+ * instead of duplicating it per caller.
+ */
+/datum/admins/proc/spawn_from_object_list(href_list)
+	var/atom/loc = usr.loc
+
+	var/dirty_paths
+	if (istext(href_list["object_list"]))
+		dirty_paths = list(href_list["object_list"])
+	else if (istype(href_list["object_list"], /list))
+		dirty_paths = href_list["object_list"]
+
+	var/paths = list()
+	var/removed_paths = list()
+
+	for(var/dirty_path in dirty_paths)
+		var/path = text2path(dirty_path)
+		if(!path)
+			removed_paths += dirty_path
+			continue
+		else if(!ispath(path, /obj) && !ispath(path, /turf) && !ispath(path, /mob))
+			removed_paths += dirty_path
+			continue
+		paths += path
+
+	if(!paths)
+		alert("The path list you sent is empty")
+		return
+	if(length(paths) > 5)
+		alert("Select fewer object types, (max 5)")
+		return
+	else if(length(removed_paths))
+		alert("Removed:\n" + jointext(removed_paths, "\n"))
+
+	var/list/offset = splittext(href_list["offset"],",")
+	var/number = clamp(text2num(href_list["object_count"]), 1, 100)
+	var/X = length(offset) > 0 ? text2num(offset[1]) : 0
+	var/Y = length(offset) > 1 ? text2num(offset[2]) : 0
+	var/Z = length(offset) > 2 ? text2num(offset[3]) : 0
+	var/tmp_dir = href_list["object_dir"]
+	var/obj_dir = tmp_dir ? text2num(tmp_dir) : 2
+	if(!obj_dir || !(obj_dir in list(1,2,4,8,5,6,9,10)))
+		obj_dir = 2
+	var/obj_name = sanitize(href_list["object_name"])
+	var/where = href_list["object_where"]
+	if (!(where in list("onfloor","inhand","inmarked")))
+		where = "onfloor"
+
+	if( where == "inhand" )
+		to_chat(usr, "Support for inhand not available yet. Will spawn on floor.")
+		where = "onfloor"
+
+	if (where == "inhand") //Can only give when human or monkey
+		if (!(ishuman(usr)))
+			to_chat(usr, "Can only spawn in hand when you're a human or a monkey.")
+			where = "onfloor"
+		else if (usr.get_active_hand())
+			to_chat(usr, "Your active hand is full. Spawning on floor.")
+			where = "onfloor"
+
+	if (where == "inmarked" )
+		if (!marked_datum)
+			to_chat(usr, "You don't have any datum marked. Abandoning spawn.")
+			return
+		else
+			var/datum/D = marked_datum
+			if(!D)
+				return
+
+			if (!istype(D,/atom))
+				to_chat(usr, "The datum you have marked cannot be used as a target. Target must be of type /atom. Abandoning spawn.")
+				return
+
+	var/atom/target //Where the object will be spawned
+	switch (where)
+		if ("onfloor")
+			switch (href_list["offset_type"])
+				if ("absolute")
+					target = locate(0 + X,0 + Y,0 + Z)
+				if ("relative")
+					target = locate(loc.x + X,loc.y + Y,loc.z + Z)
+		if ("inmarked")
+			var/datum/D = marked_datum
+			if(!D)
+				to_chat(usr, "Invalid marked datum. Abandoning.")
+				return
+
+			target = D
+
+	if(target)
+		for (var/path in paths)
+			for (var/i = 0; i < number; i++)
+				if(path in typesof(/turf))
+					var/turf/O = target
+					var/turf/N = O.ChangeTurf(path)
+					if(N)
+						if(obj_name)
+							N.name = obj_name
+				else
+					var/atom/O = new path(target)
+					if(O)
+						O.setDir(obj_dir)
+						if(obj_name)
+							O.name = obj_name
+							if(istype(O,/mob))
+								var/mob/M = O
+								M.change_real_name(M, obj_name)
+
+	if (number == 1)
+		log_admin("[key_name(usr)] created a [english_list(paths)]")
+		for(var/path in paths)
+			if(ispath(path, /mob))
+				message_admins("[key_name_admin(usr)] created a [english_list(paths)]", 1)
+				break
+	else
+		log_admin("[key_name(usr)] created [number]ea [english_list(paths)]")
+		for(var/path in paths)
+			if(ispath(path, /mob))
+				message_admins("[key_name_admin(usr)] created [number]ea [english_list(paths)]", 1)
+				break
+
 /datum/admins/proc/CheckAdminHref(href, href_list)
 	var/auth = href_list["admin_token"]
 	. = auth && (auth == href_token || auth == GLOB.href_token)
@@ -1741,123 +1868,7 @@
 	else if(href_list["object_list"]) //this is the laggiest thing ever
 		if(!check_rights(R_SPAWN))
 			return
-
-		var/atom/loc = usr.loc
-
-		var/dirty_paths
-		if (istext(href_list["object_list"]))
-			dirty_paths = list(href_list["object_list"])
-		else if (istype(href_list["object_list"], /list))
-			dirty_paths = href_list["object_list"]
-
-		var/paths = list()
-		var/removed_paths = list()
-
-		for(var/dirty_path in dirty_paths)
-			var/path = text2path(dirty_path)
-			if(!path)
-				removed_paths += dirty_path
-				continue
-			else if(!ispath(path, /obj) && !ispath(path, /turf) && !ispath(path, /mob))
-				removed_paths += dirty_path
-				continue
-			paths += path
-
-		if(!paths)
-			alert("The path list you sent is empty")
-			return
-		if(length(paths) > 5)
-			alert("Select fewer object types, (max 5)")
-			return
-		else if(length(removed_paths))
-			alert("Removed:\n" + jointext(removed_paths, "\n"))
-
-		var/list/offset = splittext(href_list["offset"],",")
-		var/number = clamp(text2num(href_list["object_count"]), 1, 100)
-		var/X = length(offset) > 0 ? text2num(offset[1]) : 0
-		var/Y = length(offset) > 1 ? text2num(offset[2]) : 0
-		var/Z = length(offset) > 2 ? text2num(offset[3]) : 0
-		var/tmp_dir = href_list["object_dir"]
-		var/obj_dir = tmp_dir ? text2num(tmp_dir) : 2
-		if(!obj_dir || !(obj_dir in list(1,2,4,8,5,6,9,10)))
-			obj_dir = 2
-		var/obj_name = sanitize(href_list["object_name"])
-		var/where = href_list["object_where"]
-		if (!(where in list("onfloor","inhand","inmarked")))
-			where = "onfloor"
-
-		if( where == "inhand" )
-			to_chat(usr, "Support for inhand not available yet. Will spawn on floor.")
-			where = "onfloor"
-
-		if (where == "inhand") //Can only give when human or monkey
-			if (!(ishuman(usr)))
-				to_chat(usr, "Can only spawn in hand when you're a human or a monkey.")
-				where = "onfloor"
-			else if (usr.get_active_hand())
-				to_chat(usr, "Your active hand is full. Spawning on floor.")
-				where = "onfloor"
-
-		if (where == "inmarked" )
-			if (!marked_datum)
-				to_chat(usr, "You don't have any datum marked. Abandoning spawn.")
-				return
-			else
-				var/datum/D = marked_datum
-				if(!D)
-					return
-
-				if (!istype(D,/atom))
-					to_chat(usr, "The datum you have marked cannot be used as a target. Target must be of type /atom. Abandoning spawn.")
-					return
-
-		var/atom/target //Where the object will be spawned
-		switch (where)
-			if ("onfloor")
-				switch (href_list["offset_type"])
-					if ("absolute")
-						target = locate(0 + X,0 + Y,0 + Z)
-					if ("relative")
-						target = locate(loc.x + X,loc.y + Y,loc.z + Z)
-			if ("inmarked")
-				var/datum/D = marked_datum
-				if(!D)
-					to_chat(usr, "Invalid marked datum. Abandoning.")
-					return
-
-				target = D
-
-		if(target)
-			for (var/path in paths)
-				for (var/i = 0; i < number; i++)
-					if(path in typesof(/turf))
-						var/turf/O = target
-						var/turf/N = O.ChangeTurf(path)
-						if(N)
-							if(obj_name)
-								N.name = obj_name
-					else
-						var/atom/O = new path(target)
-						if(O)
-							O.setDir(obj_dir)
-							if(obj_name)
-								O.name = obj_name
-								if(istype(O,/mob))
-									var/mob/M = O
-									M.change_real_name(M, obj_name)
-
-		if (number == 1)
-			log_admin("[key_name(usr)] created a [english_list(paths)]")
-			for(var/path in paths)
-				if(ispath(path, /mob))
-					message_admins("[key_name_admin(usr)] created a [english_list(paths)]", 1)
-					break
-		else
-			log_admin("[key_name(usr)] created [number]ea [english_list(paths)]")
-			for(var/path in paths)
-				if(ispath(path, /mob))
-					message_admins("[key_name_admin(usr)] created [number]ea [english_list(paths)]", 1)
-					break
+		spawn_from_object_list(href_list)
 		return
 
 	else if(href_list["create_humans_list"])

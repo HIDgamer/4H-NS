@@ -36,6 +36,8 @@ type PredData = {
   translator_type: string;
 
   cape_color: string;
+  cape_type: string;
+  cape_types: string[];
 
   armor_icon: string;
   armor_type: number;
@@ -104,8 +106,8 @@ export const PredPicker = () => {
   const [modal, setModal] = useState<ModalOptions | false>(false);
 
   return (
-    <Window height={600} width={700} theme="ntos_spooky">
-      <Window.Content className="PredPicker">
+    <Window height={600} width={700} theme="crtlobby">
+      <Window.Content className="PredPicker" scrollable>
         <Section title="Yautja Information">
           <Stack>
             <Stack.Item>
@@ -216,6 +218,9 @@ const PredEquipment = (props: { readonly pick: (_: ModalOptions) => void }) => {
 
     legacies,
     use_legacy,
+
+    cape_type,
+    cape_types,
   } = data;
 
   return (
@@ -335,10 +340,20 @@ const PredEquipment = (props: { readonly pick: (_: ModalOptions) => void }) => {
                 />
               </LabeledList.Item>
             )}
+            <LabeledList.Item label="Cape Type">
+              <Dropdown
+                options={cape_types}
+                selected={cape_type}
+                onSelected={(val) => act('cape_type', { selected: val })}
+              />
+            </LabeledList.Item>
             <LabeledList.Item label="Cape Color">
               <Button onClick={() => pick('cape_color')}>
                 <ColorBox color={data.cape_color} />
               </Button>
+            </LabeledList.Item>
+            <LabeledList.Item label="Preview Background">
+              <Button onClick={() => act('cycle_bg')}>Cycle</Button>
             </LabeledList.Item>
           </LabeledList>
         </Box>

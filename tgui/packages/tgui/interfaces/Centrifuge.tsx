@@ -3,10 +3,10 @@ import { Box, Button, Flex, Input, NoticeBox, Section } from 'tgui/components';
 import { Window } from 'tgui/layouts';
 
 type Data = {
-  mode: number;
+  mode: boolean;
   input_source: number;
   label: string | null;
-  turing: string | null;
+  turing: boolean;
 };
 
 export const Centrifuge = () => {
@@ -59,7 +59,6 @@ export const Centrifuge = () => {
                 <Button
                   icon="link"
                   fluid
-                  disabled={!data.turing}
                   onClick={() => act('attempt_connection')}
                 >
                   Connect a Turing Dispenser

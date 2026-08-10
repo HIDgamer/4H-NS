@@ -559,6 +559,11 @@ GLOBAL_DATUM_INIT(ic_medals_panel, /datum/ic_medal_panel, new)
 	var/datum/weakref/loc_reference = user_locs[user_reference]
 	. = loc_reference?.resolve()
 
+/datum/ic_medal_panel/ui_static_data(mob/user)
+	var/list/data = list()
+	data["medal_types"] = GLOB.human_medals
+	return data
+
 /datum/ic_medal_panel/ui_data(mob/user)
 	var/list/data = list()
 	data["recommendations"] = list()

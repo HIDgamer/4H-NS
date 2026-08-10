@@ -10,6 +10,12 @@ import {
 } from 'tgui/components';
 import { Window } from 'tgui/layouts';
 
+type Message = {
+  title: string;
+  text: string;
+  number: number;
+};
+
 type Data = {
   cooldown_request: number;
   cooldown_destruct: number;
@@ -24,7 +30,7 @@ type Data = {
   worldtime: number;
   evac_status: number;
   evac_eta?: string;
-  messages: { title: string; text: string; number: number }[] | null;
+  messages: Message[] | null;
 };
 
 export const AlmayerControl = (_props) => {
@@ -258,7 +264,7 @@ export const AlmayerControl = (_props) => {
               <Flex>
                 {messages.map((entry) => {
                   return (
-                    <Flex.Item key={entry} grow>
+                    <Flex.Item key={entry.number} grow>
                       <Section
                         title={entry.title}
                         buttons={

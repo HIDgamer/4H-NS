@@ -323,7 +323,7 @@
 	if(battery_charge <= 0)
 		internal_transmitter.enabled = FALSE
 		return SIMI_STATUS_NOPOWER
-	if(battery_charge <= battery_charge_max * 0.1)
+	if(battery_charge <= battery_charge_max * SIMI_LOWPOWER_RATIO)
 		return SIMI_STATUS_LOWPOWER
 	var/mob/living/carbon/human/wearer = loc
 	if(!issynth(wearer) && !human_adapted)

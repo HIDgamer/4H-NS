@@ -165,6 +165,10 @@
 #define SPLIT_ADMIN_TABS (1<<0)
 #define ADMIN_STEALTHMODE (1<<1)
 #define ADMIN_AFK_SAFE (1<<2)
+/// Opt-out, not opt-in: bit absent (the default for every existing savefile) means the
+/// admin-tool sound/animation polish is ON; setting this bit turns it off. Kept as a
+/// "disable" flag rather than an "enable" one specifically so old prefs don't need migrating.
+#define ADMIN_DISABLE_UI_EFFECTS (1<<3)
 
 //=================================================
 

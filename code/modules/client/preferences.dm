@@ -35,6 +35,18 @@ GLOBAL_LIST_INIT(be_special_flags, list(
 	var/mob/living/carbon/human/dummy/preview_dummy
 	var/atom/movable/screen/rotate/alt/rotate_left
 	var/atom/movable/screen/rotate/rotate_right
+	/// Flattened base64 snapshot of preview_dummy, refreshed by update_preview_icon() — a static
+	/// stand-in for a live rotatable view. Reuses the same getFlatIcon()+icon2base64() pattern
+	/// View Variables' sprite display uses, rather than the legacy static "preview" skin.dmf MAP
+	/// element (window "preferencewindow"), which needs the newer dynamic register_map_obj()
+	/// system to embed in a tgui window (used by camera consoles/tacmap/color_matrix_editor).
+	var/preview_icon_b64
+	/// Direction the static preview snapshot is rendered facing — the "rotate" action cycles this
+	/// and regenerates the snapshot, since embedding the old live rotatable map view (native
+	/// screen objects at screen_loc "preview:...") in a tgui window needs the newer dynamic
+	/// register_map_obj() system (used by camera consoles/tacmap) instead of this simpler
+	/// regenerate-a-flat-snapshot approach.
+	var/preview_dir = SOUTH
 
 	var/static/datum/traits_picker/traits_picker = new
 	var/static/datum/loadout_picker/loadout_picker = new
@@ -93,6 +105,12 @@ GLOBAL_LIST_INIT(be_special_flags, list(
 	var/ghost_vision_pref = GHOST_VISION_LEVEL_MID_NVG
 	var/ghost_orbit = GHOST_ORBIT_CIRCLE
 	var/dual_wield_pref = DUAL_WIELD_FIRE
+
+	/// Pre-composed messages a player can fire instantly later (via the
+	/// Saved Messages panel or a bound "Send Saved Message N" hotkey) instead of retyping —
+	/// each entry is list("channel" = ..., "text" = ...). A general preference (not tied to a
+	/// character slot) since it's about how a player communicates, not who they're playing.
+	var/list/saved_messages = list()
 
 	//Synthetic specific preferences
 	var/synthetic_name = "Undefined"

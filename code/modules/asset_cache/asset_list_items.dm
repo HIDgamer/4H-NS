@@ -473,11 +473,6 @@
 		"cube" = 'icons/images/ui_images/particle_editor/cube_gen.png',
 	)
 
-/datum/asset/simple/vv
-	assets = list(
-		"view_variables.css" = 'html/admin/view_variables.css'
-	)
-
 /datum/asset/directory/book_assets
 	common_dirs = list(
 		"html/book_assets/",

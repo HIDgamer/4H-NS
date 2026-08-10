@@ -192,6 +192,9 @@ GLOBAL_LIST_INIT(misc_flags, list(
 		target_key = new_player
 
 	var/datum/entity/player/player = get_player_from_key(target_key)
+	if(!player)
+		to_chat(user, SPAN_WARNING("Player not found."))
+		return FALSE
 	var/list/current_player = list()
 	current_player["ckey"] = target_key
 	current_player["status"] = player.whitelist_status

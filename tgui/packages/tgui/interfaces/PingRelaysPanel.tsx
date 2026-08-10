@@ -193,7 +193,7 @@ export const PingRelaysPanel = () => {
 
   return (
     <Window width={400} height={300} theme={'weyland'}>
-      <Window.Content>
+      <Window.Content scrollable>
         <PingApp
           relayNames={relay_names}
           relayPings={relay_pings}

@@ -20,6 +20,21 @@
 /**
  * public
  *
+ * Legacy UI entry point kept as a no-op base declaration for atoms that
+ * haven't been migrated to tgui_interact() yet (e.g. canister.dm,
+ * embedded_controller_base.dm, vending.dm) — this used to live in the
+ * NanoUI framework (code/modules/nano/nanoexternal.dm) and was never itself
+ * a working UI opener for these types (the NanoUI window construction was
+ * never wired up for them), just the base proc their calls/overrides need
+ * to exist. Kept type-erased (no datum/nanoui reference) now that NanoUI
+ * is retired.
+ */
+/atom/movable/proc/ui_interact(mob/user, ui_key = "main", datum/ui = null, force_open = 1)
+	return
+
+/**
+ * public
+ *
  * Data to be sent to the UI.
  * This must be implemented for a UI to work.
  *

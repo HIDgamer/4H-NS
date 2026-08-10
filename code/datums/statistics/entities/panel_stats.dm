@@ -6,32 +6,38 @@
 /datum/entity/player_entity/proc/show_statistics(mob/user, datum/entity/statistic/round/viewing_round = GLOB.round_statistics, update_data = FALSE)
 	if(update_data)
 		update_panel_data(GLOB.round_statistics)
-	ui_interact(user)
+	tgui_interact(user)
 
-/datum/entity/player_entity/proc/ui_interact(mob/user, ui_key = "statistics", datum/nanoui/ui, force_open = 1)
+/datum/entity/player_entity/tgui_interact(mob/user, datum/tgui/ui)
+	user.set_interaction(src)
+	ui = SStgui.try_update_ui(user, src, ui)
+	if(!ui)
+		ui = new(user, src, "StatisticsPanel", "Statistics")
+		ui.open()
+
+/datum/entity/player_entity/ui_state(mob/user)
+	return GLOB.always_state
+
+/datum/entity/player_entity/ui_data(mob/user)
 	data["menu"] = menu
 	data["subMenu"] = subMenu
 	data["dataMenu"] = dataMenu
+	return data
 
-	ui = SSnano.nanomanager.try_update_ui(user, src, ui_key, ui, data, force_open)
-
-	if(!ui)
-		ui = new(user, src, ui_key, "cm_stat_panel.tmpl", "Statistics", 450, 700, null, -1)
-		ui.set_initial_data(data)
-		ui.open()
-
-/datum/entity/player_entity/Topic(href, href_list)
-	var/mob/user = usr
-	user.set_interaction(src)
-
-	if(href_list["menu"])
-		menu = href_list["menu"]
-	if(href_list["subMenu"])
-		subMenu = href_list["subMenu"]
-	if(href_list["dataMenu"])
-		dataMenu = href_list["dataMenu"]
-
-	SSnano.nanomanager.update_uis(src)
+/datum/entity/player_entity/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
+	. = ..()
+	if(.)
+		return
+	switch(action)
+		if("set_menu")
+			menu = params["menu"]
+			return TRUE
+		if("set_submenu")
+			subMenu = params["submenu"]
+			return TRUE
+		if("set_datamenu")
+			dataMenu = params["datamenu"]
+			return TRUE
 
 /datum/entity/player_entity/proc/check_eye()
 	return

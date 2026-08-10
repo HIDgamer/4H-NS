@@ -26,18 +26,18 @@ type Data = {
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
 const C = {
-  bg:         '#05080f',
-  panel:      '#090d18',
+  bg: '#05080f',
+  panel: '#090d18',
   panelHover: '#0d1422',
-  border:     '#152535',
-  accent:     '#00c8e0',
-  accentDim:  '#006878',
-  text:       '#a8d4e8',
-  textDim:    '#3a5a6e',
-  textMuted:  '#0e1e28',
-  good:       '#00d868',
-  warn:       '#ffaa00',
-  bad:        '#ff1e40',
+  border: '#152535',
+  accent: '#00c8e0',
+  accentDim: '#006878',
+  text: '#a8d4e8',
+  textDim: '#3a5a6e',
+  textMuted: '#0e1e28',
+  good: '#00d868',
+  warn: '#ffaa00',
+  bad: '#ff1e40',
 } as const;
 
 // ─── CSS injection ────────────────────────────────────────────────────────────
@@ -48,7 +48,8 @@ const C = {
 // CRT overlays (::before / ::after) stay fixed while only content animates.
 
 const SIMIStyles = () => (
-  <style>{`
+  <style>
+    {`
     @keyframes simi-boot {
       0%   { opacity:0; transform:scaleY(0.05); filter:brightness(6); }
       10%  { opacity:1; transform:scaleY(1);    filter:brightness(2.5); }
@@ -226,18 +227,50 @@ const SIMIStyles = () => (
 
 const Corners = ({ color = C.accent }: { readonly color?: string }) => (
   <>
-    <Box style={{ position: 'absolute', top: '0', left: '0',
-      width: '9px', height: '9px',
-      borderTop: `1px solid ${color}`, borderLeft: `1px solid ${color}` }} />
-    <Box style={{ position: 'absolute', top: '0', right: '0',
-      width: '9px', height: '9px',
-      borderTop: `1px solid ${color}`, borderRight: `1px solid ${color}` }} />
-    <Box style={{ position: 'absolute', bottom: '0', left: '0',
-      width: '9px', height: '9px',
-      borderBottom: `1px solid ${color}`, borderLeft: `1px solid ${color}` }} />
-    <Box style={{ position: 'absolute', bottom: '0', right: '0',
-      width: '9px', height: '9px',
-      borderBottom: `1px solid ${color}`, borderRight: `1px solid ${color}` }} />
+    <Box
+      style={{
+        position: 'absolute',
+        top: '0',
+        left: '0',
+        width: '9px',
+        height: '9px',
+        borderTop: `1px solid ${color}`,
+        borderLeft: `1px solid ${color}`,
+      }}
+    />
+    <Box
+      style={{
+        position: 'absolute',
+        top: '0',
+        right: '0',
+        width: '9px',
+        height: '9px',
+        borderTop: `1px solid ${color}`,
+        borderRight: `1px solid ${color}`,
+      }}
+    />
+    <Box
+      style={{
+        position: 'absolute',
+        bottom: '0',
+        left: '0',
+        width: '9px',
+        height: '9px',
+        borderBottom: `1px solid ${color}`,
+        borderLeft: `1px solid ${color}`,
+      }}
+    />
+    <Box
+      style={{
+        position: 'absolute',
+        bottom: '0',
+        right: '0',
+        width: '9px',
+        height: '9px',
+        borderBottom: `1px solid ${color}`,
+        borderRight: `1px solid ${color}`,
+      }}
+    />
   </>
 );
 
@@ -319,13 +352,13 @@ const ExternalWindowPanel = (props: {
 // ─── Page registry ────────────────────────────────────────────────────────────
 
 const PAGES: Record<string, () => React.ComponentType> = {
-  login:     () => Login,
-  main:      () => MainMenu,
+  login: () => Login,
+  main: () => MainMenu,
   ati_maint: () => AIComms,
-  cameras:   () => CameraFeed,
-  dropship:  () => DropshipControl,
-  tactical:  () => TacticalMap,
-  phone:     () => Phone,
+  cameras: () => CameraFeed,
+  dropship: () => DropshipControl,
+  tactical: () => TacticalMap,
+  phone: () => Phone,
 };
 
 export const SynthBracer = (props) => {
@@ -644,12 +677,7 @@ const AIComms = () => {
           />
         ) : (
           <Flex direction="column" align="center" mt={3} mb={3}>
-            <Box
-              fontFamily="monospace"
-              fontSize="1.15rem"
-              bold
-              color="bad"
-            >
+            <Box fontFamily="monospace" fontSize="1.15rem" bold color="bad">
               ● NOT AUTHENTICATED
             </Box>
             <Box
@@ -762,12 +790,7 @@ const DropshipControl = () => {
           />
         ) : (
           <Flex direction="column" align="center" mt={3} mb={3}>
-            <Box
-              fontFamily="monospace"
-              fontSize="1.15rem"
-              bold
-              color="bad"
-            >
+            <Box fontFamily="monospace" fontSize="1.15rem" bold color="bad">
               ● LINK UNAVAILABLE
             </Box>
             <Box
@@ -799,12 +822,7 @@ const TacticalMap = () => {
         <Flex direction="column" align="center" mt={3} mb={3} gap={2}>
           {has_tactical_map ? (
             <>
-              <Box
-                fontFamily="monospace"
-                fontSize="1.1rem"
-                bold
-                color="good"
-              >
+              <Box fontFamily="monospace" fontSize="1.1rem" bold color="good">
                 ● TACTICAL MAP MODULE ACTIVE
               </Box>
               <Box
@@ -813,7 +831,8 @@ const TacticalMap = () => {
                 color="label"
                 textAlign="center"
               >
-                Use the <b>View Tactical Map</b> action button to open the display.
+                Use the <b>View Tactical Map</b> action button to open the
+                display.
               </Box>
             </>
           ) : (

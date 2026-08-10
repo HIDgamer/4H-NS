@@ -1,9 +1,25 @@
+import { BooleanLike } from 'common/react';
+
 import { useBackend } from '../backend';
 import { Box, Button, NumberInput, Section, Stack } from '../components';
 import { Window } from '../layouts';
 
+type Data = {
+  ai_xeno_count?: number;
+  ai_flee_multiplier?: number;
+  ai_distance_multiplier?: number;
+  ai_castes?: string[];
+  ai_caste_caps?: Record<string, number>;
+  ai_caste_counts?: Record<string, number>;
+  difficulty_multiplier?: number;
+  spawner_enabled?: BooleanLike;
+  spawner_target_population?: number;
+  spawner_hive_name?: string;
+  spawner_phase?: string;
+};
+
 export const AdminAIDifficulty = () => {
-  const { act, data } = useBackend();
+  const { act, data } = useBackend<Data>();
   const {
     ai_xeno_count = 0,
     ai_flee_multiplier = 1,
@@ -19,7 +35,7 @@ export const AdminAIDifficulty = () => {
   } = data;
 
   return (
-    <Window title="AI Difficulty" theme="crtblue" width={480} height={760}>
+    <Window title="AI Difficulty" theme="admin" width={480} height={760}>
       <Window.Content scrollable>
         <Stack vertical>
           <Stack.Item>
@@ -38,9 +54,8 @@ export const AdminAIDifficulty = () => {
                           color: 'rgba(255,255,255,0.5)',
                         }}
                       >
-                        No hard cap - per-caste caps below still apply.
-                        Spawning stops entirely if the hive's Core is
-                        destroyed.
+                        No hard cap - per-caste caps below still apply. Spawning
+                        stops entirely if the hive&apos;s Core is destroyed.
                       </Box>
                     </Stack.Item>
                     <Stack.Item>
@@ -67,8 +82,8 @@ export const AdminAIDifficulty = () => {
                           color: 'rgba(255,255,255,0.5)',
                         }}
                       >
-                        Scales both the target population and how fast the
-                        hive spawns toward it. 1x = default.
+                        Scales both the target population and how fast the hive
+                        spawns toward it. 1x = default.
                       </Box>
                     </Stack.Item>
                     <Stack.Item>
@@ -97,14 +112,12 @@ export const AdminAIDifficulty = () => {
                         }}
                       >
                         Only this one hive is reinforced - used to spawn every
-                        hive in existence at once, chaos. "None" spawns
-                        nothing regardless of the Enabled toggle above.
+                        hive in existence at once, chaos. &quot;None&quot;
+                        spawns nothing regardless of the Enabled toggle above.
                       </Box>
                     </Stack.Item>
                     <Stack.Item>
-                      <Button
-                        onClick={() => act('set_spawner_hive')}
-                      >
+                      <Button onClick={() => act('set_spawner_hive')}>
                         {spawner_hive_name}
                       </Button>
                     </Stack.Item>
@@ -120,10 +133,10 @@ export const AdminAIDifficulty = () => {
                           color: 'rgba(255,255,255,0.5)',
                         }}
                       >
-                        The hive cycles buildup, assault (hive-wide push at
-                        the marines, faster spawning), and lull (spawning
-                        paused). Click to force a phase; the normal rhythm
-                        resumes from it.
+                        The hive cycles buildup, assault (hive-wide push at the
+                        marines, faster spawning), and lull (spawning paused).
+                        Click to force a phase; the normal rhythm resumes from
+                        it.
                       </Box>
                     </Stack.Item>
                     <Stack.Item>

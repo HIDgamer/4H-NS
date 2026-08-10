@@ -67,8 +67,12 @@ export const ColorPickerModal = () => {
     hexToHsva(default_color),
   );
 
+  // No theme prop, matching AlertModal.tsx's convention for generic, context-agnostic dialogs —
+  // this is shared infra (code/modules/tgui_input/color.dm), used by both the lobby character
+  // pickers and any non-lobby caller, so it shouldn't force a lobby-specific look. Was previously
+  // theme="generic", referencing a theme file that doesn't exist.
   return (
-    <Window height={400} title={title} width={600} theme="generic">
+    <Window height={400} title={title} width={600}>
       {!!timeout && <Loader value={timeout} />}
       <Window.Content>
         <Stack fill vertical>

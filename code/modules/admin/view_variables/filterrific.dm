@@ -61,7 +61,7 @@
 			for(var/entry in params["new_data"])
 				new_filter_data[entry] = params["new_data"][entry]
 			for(var/entry in new_filter_data)
-				if(entry == GLOB.master_filter_info[old_filter_data["type"]]["defaults"][entry])
+				if(new_filter_data[entry] == GLOB.master_filter_info[old_filter_data["type"]]["defaults"][entry])
 					new_filter_data.Remove(entry)
 			target.remove_filter(params["name"])
 			target.add_filter(params["name"], old_filter_data["priority"], new_filter_data)

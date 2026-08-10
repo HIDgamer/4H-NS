@@ -10,6 +10,14 @@
 
 	var/datum/preferences/prefs = user.client.prefs
 
+	// Self-healing fallback (same reasoning as body_picker.dm): a saved h_style/f_style
+	// could in principle reference a since-renamed/removed style. Cheap insurance against the
+	// same "null.icon_state" crash class, not a currently-known issue.
+	if(!GLOB.hair_styles_list[prefs.h_style])
+		prefs.h_style = GLOB.hair_styles_list[1]
+	if(!GLOB.facial_hair_styles_list[prefs.f_style])
+		prefs.f_style = GLOB.facial_hair_styles_list[1]
+
 	.["hair_style"] = GLOB.hair_styles_list[prefs.h_style].icon_state
 	.["hair_color"] = rgb(prefs.r_hair, prefs.g_hair, prefs.b_hair)
 
@@ -152,7 +160,9 @@
 			prefs.g_gradient = clamp(g, 0, 255)
 			prefs.b_gradient = clamp(b, 0, 255)
 
-	prefs.ShowChoices(ui.user)
+	// Refreshes the live preview instead of the legacy popup — this window no longer
+	// depends on ShowChoices() being open at all.
+	prefs.update_preview_icon()
 	return TRUE
 
 /datum/hair_picker/tgui_interact(mob/user, datum/tgui/ui)

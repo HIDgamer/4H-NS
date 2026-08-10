@@ -1,10 +1,34 @@
+import { playClickBlip } from 'common/audio';
+import { BooleanLike } from 'common/react';
 import { useState } from 'react';
 
+import { resolveAsset } from '../assets';
 import { useBackend } from '../backend';
 import { Box, Button, Icon, NumberInput, Section, Stack } from '../components';
 import { Window } from '../layouts';
 
-const SPAWN_MODES = [
+type Data = {
+  hives: string[];
+  castes: string[];
+  picking: BooleanLike;
+  ui_effects_enabled: BooleanLike;
+};
+
+type QueueRow = {
+  hive: string;
+  caste: string;
+  count: number;
+  immature?: boolean;
+};
+
+type SpawnMode = {
+  value: string;
+  label: string;
+  icon: string;
+  desc: string;
+};
+
+const SPAWN_MODES: SpawnMode[] = [
   {
     value: 'npc',
     label: 'NPC',
@@ -31,7 +55,7 @@ const SPAWN_MODES = [
   },
 ];
 
-const HIVE_COLORS = {
+const HIVE_COLORS: Record<string, string> = {
   Xenomorph: '#8B3C00',
   Corrupted: '#5c0066',
   Runner: '#4a7a1e',
@@ -41,16 +65,21 @@ const HIVE_COLORS = {
 };
 
 export const AdminSpawnXenos = () => {
-  const { act, data } = useBackend();
-  const { hives = [], castes = [], picking = false } = data;
+  const { act, data } = useBackend<Data>();
+  const {
+    hives = [],
+    castes = [],
+    picking = false,
+    ui_effects_enabled = true,
+  } = data;
   const [casteSearch, setCasteSearch] = useState('');
   const [selectedHive, setSelectedHive] = useState(hives[0] || '');
   const [selectedCaste, setSelectedCaste] = useState('');
   const [count, setCount] = useState(1);
   const [range, setRange] = useState(0);
   const [spawnAs, setSpawnAs] = useState('npc');
-  const [queue, setQueue] = useState([]);
-  const [mode, setMode] = useState('spawn'); // 'spawn' | 'burst'
+  const [queue, setQueue] = useState<QueueRow[]>([]);
+  const [mode, setMode] = useState<'spawn' | 'burst'>('spawn');
   const [burstType, setBurstType] = useState('larva');
   const [immature, setImmature] = useState(false);
 
@@ -60,6 +89,13 @@ export const AdminSpawnXenos = () => {
 
   const hiveColor = HIVE_COLORS[selectedHive] || '#4a4';
   const isQueenSelected = selectedCaste === 'Queen';
+
+  const selectCaste = (c: string) => {
+    setSelectedCaste(c);
+    if (ui_effects_enabled) {
+      playClickBlip();
+    }
+  };
 
   const addToQueue = () => {
     if (!selectedHive || !selectedCaste) {
@@ -75,19 +111,30 @@ export const AdminSpawnXenos = () => {
       },
     ]);
     setCount(1);
+    if (ui_effects_enabled) {
+      playClickBlip();
+    }
   };
 
-  const removeFromQueue = (index) => {
+  const removeFromQueue = (index: number) => {
     setQueue(queue.filter((_, i) => i !== index));
+  };
+
+  const playSpawnConfirm = () => {
+    if (ui_effects_enabled) {
+      new Audio(resolveAsset('admin_spawn_confirm.ogg')).play().catch(() => {});
+    }
   };
 
   const totalQueued = queue.reduce((sum, row) => sum + row.count, 0);
 
   const availableSpawnModes =
-    mode === 'burst' ? SPAWN_MODES.filter((m) => m.value !== 'ert') : SPAWN_MODES;
+    mode === 'burst'
+      ? SPAWN_MODES.filter((m) => m.value !== 'ert')
+      : SPAWN_MODES;
 
   return (
-    <Window title="Create Xenos" theme="hive_status" width={460} height={720}>
+    <Window title="Create Xenos" theme="admin" width={460} height={720}>
       <Window.Content scrollable>
         <Stack vertical>
           {/* Mode toggle */}
@@ -97,7 +144,7 @@ export const AdminSpawnXenos = () => {
                 as="button"
                 onClick={() => setMode('spawn')}
                 style={{
-                  flex: 1,
+                  flex: '1',
                   padding: '5px',
                   border:
                     mode === 'spawn'
@@ -119,7 +166,7 @@ export const AdminSpawnXenos = () => {
                 as="button"
                 onClick={() => setMode('burst')}
                 style={{
-                  flex: 1,
+                  flex: '1',
                   padding: '5px',
                   border:
                     mode === 'burst'
@@ -179,231 +226,234 @@ export const AdminSpawnXenos = () => {
 
           {mode === 'spawn' && (
             <>
-          {/* Caste selection */}
-          <Stack.Item grow basis={0}>
-            <Section title="Caste" fill>
-              <Box
-                as="input"
-                placeholder="Search castes…"
-                value={casteSearch}
-                onInput={(e) => setCasteSearch(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '4px 6px',
-                  marginBottom: '4px',
-                  backgroundColor: 'rgba(0,0,0,0.35)',
-                  border: `1px solid ${hiveColor}44`,
-                  color: hiveColor,
-                  borderRadius: '3px',
-                  fontSize: '0.85rem',
-                }}
-              />
-              <Box
-                style={{
-                  height: '180px',
-                  overflowY: 'auto',
-                  border: `1px solid ${hiveColor}22`,
-                  borderRadius: '3px',
-                }}
-              >
-                {filteredCastes.map((c) => (
-                  <Box
-                    key={c}
-                    as="button"
-                    onClick={() => setSelectedCaste(c)}
+              {/* Caste selection */}
+              <Stack.Item grow basis={0}>
+                <Section title="Caste" fill>
+                  <input
+                    placeholder="Search castes…"
+                    value={casteSearch}
+                    onInput={(e) => setCasteSearch(e.currentTarget.value)}
                     style={{
-                      display: 'block',
                       width: '100%',
-                      padding: '4px 8px',
-                      textAlign: 'left',
-                      fontSize: '0.82rem',
-                      cursor: 'pointer',
-                      backgroundColor:
-                        selectedCaste === c ? `${hiveColor}33` : 'transparent',
-                      color:
-                        selectedCaste === c
-                          ? hiveColor
-                          : 'rgba(255,255,255,0.7)',
-                      border: 'none',
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      transition: 'background-color 0.1s ease',
-                    }}
-                  >
-                    {c}
-                  </Box>
-                ))}
-                {filteredCastes.length === 0 && (
-                  <Box
-                    style={{
-                      padding: '1rem',
-                      textAlign: 'center',
-                      color: 'rgba(255,255,255,0.3)',
-                      fontStyle: 'italic',
-                    }}
-                  >
-                    No castes match
-                  </Box>
-                )}
-              </Box>
-            </Section>
-          </Stack.Item>
-
-          {isQueenSelected && (
-            <Stack.Item>
-              <Section title="Queen Maturity">
-                <Box style={{ display: 'flex', gap: '4px' }}>
-                  <Box
-                    as="button"
-                    onClick={() => setImmature(false)}
-                    style={{
-                      flex: 1,
-                      padding: '6px 4px',
-                      border: !immature
-                        ? `1px solid ${hiveColor}`
-                        : '1px solid rgba(255,255,255,0.15)',
-                      backgroundColor: !immature
-                        ? `${hiveColor}22`
-                        : 'rgba(255,255,255,0.04)',
-                      color: !immature ? hiveColor : 'rgba(255,255,255,0.6)',
+                      padding: '4px 6px',
+                      marginBottom: '4px',
+                      backgroundColor: 'rgba(0,0,0,0.35)',
+                      border: `1px solid ${hiveColor}44`,
+                      color: hiveColor,
                       borderRadius: '3px',
-                      cursor: 'pointer',
-                      fontSize: '0.8rem',
-                      fontWeight: !immature ? 'bold' : 'normal',
-                      textAlign: 'center',
+                      fontSize: '0.85rem',
                     }}
-                  >
-                    Mature (has Screech)
-                  </Box>
+                  />
                   <Box
-                    as="button"
-                    onClick={() => setImmature(true)}
                     style={{
-                      flex: 1,
-                      padding: '6px 4px',
-                      border: immature
-                        ? `1px solid ${hiveColor}`
-                        : '1px solid rgba(255,255,255,0.15)',
-                      backgroundColor: immature
-                        ? `${hiveColor}22`
-                        : 'rgba(255,255,255,0.04)',
-                      color: immature ? hiveColor : 'rgba(255,255,255,0.6)',
+                      height: '180px',
+                      overflowY: 'auto',
+                      border: `1px solid ${hiveColor}22`,
                       borderRadius: '3px',
-                      cursor: 'pointer',
-                      fontSize: '0.8rem',
-                      fontWeight: immature ? 'bold' : 'normal',
-                      textAlign: 'center',
                     }}
                   >
-                    Immature (no Screech)
+                    {filteredCastes.map((c) => (
+                      <Box
+                        key={c}
+                        as="button"
+                        onClick={() => selectCaste(c)}
+                        style={{
+                          display: 'block',
+                          width: '100%',
+                          padding: '4px 8px',
+                          textAlign: 'left',
+                          fontSize: '0.82rem',
+                          cursor: 'pointer',
+                          backgroundColor:
+                            selectedCaste === c
+                              ? `${hiveColor}33`
+                              : 'transparent',
+                          color:
+                            selectedCaste === c
+                              ? hiveColor
+                              : 'rgba(255,255,255,0.7)',
+                          border: 'none',
+                          borderBottom: '1px solid rgba(255,255,255,0.04)',
+                          transition: 'background-color 0.1s ease',
+                        }}
+                      >
+                        {c}
+                      </Box>
+                    ))}
+                    {filteredCastes.length === 0 && (
+                      <Box
+                        style={{
+                          padding: '1rem',
+                          textAlign: 'center',
+                          color: 'rgba(255,255,255,0.3)',
+                          fontStyle: 'italic',
+                        }}
+                      >
+                        No castes match
+                      </Box>
+                    )}
                   </Box>
-                </Box>
-              </Section>
-            </Stack.Item>
-          )}
+                </Section>
+              </Stack.Item>
 
-          {/* Count & Range */}
-          <Stack.Item>
-            <Section title="Spawn Options">
-              <Stack>
+              {isQueenSelected && (
                 <Stack.Item>
-                  <Box
-                    style={{
-                      fontSize: '0.75rem',
-                      color: 'rgba(255,255,255,0.5)',
-                      marginBottom: '3px',
-                    }}
-                  >
-                    Count
-                  </Box>
-                  <NumberInput
-                    value={count}
-                    minValue={1}
-                    maxValue={100}
-                    step={1}
-                    width="4rem"
-                    onChange={(v) => setCount(v)}
-                  />
-                </Stack.Item>
-                <Stack.Item>
-                  <Box
-                    style={{
-                      fontSize: '0.75rem',
-                      color: 'rgba(255,255,255,0.5)',
-                      marginBottom: '3px',
-                    }}
-                  >
-                    Range
-                  </Box>
-                  <NumberInput
-                    value={range}
-                    minValue={0}
-                    maxValue={10}
-                    step={1}
-                    width="4rem"
-                    onChange={(v) => setRange(v)}
-                  />
-                </Stack.Item>
-                <Stack.Item grow>
-                  <Box style={{ marginBottom: '3px' }}>&nbsp;</Box>
-                  <Button
-                    fluid
-                    icon="plus"
-                    disabled={!selectedHive || !selectedCaste}
-                    onClick={addToQueue}
-                  >
-                    Add to Queue
-                  </Button>
-                </Stack.Item>
-              </Stack>
-            </Section>
-          </Stack.Item>
-
-          {/* Queue */}
-          {queue.length > 0 && (
-            <Stack.Item>
-              <Section title={`Queue (${totalQueued} total)`}>
-                <Box style={{ maxHeight: '120px', overflowY: 'auto' }}>
-                  {queue.map((row, index) => (
-                    <Box
-                      key={index}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '3px 6px',
-                        fontSize: '0.82rem',
-                        borderBottom: '1px solid rgba(255,255,255,0.06)',
-                      }}
-                    >
-                      <Box>
-                        {row.count}× {row.caste}
-                        {row.caste === 'Queen' &&
-                          (row.immature ? ' (Immature)' : ' (Mature)')}{' '}
-                        <Box
-                          as="span"
-                          style={{ color: HIVE_COLORS[row.hive] || '#4a4' }}
-                        >
-                          [{row.hive}]
-                        </Box>
+                  <Section title="Queen Maturity">
+                    <Box style={{ display: 'flex', gap: '4px' }}>
+                      <Box
+                        as="button"
+                        onClick={() => setImmature(false)}
+                        style={{
+                          flex: '1',
+                          padding: '6px 4px',
+                          border: !immature
+                            ? `1px solid ${hiveColor}`
+                            : '1px solid rgba(255,255,255,0.15)',
+                          backgroundColor: !immature
+                            ? `${hiveColor}22`
+                            : 'rgba(255,255,255,0.04)',
+                          color: !immature
+                            ? hiveColor
+                            : 'rgba(255,255,255,0.6)',
+                          borderRadius: '3px',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          fontWeight: !immature ? 'bold' : 'normal',
+                          textAlign: 'center',
+                        }}
+                      >
+                        Mature (has Screech)
                       </Box>
                       <Box
                         as="button"
-                        onClick={() => removeFromQueue(index)}
+                        onClick={() => setImmature(true)}
                         style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'rgba(255,255,255,0.4)',
+                          flex: '1',
+                          padding: '6px 4px',
+                          border: immature
+                            ? `1px solid ${hiveColor}`
+                            : '1px solid rgba(255,255,255,0.15)',
+                          backgroundColor: immature
+                            ? `${hiveColor}22`
+                            : 'rgba(255,255,255,0.04)',
+                          color: immature ? hiveColor : 'rgba(255,255,255,0.6)',
+                          borderRadius: '3px',
                           cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          fontWeight: immature ? 'bold' : 'normal',
+                          textAlign: 'center',
                         }}
                       >
-                        <Icon name="times" />
+                        Immature (no Screech)
                       </Box>
                     </Box>
-                  ))}
-                </Box>
-              </Section>
-            </Stack.Item>
-          )}
+                  </Section>
+                </Stack.Item>
+              )}
+
+              {/* Count & Range */}
+              <Stack.Item>
+                <Section title="Spawn Options">
+                  <Stack>
+                    <Stack.Item>
+                      <Box
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'rgba(255,255,255,0.5)',
+                          marginBottom: '3px',
+                        }}
+                      >
+                        Count
+                      </Box>
+                      <NumberInput
+                        value={count}
+                        minValue={1}
+                        maxValue={100}
+                        step={1}
+                        width="4rem"
+                        onChange={(v) => setCount(v)}
+                      />
+                    </Stack.Item>
+                    <Stack.Item>
+                      <Box
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'rgba(255,255,255,0.5)',
+                          marginBottom: '3px',
+                        }}
+                      >
+                        Range
+                      </Box>
+                      <NumberInput
+                        value={range}
+                        minValue={0}
+                        maxValue={10}
+                        step={1}
+                        width="4rem"
+                        onChange={(v) => setRange(v)}
+                      />
+                    </Stack.Item>
+                    <Stack.Item grow>
+                      <Box style={{ marginBottom: '3px' }}>&nbsp;</Box>
+                      <Button
+                        fluid
+                        icon="plus"
+                        disabled={!selectedHive || !selectedCaste}
+                        onClick={addToQueue}
+                      >
+                        Add to Queue
+                      </Button>
+                    </Stack.Item>
+                  </Stack>
+                </Section>
+              </Stack.Item>
+
+              {/* Queue */}
+              {queue.length > 0 && (
+                <Stack.Item>
+                  <Section title={`Queue (${totalQueued} total)`}>
+                    <Box style={{ maxHeight: '120px', overflowY: 'auto' }}>
+                      {queue.map((row, index) => (
+                        <Box
+                          key={index}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '3px 6px',
+                            fontSize: '0.82rem',
+                            borderBottom: '1px solid rgba(255,255,255,0.06)',
+                          }}
+                        >
+                          <Box>
+                            {row.count}× {row.caste}
+                            {row.caste === 'Queen' &&
+                              (row.immature ? ' (Immature)' : ' (Mature)')}{' '}
+                            <Box
+                              as="span"
+                              style={{ color: HIVE_COLORS[row.hive] || '#4a4' }}
+                            >
+                              [{row.hive}]
+                            </Box>
+                          </Box>
+                          <Box
+                            as="button"
+                            onClick={() => removeFromQueue(index)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'rgba(255,255,255,0.4)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Icon name="times" />
+                          </Box>
+                        </Box>
+                      ))}
+                    </Box>
+                  </Section>
+                </Stack.Item>
+              )}
             </>
           )}
 
@@ -415,7 +465,7 @@ export const AdminSpawnXenos = () => {
                     as="button"
                     onClick={() => setBurstType('larva')}
                     style={{
-                      flex: 1,
+                      flex: '1',
                       padding: '8px 4px',
                       border:
                         burstType === 'larva'
@@ -446,7 +496,7 @@ export const AdminSpawnXenos = () => {
                     as="button"
                     onClick={() => setBurstType('hugger')}
                     style={{
-                      flex: 1,
+                      flex: '1',
                       padding: '8px 4px',
                       border:
                         burstType === 'hugger'
@@ -496,9 +546,8 @@ export const AdminSpawnXenos = () => {
                     key={m.value}
                     as="button"
                     onClick={() => setSpawnAs(m.value)}
-                    title={m.desc}
                     style={{
-                      flex: 1,
+                      flex: '1',
                       padding: '6px 4px',
                       border:
                         spawnAs === m.value
@@ -542,6 +591,9 @@ export const AdminSpawnXenos = () => {
                   fluid
                   icon="crosshairs"
                   color="orange"
+                  className={
+                    ui_effects_enabled ? 'admin-glow-pulse' : undefined
+                  }
                   style={{ padding: '8px', fontSize: '0.95rem' }}
                   onClick={() => act('cancel_spawn')}
                 >
@@ -550,10 +602,11 @@ export const AdminSpawnXenos = () => {
                     : 'Click a tile on the map… (Cancel)'}
                 </Button>
               ) : mode === 'burst' ? (
-                <Button
+                <Button.Confirm
                   fluid
                   icon="bolt"
                   disabled={!selectedHive}
+                  confirmContent="This will kill/convert the targeted human — confirm?"
                   style={{
                     padding: '8px',
                     fontSize: '0.95rem',
@@ -561,19 +614,20 @@ export const AdminSpawnXenos = () => {
                     border: `1px solid ${hiveColor}`,
                     color: '#fff',
                   }}
-                  onClick={() =>
+                  onClick={() => {
                     act('spawn', {
                       mode: 'burst',
                       hive: selectedHive,
                       burst_type: burstType,
                       spawn_as: spawnAs,
-                    })
-                  }
+                    });
+                    playSpawnConfirm();
+                  }}
                 >
                   Arm {burstType === 'larva' ? 'Larva' : 'Hugger'} Burst
-                </Button>
+                </Button.Confirm>
               ) : queue.length > 0 ? (
-                <Button
+                <Button.Confirm
                   fluid
                   icon="bug"
                   style={{
@@ -583,17 +637,18 @@ export const AdminSpawnXenos = () => {
                     border: `1px solid ${hiveColor}`,
                     color: '#fff',
                   }}
-                  onClick={() =>
+                  onClick={() => {
                     act('spawn', {
                       mode: 'spawn',
                       queue,
                       range,
                       spawn_as: spawnAs,
-                    })
-                  }
+                    });
+                    playSpawnConfirm();
+                  }}
                 >
                   Spawn Queue ({totalQueued}×)
-                </Button>
+                </Button.Confirm>
               ) : (
                 <Box
                   style={{

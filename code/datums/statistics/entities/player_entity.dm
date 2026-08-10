@@ -10,9 +10,9 @@
 	var/ckey // "cakey"
 	var/list/player_stats = list() //! Indeed list of /datum/entity/player_stats
 	var/list/death_stats = list() //! Indexed list of /datum/entity/statistic/death
-	var/menu = 0
-	var/subMenu = 0
-	var/dataMenu = 0
+	var/menu = "global"
+	var/subMenu = "general"
+	var/dataMenu = "general"
 	var/data[0]
 	var/path
 	var/savefile_version

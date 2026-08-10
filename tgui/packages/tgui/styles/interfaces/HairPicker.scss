@@ -1,34 +1,37 @@
-.theme-crtblue {
-  .HairPicker {
-    .Stack--horizontal > .Picker:first-of-type {
-      margin-left: 6px;
+// Not theme-scoped (unlike its old .theme-crtblue wrapper) — the Window's theme prop has
+// changed names before (crtblue -> crtlobby) and silently broke every rule here since none of
+// them are actually theme-color-driven, just layout/grid + the drop-shadow color-tint
+// counter-translate hack shared with PredPicker's "Quill Style" picker (PredPicker.scss uses
+// this same unscoped pattern already).
+.HairPicker {
+  .Stack--horizontal > .Picker:first-of-type {
+    margin-left: 6px;
+  }
+
+  .Picker {
+    &.Active {
+      outline: 4px solid #8ac8ff;
     }
 
-    .Picker {
-      &.Active {
-        outline: 4px solid #8ac8ff;
-      }
-
-      & > div {
-        background: #fff;
-        overflow: hidden;
-      }
-
-      @supports (not (-webkit-hyphens: none)) and (not (-moz-appearance: none)) {
-        img {
-          transform: translateY(-1000px);
-          position: relative;
-        }
-      }
-
-      height: 66px;
-      margin-bottom: 6px;
+    & > div {
+      background: #fff;
+      overflow: hidden;
     }
 
-    &:not(.ModalOpen) {
+    @supports (not (-webkit-hyphens: none)) and (not (-moz-appearance: none)) {
       img {
-        z-index: 3;
+        transform: translateY(-1000px);
+        position: relative;
       }
+    }
+
+    height: 66px;
+    margin-bottom: 6px;
+  }
+
+  &:not(.ModalOpen) {
+    img {
+      z-index: 3;
     }
   }
 }

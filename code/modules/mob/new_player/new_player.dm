@@ -374,12 +374,6 @@
 
 	client?.prefs.close_all_pickers()
 
-	if(src.open_uis)
-		for(var/datum/nanoui/ui in src.open_uis)
-			if(ui.allowed_user_stat == -1)
-				ui.close()
-				continue
-
 /mob/new_player/get_gender()
 	if(!client || !client.prefs) ..()
 	return client.prefs.gender

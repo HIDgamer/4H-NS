@@ -25,7 +25,7 @@ export const UnbanPanel = () => {
 
   return (
     <Window width={850} height={450}>
-      <Window.Content>
+      <Window.Content scrollable>
         <Stack vertical>
           <Stack.Item>
             <Stack justify="end">

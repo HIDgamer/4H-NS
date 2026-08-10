@@ -2,12 +2,17 @@ import { useBackend } from 'tgui/backend';
 import { Button, LabeledList, NoticeBox, Section } from 'tgui/components';
 import { Window } from 'tgui/layouts';
 
-type Wire = { number: number; cut: boolean; attached?: boolean };
+type Wire = {
+  number: number;
+  cut: boolean;
+  attached?: boolean;
+  wire?: string;
+};
 
 type Data = {
   wires: Wire[];
   proper_name: string;
-  wire_descs: Record<number, string>;
+  wire_descs: string[];
 };
 
 export const Wires = (props) => {
@@ -56,16 +61,18 @@ export const Wires = (props) => {
                     >
                       Pulse
                     </Button>
-                    <Button
-                      icon="paperclip"
-                      onClick={() =>
-                        act('attach', {
-                          wire: wire.number,
-                        })
-                      }
-                    >
-                      {wire.attached ? 'Detach' : 'Attach'}
-                    </Button>
+                    {wire.attached !== undefined && (
+                      <Button
+                        icon="paperclip"
+                        onClick={() =>
+                          act('attach', {
+                            wire: wire.number,
+                          })
+                        }
+                      >
+                        {wire.attached ? 'Detach' : 'Attach'}
+                      </Button>
+                    )}
                   </>
                 }
               />

@@ -69,76 +69,73 @@ GLOBAL_LIST_INIT(frozen_items, list(SQUAD_MARINE_1 = list(), SQUAD_MARINE_2 = li
 	user.set_interaction(src)
 	src.add_fingerprint(usr)
 
-	var/dat
+	tgui_interact(user)
 
-	dat += "<i>Welcome, [user.real_name].</i><br/><br/><hr/>"
-	dat += "<a href='byond://?src=\ref[src];log=1'>View storage log</a>.<br>"
-	dat += "<a href='byond://?src=\ref[src];view=1'>View objects</a>.<br>"
-	dat += "<a href='byond://?src=\ref[src];item=1'>Recover object</a>.<br>"
-	dat += "<a href='byond://?src=\ref[src];allitems=1'>Recover all objects</a>.<br>"
+/obj/structure/machinery/computer/cryopod/tgui_interact(mob/user, datum/tgui/ui)
+	ui = SStgui.try_update_ui(user, src, ui)
+	if(!ui)
+		ui = new(user, src, "CryopodConsole", "Cryogenic Oversight Control for [cryotype]")
+		ui.open()
 
-	show_browser(user, dat, "Cryogenic Oversight Control for [cryotype]", "cryopod_console")
+/obj/structure/machinery/computer/cryopod/ui_data(mob/user)
+	var/list/data = list()
+	data["welcome_name"] = user.real_name
+	data["cryotype"] = cryotype
 
-/obj/structure/machinery/computer/cryopod/Topic(href, href_list)
+	var/list/frozen_crew_list = list()
+	for(var/person in GLOB.frozen_crew)
+		frozen_crew_list += person
+	data["frozen_crew"] = frozen_crew_list
+
+	var/list/frozen_items_for_type = GLOB.frozen_items[cryotype]
+	var/list/item_names = list()
+	for(var/obj/item/I in frozen_items_for_type)
+		item_names += I.name
+	data["frozen_items"] = item_names
+
+	return data
+
+/obj/structure/machinery/computer/cryopod/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
 	. = ..()
 	if(.)
 		return
-	var/mob/user = usr
+
+	var/mob/user = ui.user
 	var/list/frozen_items_for_type = GLOB.frozen_items[cryotype]
 
 	src.add_fingerprint(user)
 
-	if(href_list["log"])
+	switch(action)
+		if("recover_item")
+			if(length(frozen_items_for_type) == 0)
+				to_chat(user, SPAN_WARNING("There is nothing to recover from storage."))
+				return TRUE
 
-		var/dat = "<b>Recently stored crewmembers</b><br/><hr/><br/>"
-		for(var/person in GLOB.frozen_crew)
-			dat += "[person]<br/>"
-		dat += "<hr/>"
+			var/obj/item/I = tgui_input_list(user, "Please choose which object to retrieve.", "Object recovery", frozen_items_for_type)
+			if(!I)
+				return TRUE
 
-		show_browser(user, dat, "Cryogenic Oversight Control Logs", "cryolog")
+			if(!(I in frozen_items_for_type))
+				to_chat(user, SPAN_WARNING("[I] is no longer in storage."))
+				return TRUE
 
-	if(href_list["view"])
+			visible_message(SPAN_NOTICE("[src] beeps happily as it disgorges [I]."))
 
-		var/dat = "<b>Recently stored objects</b><br/><hr/><br/>"
-		for(var/obj/item/I in frozen_items_for_type)
-			dat += "[I.name]<br/>"
-		dat += "<hr/>"
-
-		show_browser(user, dat, "Cryogenic Oversight Control Logs", "cryoitems")
-
-	else if(href_list["item"])
-
-		if(length(frozen_items_for_type) == 0)
-			to_chat(user, SPAN_WARNING("There is nothing to recover from storage."))
-			return
-
-		var/obj/item/I = tgui_input_list(usr, "Please choose which object to retrieve.", "Object recovery", frozen_items_for_type)
-		if(!I)
-			return
-
-		if(!(I in frozen_items_for_type))
-			to_chat(user, SPAN_WARNING("[I] is no longer in storage."))
-			return
-
-		visible_message(SPAN_NOTICE("[src] beeps happily as it disgorges [I]."))
-
-		I.forceMove(get_turf(src))
-		frozen_items_for_type -= I
-
-	else if(href_list["allitems"])
-
-		if(length(frozen_items_for_type) == 0)
-			to_chat(user, SPAN_WARNING("There is nothing to recover from storage."))
-			return
-
-		visible_message(SPAN_NOTICE("[src] beeps happily as it disgorges the desired objects."))
-
-		for(var/obj/item/I in frozen_items_for_type)
 			I.forceMove(get_turf(src))
 			frozen_items_for_type -= I
+			return TRUE
 
-	src.updateUsrDialog()
-	return
+		if("recover_all")
+			if(length(frozen_items_for_type) == 0)
+				to_chat(user, SPAN_WARNING("There is nothing to recover from storage."))
+				return TRUE
+
+			visible_message(SPAN_NOTICE("[src] beeps happily as it disgorges the desired objects."))
+
+			for(var/obj/item/I in frozen_items_for_type)
+				I.forceMove(get_turf(src))
+				frozen_items_for_type -= I
+			return TRUE
 
 
 //Decorative structures to go alongside cryopods.

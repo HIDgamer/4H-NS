@@ -130,6 +130,7 @@
 		current_convo["title"] = log.title
 		current_convo["ref"] = "\ref[log]"
 		current_convo["conversation"] = log.conversation
+		current_convo["title"] = log.title
 		logged_convos += list(current_convo)
 
 	data["records_discussions"] = logged_convos

@@ -14,8 +14,8 @@ export const SquadMod = (props) => {
   const { act, data } = useBackend<Data>();
   const { squads = [], human, id_name, has_id } = data;
   return (
-    <Window width={400} height={300}>
-      <Window.Content>
+    <Window width={400} height={350}>
+      <Window.Content scrollable>
         <Section>
           <Stack vertical>
             <Stack.Item>

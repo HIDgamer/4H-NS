@@ -12,7 +12,7 @@ export const Binoculars = () => {
   const z_coord = data.zcoord;
 
   return (
-    <Window width={450} height={200}>
+    <Window width={450} height={150}>
       <Window.Content scrollable>
         <Section
           title="SIMPLIFIED COORDINATES OF TARGET"

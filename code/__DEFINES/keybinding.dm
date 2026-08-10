@@ -44,6 +44,17 @@
 #define COMSIG_KB_CLIENT_WHISPER_DOWN "keybinding_client_whisper_down"
 #define COMSIG_KG_CLIENT_RADIO_DOWN "keybinding_client_radio_down"
 
+// Saved Messages quick-fire slots (code/datums/keybinding/saved_messages.dm)
+#define COMSIG_KB_CLIENT_SAVEDMESSAGE1_DOWN "keybinding_client_savedmessage1_down"
+#define COMSIG_KB_CLIENT_SAVEDMESSAGE2_DOWN "keybinding_client_savedmessage2_down"
+#define COMSIG_KB_CLIENT_SAVEDMESSAGE3_DOWN "keybinding_client_savedmessage3_down"
+#define COMSIG_KB_CLIENT_SAVEDMESSAGE4_DOWN "keybinding_client_savedmessage4_down"
+#define COMSIG_KB_CLIENT_SAVEDMESSAGE5_DOWN "keybinding_client_savedmessage5_down"
+#define COMSIG_KB_CLIENT_SAVEDMESSAGE6_DOWN "keybinding_client_savedmessage6_down"
+#define COMSIG_KB_CLIENT_SAVEDMESSAGE7_DOWN "keybinding_client_savedmessage7_down"
+#define COMSIG_KB_CLIENT_SAVEDMESSAGE8_DOWN "keybinding_client_savedmessage8_down"
+#define COMSIG_KB_CLIENT_SAVEDMESSAGE9_DOWN "keybinding_client_savedmessage9_down"
+
 //Human
 #define COMSIG_KB_HUMAN_ISSUE_ORDER "keybinding_human_issue_order"
 #define COMSIG_KB_HUMAN_ISSUE_ORDER_MOVE "keybinding_human_issue_order_move"

@@ -2,7 +2,26 @@ import { useBackend } from '../backend';
 import { Box, Button, Section, Table } from '../components';
 import { Window } from '../layouts';
 
-const AI_STATE_NAMES = {
+type Xeno = {
+  name: string;
+  codename: string;
+  caste: string;
+  health: number;
+  max_health: number;
+  area: string;
+  time_lived: number;
+  damage_dealt: number;
+  last_ability_ago: number;
+  ai_state: number;
+  idle_activity: string;
+  ref: string;
+};
+
+type Data = {
+  xenos?: Xeno[];
+};
+
+const AI_STATE_NAMES: Record<number, string> = {
   1: 'Idle',
   2: 'Approaching',
   3: 'Attacking',
@@ -10,7 +29,7 @@ const AI_STATE_NAMES = {
   5: 'Searching',
 };
 
-const healthColor = (health, maxHealth) => {
+const healthColor = (health: number, maxHealth: number) => {
   if (!maxHealth) {
     return 'grey';
   }
@@ -25,11 +44,11 @@ const healthColor = (health, maxHealth) => {
 };
 
 export const AdminHiveStatus = () => {
-  const { act, data } = useBackend();
+  const { act, data } = useBackend<Data>();
   const { xenos = [] } = data;
 
   return (
-    <Window title="Hive Status" theme="crtblue" width={720} height={520}>
+    <Window title="Hive Status" theme="admin" width={720} height={520}>
       <Window.Content scrollable>
         <Section title={`AI Xenomorphs (${xenos.length})`}>
           {xenos.length === 0 ? (
@@ -64,7 +83,9 @@ export const AdminHiveStatus = () => {
                   <Table.Cell>{xeno.time_lived}s</Table.Cell>
                   <Table.Cell>{xeno.damage_dealt}</Table.Cell>
                   <Table.Cell>
-                    {xeno.last_ability_ago < 0 ? 'never' : `${xeno.last_ability_ago}s ago`}
+                    {xeno.last_ability_ago < 0
+                      ? 'never'
+                      : `${xeno.last_ability_ago}s ago`}
                   </Table.Cell>
                   <Table.Cell>
                     <Button

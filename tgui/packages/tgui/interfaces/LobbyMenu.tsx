@@ -1,3 +1,4 @@
+import { playClickBlip } from 'common/audio';
 import { randomInteger } from 'common/random';
 import { BooleanLike, classes } from 'common/react';
 import { storage } from 'common/storage';
@@ -79,7 +80,9 @@ export const LobbyMenu = () => {
     storage.get('lobby-theme-disabled').then((val) => setThemeDisabled(!!val));
 
     setTimeout(() => {
-      onLoadPlayer.current!.play();
+      onLoadPlayer.current?.play()?.catch(() => {
+        // Autoplay blocked or load failed — non-fatal, just no load jingle.
+      });
     }, 250);
 
     setTimeout(() => {
@@ -88,23 +91,15 @@ export const LobbyMenu = () => {
   }, []);
 
   useEffect(() => {
-    if (!confirmation_message) return;
+    if (!confirmation_message) {
+      // Server cleared the confirmation (e.g. after a successful confirm) —
+      // close the modal instead of leaving it stuck open with stale content.
+      setModal(false);
+      return;
+    }
 
     setModal(
-      <Section
-        buttons={
-          <Button
-            mb={5}
-            onClick={() => {
-              setModal!(false);
-              act('unconfirm');
-            }}
-            icon={'x'}
-          />
-        }
-        p={3}
-        title={'Confirm'}
-      >
+      <ModalConfirm onClose={() => act('unconfirm')}>
         <Box>
           <Stack vertical>
             {Array.isArray(confirmation_message) ? (
@@ -121,7 +116,7 @@ export const LobbyMenu = () => {
             </Stack.Item>
           </Stack>
         </Box>
-      </Section>,
+      </ModalConfirm>,
     );
   }, [confirmation_message]);
 
@@ -264,8 +259,10 @@ export const LobbyMenu = () => {
   );
 };
 
-const ModalConfirm = (props: PropsWithChildren) => {
-  const { children } = props;
+const ModalConfirm = (
+  props: PropsWithChildren<{ readonly onClose?: () => void }>,
+) => {
+  const { children, onClose } = props;
 
   const context = useContext(LobbyContext);
 
@@ -273,7 +270,16 @@ const ModalConfirm = (props: PropsWithChildren) => {
 
   return (
     <Section
-      buttons={<Button mb={5} onClick={() => setModal!(false)} icon={'x'} />}
+      buttons={
+        <Button
+          mb={5}
+          onClick={() => {
+            setModal!(false);
+            onClose?.();
+          }}
+          icon={'x'}
+        />
+      }
       p={3}
       title={'Confirm'}
     >
@@ -654,10 +660,12 @@ const StyledText = (props: PropsWithChildren) => {
 };
 
 const Button = (props) => {
-  const { act } = useBackend();
-
+  // Previously round-tripped to the server (act('keyboard') -> playsound_client on a raw .ogg
+  // never registered in the web-asset pipeline), so it never actually played anything — swapped
+  // for a local synthesized blip (see common/audio.ts, built for exactly this: cheap per-click
+  // feedback with no asset registration needed) instead of trying to fix the asset registration.
   return (
-    <Box onClick={() => act('keyboard')}>
+    <Box onClick={() => playClickBlip()}>
       <NativeButton {...props} />
     </Box>
   );

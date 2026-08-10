@@ -1,10 +1,31 @@
+import { playClickBlip } from 'common/audio';
+import { BooleanLike } from 'common/react';
 import { useState } from 'react';
 
+import { resolveAsset } from '../assets';
 import { useBackend } from '../backend';
 import { Box, Button, Icon, NumberInput, Section, Stack } from '../components';
 import { Window } from '../layouts';
 
-const SPAWN_MODES = [
+type Data = {
+  presets: string[];
+  picking: BooleanLike;
+  ui_effects_enabled: BooleanLike;
+};
+
+type QueueRow = {
+  job: string;
+  count: number;
+};
+
+type SpawnMode = {
+  value: string;
+  label: string;
+  icon: string;
+  desc: string;
+};
+
+const SPAWN_MODES: SpawnMode[] = [
   {
     value: 'npc',
     label: 'NPC',
@@ -25,7 +46,7 @@ const SPAWN_MODES = [
   },
 ];
 
-const EQUIP_MODES = [
+const EQUIP_MODES: SpawnMode[] = [
   {
     value: 'full',
     label: 'Full Gear',
@@ -47,19 +68,26 @@ const EQUIP_MODES = [
 ];
 
 export const AdminSpawnHumans = () => {
-  const { act, data } = useBackend();
-  const { presets = [], picking = false } = data;
+  const { act, data } = useBackend<Data>();
+  const { presets = [], picking = false, ui_effects_enabled = true } = data;
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState('');
   const [count, setCount] = useState(1);
   const [range, setRange] = useState(0);
   const [spawnAs, setSpawnAs] = useState('npc');
   const [equipWith, setEquipWith] = useState('full');
-  const [queue, setQueue] = useState([]);
+  const [queue, setQueue] = useState<QueueRow[]>([]);
 
   const filtered = search
     ? presets.filter((p) => p.toLowerCase().includes(search.toLowerCase()))
     : presets;
+
+  const selectPreset = (p: string) => {
+    setSelected(p);
+    if (ui_effects_enabled) {
+      playClickBlip();
+    }
+  };
 
   const addToQueue = () => {
     if (!selected) {
@@ -67,33 +95,47 @@ export const AdminSpawnHumans = () => {
     }
     setQueue([...queue, { job: selected, count }]);
     setCount(1);
+    if (ui_effects_enabled) {
+      playClickBlip();
+    }
   };
 
-  const removeFromQueue = (index) => {
+  const removeFromQueue = (index: number) => {
     setQueue(queue.filter((_, i) => i !== index));
+  };
+
+  const spawnQueue = () => {
+    act('spawn', {
+      queue,
+      range,
+      spawn_as: spawnAs,
+      equip_with: equipWith,
+    });
+    if (ui_effects_enabled) {
+      new Audio(resolveAsset('admin_spawn_confirm.ogg')).play().catch(() => {});
+    }
   };
 
   const totalQueued = queue.reduce((sum, row) => sum + row.count, 0);
 
   return (
-    <Window title="Create Humans" theme="crtblue" width={480} height={760}>
+    <Window title="Create Humans" theme="admin" width={480} height={760}>
       <Window.Content scrollable>
         <Stack vertical>
           {/* Job selection */}
           <Stack.Item>
             <Section title="Job / Equipment Preset">
-              <Box
-                as="input"
+              <input
                 placeholder="Search presets…"
                 value={search}
-                onInput={(e) => setSearch(e.target.value)}
+                onInput={(e) => setSearch(e.currentTarget.value)}
                 style={{
                   width: '100%',
                   padding: '4px 6px',
                   marginBottom: '4px',
                   backgroundColor: 'rgba(0,0,0,0.3)',
-                  border: '1px solid rgba(100,180,255,0.3)',
-                  color: '#8cf',
+                  border: '1px solid var(--admin-primary-border)',
+                  color: 'var(--admin-primary)',
                   borderRadius: '3px',
                   fontSize: '0.85rem',
                 }}
@@ -102,7 +144,7 @@ export const AdminSpawnHumans = () => {
                 style={{
                   maxHeight: '220px',
                   overflowY: 'auto',
-                  border: '1px solid rgba(100,180,255,0.15)',
+                  border: '1px solid var(--admin-primary-border)',
                   borderRadius: '3px',
                 }}
               >
@@ -110,7 +152,7 @@ export const AdminSpawnHumans = () => {
                   <Box
                     key={p}
                     as="button"
-                    onClick={() => setSelected(p)}
+                    onClick={() => selectPreset(p)}
                     style={{
                       display: 'block',
                       width: '100%',
@@ -120,9 +162,12 @@ export const AdminSpawnHumans = () => {
                       cursor: 'pointer',
                       backgroundColor:
                         selected === p
-                          ? 'rgba(74,140,255,0.25)'
+                          ? 'var(--admin-primary-soft)'
                           : 'transparent',
-                      color: selected === p ? '#8cf' : 'rgba(255,255,255,0.7)',
+                      color:
+                        selected === p
+                          ? 'var(--admin-primary)'
+                          : 'rgba(255,255,255,0.7)',
                       border: 'none',
                       borderBottom: '1px solid rgba(255,255,255,0.05)',
                       transition: 'background-color 0.1s ease',
@@ -252,20 +297,21 @@ export const AdminSpawnHumans = () => {
                     key={m.value}
                     as="button"
                     onClick={() => setSpawnAs(m.value)}
-                    title={m.desc}
                     style={{
-                      flex: 1,
+                      flex: '1',
                       padding: '6px 4px',
                       border:
                         spawnAs === m.value
-                          ? '1px solid #4a8cff'
+                          ? '1px solid var(--admin-primary)'
                           : '1px solid rgba(255,255,255,0.15)',
                       backgroundColor:
                         spawnAs === m.value
-                          ? 'rgba(74,140,255,0.2)'
+                          ? 'var(--admin-primary-soft)'
                           : 'rgba(255,255,255,0.04)',
                       color:
-                        spawnAs === m.value ? '#8cf' : 'rgba(255,255,255,0.6)',
+                        spawnAs === m.value
+                          ? 'var(--admin-primary)'
+                          : 'rgba(255,255,255,0.6)',
                       borderRadius: '3px',
                       cursor: 'pointer',
                       fontSize: '0.78rem',
@@ -297,9 +343,8 @@ export const AdminSpawnHumans = () => {
                     key={m.value}
                     as="button"
                     onClick={() => setEquipWith(m.value)}
-                    title={m.desc}
                     style={{
-                      flex: 1,
+                      flex: '1',
                       padding: '6px 4px',
                       border:
                         equipWith === m.value
@@ -343,28 +388,24 @@ export const AdminSpawnHumans = () => {
                   fluid
                   icon="crosshairs"
                   color="orange"
+                  className={
+                    ui_effects_enabled ? 'admin-glow-pulse' : undefined
+                  }
                   style={{ padding: '8px', fontSize: '0.95rem' }}
                   onClick={() => act('cancel_spawn')}
                 >
                   Click a tile on the map… (Cancel)
                 </Button>
               ) : queue.length > 0 ? (
-                <Button
+                <Button.Confirm
                   fluid
                   icon="user-plus"
                   color="green"
                   style={{ padding: '8px', fontSize: '0.95rem' }}
-                  onClick={() =>
-                    act('spawn', {
-                      queue,
-                      range,
-                      spawn_as: spawnAs,
-                      equip_with: equipWith,
-                    })
-                  }
+                  onClick={spawnQueue}
                 >
                   Spawn Queue ({totalQueued}×)
-                </Button>
+                </Button.Confirm>
               ) : (
                 <Box
                   style={{

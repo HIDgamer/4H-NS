@@ -209,11 +209,6 @@
 		var/mob/new_player/new_player = mob
 		new_player.initialize_lobby_screen()
 
-	for(var/I in mob.open_uis)
-		var/datum/nanoui/ui = I
-		if(!QDELETED(ui))
-			ui.close()
-
 	log_tgui(src, "Closing all tgui windows.", context = "verb/fixnanoui")
 	var/closed_windows = SStgui.close_user_uis(usr)
 

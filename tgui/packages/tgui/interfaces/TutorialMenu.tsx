@@ -56,7 +56,7 @@ export const TutorialMenu = (props) => {
           </Stack.Item>
           <Stack fill>
             <Stack.Item grow mr={1}>
-              <Section fill height="100%">
+              <Section fill scrollable height="100%">
                 {tutorial_categories.map(
                   (tutorial_category) =>
                     tutorial_category.name === categoryIndex &&
@@ -118,8 +118,8 @@ export const TutorialMenu = (props) => {
                       <div />
                     ) : (
                       <Stack.Item
+                        color="good"
                         style={{
-                          color: '#5baa27',
                           paddingTop: '4px',
                           paddingBottom: '4px',
                           textAlign: 'center',

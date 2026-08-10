@@ -61,6 +61,11 @@
 	var/loadout_points = 0
 	for(var/item in prefs.get_active_loadout())
 		var/datum/gear/gear = GLOB.gear_datums_by_type[item]
+		// Defensive: saved prefs can reference gear that's since been renamed/removed — skip
+		// instead of crashing ui_data() outright, which takes the whole picker down for anyone
+		// with a stale loadout pick.
+		if(!gear)
+			continue
 		loadout_points += gear.loadout_cost
 
 		.["loadout"] += list(
@@ -167,8 +172,12 @@
 
 			prefs.loadout_slot_names[job]["[slot]"] = name
 
+		if("clear")
+			prefs.gear = list()
+
 	prefs.check_slot_prefs()
-	prefs.ShowChoices(ui.user)
+	// Refreshes the live preview instead of the legacy popup.
+	prefs.update_preview_icon()
 	return TRUE
 
 /datum/loadout_picker/tgui_interact(mob/user, datum/tgui/ui)

@@ -329,8 +329,6 @@
 		individual_counts["[M.type]"]++
 	for(var/mob/M in SSmob.living_misc_mobs)
 		individual_counts["[M.type]"]++
-	for(var/datum/nanoui/M in SSnano.nanomanager.processing_uis)
-		individual_counts["[M.type]"]++
 	for(var/datum/powernet/M in GLOB.powernets)
 		individual_counts["[M.type]"]++
 	for(var/datum/M in GLOB.power_machines)

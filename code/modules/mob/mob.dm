@@ -29,7 +29,6 @@
 	clear_fullscreens()
 	QDEL_NULL(mob_panel)
 	QDEL_NULL(mob_language_menu)
-	QDEL_NULL_LIST(open_uis)
 
 	tgui_open_uis = null
 	buckled = null

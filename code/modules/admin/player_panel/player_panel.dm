@@ -1,5 +1,145 @@
 
-/datum/admins/proc/player_panel_new()//The new one
+/datum/admin_player_list
+	var/datum/admins/admin_holder
+
+/datum/admin_player_list/New(datum/admins/holder)
+	. = ..()
+	admin_holder = holder
+
+/datum/admin_player_list/Destroy(force, ...)
+	admin_holder = null
+	SStgui.close_uis(src)
+	return ..()
+
+/datum/admin_player_list/tgui_interact(mob/user, datum/tgui/ui)
+	ui = SStgui.try_update_ui(user, src, ui)
+	if (!ui)
+		ui = new(user, src, "AdminPlayerList", "Player Panel")
+		ui.open()
+
+/datum/admin_player_list/ui_state(mob/user)
+	return GLOB.admin_state
+
+/datum/admin_player_list/ui_data(mob/user)
+	. = list()
+	var/list/players = list()
+	var/list/mobs = sortmobs()
+	for (var/mob/M in mobs)
+		if (!M.ckey)
+			continue
+		if (!CLIENT_HAS_RIGHTS(user.client, R_STEALTH) && (M.client && CLIENT_IS_STEALTHED(M.client)))
+			continue
+
+		var/M_job = "Unknown"
+		if (isliving(M))
+			if (iscarbon(M))
+				if (ishuman(M))
+					M_job = M.job || "Human"
+				else if (ismonkey(M))
+					M_job = "Monkey"
+				else if (isxeno(M))
+					M_job = "Alien"
+				else
+					M_job = "Carbon"
+			else if (isSilicon(M))
+				M_job = "Silicon"
+			else if (isanimal(M))
+				M_job = iscorgi(M) ? "Corgi" : "Animal"
+			else
+				M_job = "Living"
+		else if (istype(M, /mob/new_player))
+			M_job = "New player"
+		else if (isobserver(M))
+			M_job = "Ghost"
+
+		players += list(list(
+			"name" = M.name,
+			"real_name" = M.real_name,
+			"key" = M.key,
+			"job" = M_job,
+			"ref" = "\ref[M]",
+			// IP is ban-relevant, not general admin business — gate it the same way the legacy
+			// panel did, rather than exposing it to every admin who can merely open this panel.
+			"ip" = CLIENT_HAS_RIGHTS(user.client, R_BAN) ? M.lastKnownIP : null,
+			"stat" = isliving(M) ? M:stat : 0,
+		))
+
+	.["players"] = players
+	.["check_antag_enabled"] = (SSticker && SSticker.current_state >= GAME_STATE_PLAYING)
+
+/datum/admin_player_list/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
+	. = ..()
+	if (.)
+		return
+
+	var/mob/M
+	if (params["ref"])
+		M = locate(params["ref"])
+
+	switch (action)
+		if ("player_panel")
+			if (!M)
+				return
+			if (!M.mob_panel)
+				M.create_player_panel()
+			M.mob_panel.tgui_interact(ui.user)
+			return TRUE
+		if ("player_panel_extended")
+			if (!M)
+				return
+			admin_holder.player_panel_extended()
+			return TRUE
+		if ("show_notes")
+			if (!M || !M.ckey)
+				return
+			admin_holder.player_notes_show(M.ckey)
+			return TRUE
+		if ("view_variables")
+			if (!M)
+				return
+			if (!check_client_rights(ui.user.client, R_DEBUG))
+				return
+			ui.user.client.debug_variables(M)
+			return TRUE
+		if ("private_message")
+			var/key = params["key"]
+			if (!key)
+				return
+			var/client/target_client = GLOB.directory[key]
+			if (!target_client)
+				return
+			ui.user.client.cmd_admin_pm(target_client, null)
+			return TRUE
+		if ("subtle_message")
+			if (!M)
+				return
+			ui.user.client.cmd_admin_subtle_message(M)
+			return TRUE
+		if ("jump_to")
+			if (!M)
+				return
+			var/client/C = ui.user.client
+			if (!isobserver(ui.user))
+				C.admin_ghost()
+			sleep(2)
+			C.jumptomob(M)
+			return TRUE
+		if ("admin_alert")
+			if (!M)
+				return
+			ui.user.client.cmd_admin_alert_message(M)
+			return TRUE
+		if ("check_antagonists")
+			admin_holder.check_antagonists()
+			return TRUE
+
+/datum/admins/proc/player_panel_new()//The new one — now opens TGUI
+	if (!usr.client.admin_holder || !(usr.client.admin_holder.rights & R_MOD))
+		return
+	var/datum/admin_player_list/panel = new(src)
+	panel.tgui_interact(usr)
+
+/datum/admins/proc/player_panel_new_legacy()//The old one — kept for reference
 	if (!usr.client.admin_holder || !(usr.client.admin_holder.rights & R_MOD))
 		return
 	var/dat = "<html>"
@@ -306,7 +446,7 @@
 
 		dat += {"<td align=center><a href='byond://?src=\ref[src];[HrefToken()];adminplayeropts=\ref[M]'>X</a></td>
 		<td>[M.computer_id]</td>
-		<td>[M.lastKnownIP]</td>
+		<td>[CLIENT_HAS_RIGHTS(usr.client, R_BAN) ? M.lastKnownIP : "—"]</td>
 		<td><a href='byond://?src=\ref[src];[HrefToken()];adminplayerobservejump=\ref[M]'>JMP</a></td>
 		<td><a href='byond://?src=\ref[src];[HrefToken()];notes=show;mob=\ref[M]'>Notes</a></td>
 		"}

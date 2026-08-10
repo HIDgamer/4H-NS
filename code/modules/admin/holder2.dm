@@ -95,6 +95,16 @@ you will have to do something like if(client.admin_holder.rights & R_ADMIN) your
 		return check_client_rights(usr.client, rights_required, show_msg)
 	return FALSE
 
+/// Whether the given user wants the admin-tool sound/animation polish. One shared check so
+/// every admin interface's ui_data()/ui_static_data() sends a single boolean instead of each
+/// re-deriving it from prefs itself — see ADMIN_DISABLE_UI_EFFECTS in __game.dm for the opt-out
+/// bitflag this reads.
+/proc/admin_ui_effects_enabled(mob/user)
+	var/client/C = user?.client
+	if(!C?.prefs)
+		return TRUE
+	return !(C.prefs.toggles_admin & ADMIN_DISABLE_UI_EFFECTS)
+
 /proc/check_other_rights(client/other, rights_required, show_msg = TRUE)
 	if(!other)
 		return FALSE

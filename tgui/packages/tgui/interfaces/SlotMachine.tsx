@@ -80,65 +80,67 @@ export const SlotMachine = () => {
   } = data;
 
   return (
-    <Window>
-      <Section
-        title="Slots!"
-        style={{ justifyContent: 'center', textAlign: 'center' }}
-      >
-        <Section style={{ textAlign: 'left' }}>
-          <p>
-            Only <b>{cost}</b> credit{pluralS(cost)} for a chance to win big!
-          </p>
-          <p>
-            Available prize money:{' '}
-            <b>
-              {prize_money} credit{pluralS(prize_money)}
-            </b>{' '}
-          </p>
-          <p>
-            Current jackpot:{' '}
-            <b>
-              {prize_money + jackpot} credit{pluralS(prize_money + jackpot)}!
-            </b>
-          </p>
-          <p>
-            So far people have spun{' '}
-            <b>
-              {plays} time{pluralS(plays)},
-            </b>{' '}
-            and won{' '}
-            <b>
-              {jackpots} jackpot{pluralS(jackpots)}!
-            </b>
-          </p>
-        </Section>
-        <hr />
+    <Window width={700} height={550}>
+      <Window.Content scrollable>
         <Section
-          style={{
-            flexDirection: 'row',
-            display: 'flex',
-            justifyContent: 'center',
-          }}
+          title="Slots!"
+          style={{ justifyContent: 'center', textAlign: 'center' }}
         >
-          {state.map((reel, i) => {
-            return <SlotsReel key={i} reel={reel} />;
-          })}
-        </Section>
-        <hr />
-        <Button
-          onClick={() => act('spin')}
-          disabled={rolling || balance < cost}
-        >
-          Spin!
-        </Button>
-        <Section>
-          <b>Balance: {balance}</b>
-          <br />
-          <Button onClick={() => act('payout')} disabled={!(balance > 0)}>
-            Refund balance
+          <Section style={{ textAlign: 'left' }}>
+            <p>
+              Only <b>{cost}</b> credit{pluralS(cost)} for a chance to win big!
+            </p>
+            <p>
+              Available prize money:{' '}
+              <b>
+                {prize_money} credit{pluralS(prize_money)}
+              </b>{' '}
+            </p>
+            <p>
+              Current jackpot:{' '}
+              <b>
+                {prize_money + jackpot} credit{pluralS(prize_money + jackpot)}!
+              </b>
+            </p>
+            <p>
+              So far people have spun{' '}
+              <b>
+                {plays} time{pluralS(plays)},
+              </b>{' '}
+              and won{' '}
+              <b>
+                {jackpots} jackpot{pluralS(jackpots)}!
+              </b>
+            </p>
+          </Section>
+          <hr />
+          <Section
+            style={{
+              flexDirection: 'row',
+              display: 'flex',
+              justifyContent: 'center',
+            }}
+          >
+            {state.map((reel, i) => {
+              return <SlotsReel key={i} reel={reel} />;
+            })}
+          </Section>
+          <hr />
+          <Button
+            onClick={() => act('spin')}
+            disabled={rolling || balance < cost}
+          >
+            Spin!
           </Button>
+          <Section>
+            <b>Balance: {balance}</b>
+            <br />
+            <Button onClick={() => act('payout')} disabled={!(balance > 0)}>
+              Refund balance
+            </Button>
+          </Section>
         </Section>
-      </Section>
+      </Window.Content>
     </Window>
   );
 };

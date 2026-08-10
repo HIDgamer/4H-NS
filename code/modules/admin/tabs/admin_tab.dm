@@ -66,15 +66,11 @@
 		return
 
 	var/new_STUI = 0
-	if(usr.open_uis)
-		for(var/datum/nanoui/ui in usr.open_uis)
+	if(usr.tgui_open_uis)
+		for(var/datum/tgui/ui in usr.tgui_open_uis)
 			if(ui.title == "STUI")
 				new_STUI = 1
 				ui.close()
-				continue
-			if(ui.allowed_user_stat == -1)
-				ui.close()
-				continue
 	if(istype(mob,/mob/dead/observer))
 		//re-enter
 		var/mob/dead/observer/ghost = mob

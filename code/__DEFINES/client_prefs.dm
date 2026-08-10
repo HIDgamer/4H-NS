@@ -82,6 +82,11 @@
 ///Used in chargen for loadout limit.
 #define MAX_GEAR_COST 7
 
+/// Number of saved-message slots (code/modules/client/saved_messages_setup.dm) — a global define
+/// since both that file and code/datums/keybinding/saved_messages.dm need it, same file-order
+/// reasoning as MAX_SAVE_SLOTS elsewhere in this file.
+#define MAX_SAVED_MESSAGES 9
+
 //dual_wield_pref from /datum/preferences
 //=================================================
 ///Fire both weapons when dual wielding

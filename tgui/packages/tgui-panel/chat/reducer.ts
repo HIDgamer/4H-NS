@@ -95,15 +95,17 @@ export const chatReducer = (state = initialState, action) => {
         if (!canPageAcceptType(page, type)) {
           continue;
         }
-        // Current page is scroll tracked
+        // Current page is scroll tracked — you're actually looking at it,
+        // so it can't have unread messages.
         if (page === currentPage && state.scrollTracking) {
           continue;
         }
-        // This page received the same message which we can read
-        // on the current page.
-        if (page !== currentPage && canPageAcceptType(currentPage, type)) {
-          continue;
-        }
+        // Each page tracks unread state against its own filters only —
+        // seeing a message on whichever tab you happen to be viewing right
+        // now doesn't mean you've "read" it on every other tab whose
+        // filters also accept it. That used to be assumed here, but it's an
+        // implicit invariant that only holds by coincidence of which tab is
+        // open at the moment a message arrives.
         unreadCount += countByType[type];
       }
       if (unreadCount > 0) {

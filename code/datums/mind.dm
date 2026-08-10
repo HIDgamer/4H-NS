@@ -47,7 +47,6 @@
 	var/mob/old_current = current
 	if(current)
 		current.mind = null //remove ourself from our old body's mind variable
-		SSnano.nanomanager.user_transferred(current, new_character) // transfer active NanoUI instances to new user
 		SStgui.on_transfer(current, new_character) // and active TGUI instances
 
 	if(key)
@@ -71,11 +70,6 @@
 			new_character.client.change_view(GLOB.world_view_size) //reset view range to default.
 			new_character.client.pixel_x = 0
 			new_character.client.pixel_y = 0
-			if(usr && usr.open_uis)
-				for(var/datum/nanoui/ui in usr.open_uis)
-					if(ui.allowed_user_stat == -1)
-						ui.close()
-						continue
 			player_entity = setup_player_entity(ckey)
 
 	SEND_SIGNAL(src, COMSIG_MIND_TRANSFERRED, old_current)

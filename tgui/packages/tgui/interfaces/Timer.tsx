@@ -4,7 +4,7 @@ import { Window } from 'tgui/layouts';
 
 type Data = {
   current_time: number;
-  is_timing: number;
+  is_timing: boolean;
   min_time: number;
   max_time: number;
 };

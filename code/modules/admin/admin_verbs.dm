@@ -637,5 +637,16 @@ GLOBAL_LIST_INIT(mentor_verbs, list(
 
 	prefs.save_preferences()
 
+/client/proc/toggle_admin_ui_effects()
+	set name = "Toggle Admin Tool Sounds/Animations"
+	set category = "Preferences.Admin"
+	prefs.toggles_admin ^= ADMIN_DISABLE_UI_EFFECTS
+	if(prefs.toggles_admin & ADMIN_DISABLE_UI_EFFECTS)
+		to_chat(usr, SPAN_BOLDNOTICE("You disabled sounds and animations in admin tools."))
+	else
+		to_chat(usr, SPAN_BOLDNOTICE("You enabled sounds and animations in admin tools."))
+
+	prefs.save_preferences()
+
 #undef MAX_WARNS
 #undef AUTOBANTIME

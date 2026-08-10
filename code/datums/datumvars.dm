@@ -41,6 +41,25 @@
 	VV_DROPDOWN_OPTION(VV_HK_MASS_REMOVECOMPONENT, "Mass Remove Component/Element")
 	VV_DROPDOWN_OPTION(VV_HK_MODIFY_TRAITS, "Modify Traits")
 
+/// Structured version of vv_get_dropdown() for tgui consumers — parses the <option>/"---"
+/// strings every vv_get_dropdown() override already emits (via VV_DROPDOWN_OPTION or raw
+/// <option value='href'> strings) into {label, href} rows, without requiring any override
+/// to change how it builds its dropdown.
+/datum/proc/vv_get_dropdown_data()
+	var/static/regex/vv_dropdown_option_regex = regex(@"^<option value='(.*)'>(.*)</option>$")
+	var/list/data = list()
+	for(var/entry in vv_get_dropdown())
+		if(entry == "---")
+			data += list(list("separator" = TRUE))
+			continue
+		if(!vv_dropdown_option_regex.Find(entry))
+			continue
+		data += list(list(
+			"href" = vv_dropdown_option_regex.group[1],
+			"label" = vv_dropdown_option_regex.group[2],
+		))
+	return data
+
 //This proc is only called if everything topic-wise is verified. The only verifications that should happen here is things like permission checks!
 //href_list is a reference, modifying it in these procs WILL change the rest of the proc in topic.dm of admin/view_variables!
 //This proc is for "high level" actions like admin heal/set species/etc/etc. The low level debugging things should go in admin/view_variables/topic_basic.dm incase this runtimes.

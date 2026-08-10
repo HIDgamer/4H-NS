@@ -11,15 +11,28 @@ import { addScrollableNode, removeScrollableNode } from 'tgui/events';
 
 type Props = Partial<{
   theme: string;
+  /**
+   * Optional accent layer (see tgui/styles/themes/admin.scss) for themes that support
+   * escalation/faction signal without switching the whole theme file — e.g.
+   * themeAccent="critical" on the admin theme. No-op for themes that don't define
+   * data-admin-accent selectors.
+   */
+  themeAccent: string;
 }> &
   ComponentProps<typeof Box>;
 
 export function Layout(props: Props) {
-  const { className, theme = 'weyland_yutani', children, ...rest } = props;
+  const {
+    className,
+    theme = 'weyland_yutani',
+    themeAccent,
+    children,
+    ...rest
+  } = props;
   document.documentElement.className = `theme-${theme}`;
 
   return (
-    <div className={'theme-' + theme}>
+    <div className={'theme-' + theme} data-admin-accent={themeAccent}>
       <div
         className={classes(['Layout', className, computeBoxClassName(rest)])}
         {...computeBoxProps(rest)}

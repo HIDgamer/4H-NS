@@ -915,7 +915,12 @@
 	for(var/p in GLOB.gear_name_presets_list)
 		presets += p
 	data["presets"] = presets
+	data["ui_effects_enabled"] = admin_ui_effects_enabled(user)
 	return data
+
+/datum/admin_spawn_humans/ui_assets(mob/user)
+	. = ..()
+	. += get_asset_datum(/datum/asset/simple/admin_ui_sounds)
 
 /datum/admin_spawn_humans/ui_data(mob/user)
 	var/list/data = list()
@@ -1125,7 +1130,12 @@
 	for(var/c in ALL_XENO_CASTES)
 		castes += c
 	data["castes"] = castes
+	data["ui_effects_enabled"] = admin_ui_effects_enabled(user)
 	return data
+
+/datum/admin_spawn_xenos/ui_assets(mob/user)
+	. = ..()
+	. += get_asset_datum(/datum/asset/simple/admin_ui_sounds)
 
 /datum/admin_spawn_xenos/ui_data(mob/user)
 	var/list/data = list()

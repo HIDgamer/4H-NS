@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-@use 'sass:color';
 @use 'sass:meta';
 
 @use '../colors.scss' with (
@@ -17,13 +16,98 @@
   $border-radius: 2px
 );
 
+// Unified admin-tool chrome. Previously this theme only styled the
+// window background/candystripe rows (its sole consumer was Adminhelp.tsx) —
+// every other admin interface picked its own theme (crtgreen/crtblue/
+// hive_status/etc, several with none at all, silently falling back to the
+// default NT chrome) with no shared identity. This expands it into a real
+// component set so admin tools can move off those themes (several of which
+// are shared with real machinery consoles/xeno UI and must stay untouched)
+// onto one consistent, admin-specific look.
 .theme-admin {
   // Atomic classes
   @include meta.load-css('../atomic/color.scss');
 
+  @include meta.load-css(
+    '../components/Divider.scss',
+    $with: ('color': rgba(base.$color-fg, 0.15))
+  );
+  @include meta.load-css('../components/Stack.scss');
+
+  @include meta.load-css(
+    '../components/Input.scss',
+    $with: (
+      'text-color': base.$color-fg,
+      'background-color': rgba(0, 0, 0, 0.25),
+      'border-color': rgba(base.$color-fg, 0.25)
+    )
+  );
+
+  @include meta.load-css(
+    '../components/NumberInput.scss',
+    $with: (
+      'text-color': base.$color-fg,
+      'background-color': rgba(0, 0, 0, 0.25),
+      'border-color': rgba(base.$color-fg, 0.25)
+    )
+  );
+
+  @include meta.load-css(
+    '../components/ProgressBar.scss',
+    $with: ('color-default-fill': colors.$primary)
+  );
+
+  @include meta.load-css(
+    '../components/Section.scss',
+    $with: (
+      'title-text-color': base.$color-fg,
+      'background-color': rgba(0, 0, 0, 0.2),
+      'separator-color': colors.$primary
+    )
+  );
+
+  @include meta.load-css(
+    '../components/Button.scss',
+    $with: ('color-default': colors.$primary, 'color-disabled': #4a555c)
+  );
+
+  @include meta.load-css(
+    '../components/Tabs.scss',
+    $with: (
+      'color-default': colors.$primary,
+      'text-color': rgba(base.$color-fg, 0.7),
+      'text-color-selected': base.$color-fg,
+      'tab-color-hovered': rgba(colors.$primary, 0.15),
+      'tab-color-selected': rgba(colors.$primary, 0.35)
+    )
+  );
+
+  @include meta.load-css('../components/Dropdown.scss');
+  @include meta.load-css('../components/Table.scss');
+
+  @include meta.load-css(
+    '../components/Modal.scss',
+    $with: ('background-color': base.$color-bg)
+  );
+
   // Layouts
   @include meta.load-css('../layouts/Layout.scss');
   @include meta.load-css('../layouts/Window.scss');
+  @include meta.load-css(
+    '../layouts/TitleBar.scss',
+    $with: ('background-color': base.$color-bg, 'text-color': base.$color-fg)
+  );
+
+  // Exported as real CSS custom properties (not just Sass variables, which don't exist at
+  // runtime) so interfaces that still need inline styles for bespoke layout — e.g. the admin
+  // spawners' custom search-result lists and mode-picker buttons, which predate this theme and
+  // aren't built from Section/Button primitives — can reference one shared color instead of
+  // hardcoding a hex literal that happened to match whatever theme they used to ride on.
+  --admin-primary: #{colors.$primary};
+  --admin-primary-soft: #{rgba(colors.$primary, 0.2)};
+  --admin-primary-border: #{rgba(colors.$primary, 0.35)};
+  --admin-fg-muted: #{rgba(base.$color-fg, 0.6)};
+  --admin-fg-faint: #{rgba(base.$color-fg, 0.3)};
 
   .Layout__content {
     background-image: url('../../assets/bg-admin.svg');
@@ -34,5 +118,98 @@
   }
   .candystripe:nth-child(even) {
     background-color: rgba(33, 114, 206, 0.25);
+  }
+
+  .Section {
+    border: 1px solid rgba(base.$color-fg, 0.08);
+  }
+
+  .Table {
+    border: 1px solid rgba(base.$color-fg, 0.08);
+  }
+  td {
+    border: 1px solid rgba(base.$color-fg, 0.05);
+  }
+
+  // Subtle power-on scanline, matching the vocabulary already used by the
+  // CRT theme family and tgui-panel's chat scanline overlay — kept faint
+  // since admin tools (View Variables especially) are read constantly and
+  // shouldn't fight for attention against their own content.
+  .Layout__content::before {
+    content: ' ';
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.12) 50%);
+    background-size: 100% 3px;
+    z-index: 2;
+    pointer-events: none;
+    opacity: 0.35;
+  }
+
+  // Button-press feedback, same idea as the CRT theme's crt-btn-press but
+  // tuned as a quick highlight flash instead of a full color inversion —
+  // admin tools use plenty of default-colored (non-danger) buttons where a
+  // full invert would read as an error state.
+  @keyframes admin-btn-press {
+    0% {
+      box-shadow: 0 0 0 2px rgba(colors.$primary, 0.8);
+    }
+    100% {
+      box-shadow: 0 0 0 2px rgba(colors.$primary, 0);
+    }
+  }
+  .Button:active:not(.Button--disabled) {
+    animation: admin-btn-press 0.25s ease-out forwards;
+  }
+
+  // Reusable glow-pulse for "in progress"/"needs attention" states (spawn
+  // queue processing, urgent ahelp/escalation badges) — same vocabulary as
+  // tgui-panel's unread-badge glow-pulse, given its own class here since
+  // this theme doesn't share CSS with tgui-panel's package.
+  @keyframes admin-glow-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 2px 0 rgba(colors.$primary, 0.4);
+    }
+    50% {
+      box-shadow: 0 0 8px 2px rgba(colors.$primary, 0.9);
+    }
+  }
+  .admin-glow-pulse {
+    animation: admin-glow-pulse 1.4s ease-in-out infinite;
+  }
+
+  // Accent layer — selected via a data attribute rather than swapping the
+  // whole theme, so escalation/faction signal (AresAdmin's warning->critical
+  // state, per-hive coloring) survives without re-adopting the shared
+  // crtyellow/crtred/hive_status theme files as implementation. Consumers
+  // set data-admin-accent="warning"/"critical"/"hive-<n>" on a wrapping
+  // element (e.g. the Window or a Section) rather than changing `theme=`.
+  &[data-admin-accent='warning'] {
+    --admin-accent: #{colors.$yellow};
+  }
+  &[data-admin-accent='critical'] {
+    --admin-accent: #{colors.$red};
+
+    @keyframes admin-glow-pulse-critical {
+      0%,
+      100% {
+        box-shadow: 0 0 2px 0 rgba(colors.$red, 0.5);
+      }
+      50% {
+        box-shadow: 0 0 10px 3px rgba(colors.$red, 0.95);
+      }
+    }
+    .admin-glow-pulse {
+      animation-name: admin-glow-pulse-critical;
+    }
+  }
+
+  [data-admin-accent] .Section__title {
+    border-bottom-color: var(--admin-accent, #{colors.$primary});
   }
 }

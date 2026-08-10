@@ -46,7 +46,7 @@ type ShuttleRef = {
   id: string;
 };
 
-interface DropshipNavigationProps extends NavigationProps {
+export interface DropshipNavigationProps extends NavigationProps {
   shuttle_id: string;
   door_status: Array<DoorStatus>;
   has_flight_optimisation?: 0 | 1;
@@ -437,7 +437,7 @@ const DropshipSelector = () => {
   );
 };
 
-const RenderScreen = () => {
+export const RenderScreen = () => {
   const { data } = useBackend<DropshipNavigationProps>();
   return (
     <Section fill scrollable>
@@ -464,7 +464,7 @@ const RenderScreen = () => {
   );
 };
 
-const DropshipDisabledScreen = () => {
+export const DropshipDisabledScreen = () => {
   const { data } = useBackend<DropshipNavigationProps>();
   return (
     <>

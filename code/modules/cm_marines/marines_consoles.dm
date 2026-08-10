@@ -832,10 +832,63 @@ GLOBAL_LIST_EMPTY_TYPED(crew_monitor, /datum/crewmonitor)
 /datum/crewmonitor/ui_host(mob/user)
 	return ui_sources[user]
 
+/datum/crewmonitor/ui_static_data(mob/user)
+	. = ..()
+	.["department_groups"] = get_department_groups()
+
+/// Returns the ordered list of department tab definitions (key/label/min/max ijob) for this monitor's faction.
+/// ijob ranges mirror the numeric convention documented in setup_for_faction(); kept here as real data instead
+/// of only existing as DM-side comments so the frontend doesn't have to hardcode a parallel copy.
+/datum/crewmonitor/proc/get_department_groups()
+	switch(faction)
+		if(FACTION_MARINE)
+			return list(
+				list("key" = "command", "label" = "CMD", "min" = 0, "max" = 29),
+				list("key" = "security", "label" = "SEC", "min" = 30, "max" = 39),
+				list("key" = "medical", "label" = "MED", "min" = 40, "max" = 49),
+				list("key" = "engineering", "label" = "ENG", "min" = 50, "max" = 59),
+				list("key" = "cargo", "label" = "REQ", "min" = 60, "max" = 69),
+				list("key" = "alpha", "label" = "ALPHA", "min" = 70, "max" = 79),
+				list("key" = "bravo", "label" = "BRAVO", "min" = 80, "max" = 89),
+				list("key" = "charlie", "label" = "CHARLIE", "min" = 90, "max" = 99),
+				list("key" = "delta", "label" = "DELTA", "min" = 100, "max" = 109),
+				list("key" = "echo", "label" = "ECHO", "min" = 110, "max" = 119),
+				list("key" = "foxtrot", "label" = "FTX", "min" = 120, "max" = 129),
+				list("key" = "raiders", "label" = "RAID", "min" = 130, "max" = 139),
+				list("key" = "unknown", "label" = "UNK", "min" = UNKNOWN_JOB_ID, "max" = UNKNOWN_JOB_ID),
+				list("key" = "other", "label" = "OTH", "min" = 140, "max" = 9998),
+			)
+		if(FACTION_WY, FACTION_PMC)
+			return list(
+				list("key" = "command", "label" = "CMD", "min" = 0, "max" = 29),
+				list("key" = "security", "label" = "SEC", "min" = 30, "max" = 39),
+				list("key" = "medical", "label" = "MED", "min" = 40, "max" = 49),
+				list("key" = "engineering", "label" = "ENG", "min" = 50, "max" = 59),
+				list("key" = "investigation", "label" = "INV", "min" = 60, "max" = 69),
+				list("key" = "combat", "label" = "CBT", "min" = 70, "max" = 79),
+				list("key" = "unknown", "label" = "UNK", "min" = UNKNOWN_JOB_ID, "max" = UNKNOWN_JOB_ID),
+				list("key" = "other", "label" = "OTH", "min" = 140, "max" = 9998),
+			)
+		if(FACTION_UPP)
+			return list(
+				list("key" = "command", "label" = "CMD", "min" = 0, "max" = 19),
+				list("key" = "commandos", "label" = "CMDO", "min" = 20, "max" = 29),
+				list("key" = "security", "label" = "SEC", "min" = 30, "max" = 39),
+				list("key" = "medical", "label" = "MED", "min" = 40, "max" = 49),
+				list("key" = "engineering", "label" = "ENG", "min" = 50, "max" = 59),
+				list("key" = "soldiers", "label" = "SLD", "min" = 60, "max" = 69),
+				list("key" = "unknown", "label" = "UNK", "min" = UNKNOWN_JOB_ID, "max" = UNKNOWN_JOB_ID),
+				list("key" = "other", "label" = "OTH", "min" = 140, "max" = 9998),
+			)
+	return list(
+		list("key" = "unknown", "label" = "UNK", "min" = UNKNOWN_JOB_ID, "max" = UNKNOWN_JOB_ID),
+		list("key" = "other", "label" = "OTH", "min" = 0, "max" = 9999),
+	)
+
 /datum/crewmonitor/ui_data(mob/user)
 	. = list(
 		"sensors" = update_data(),
-		"link_allowed" = isSilicon(user),
+		"sensors_age_s" = last_update ? round((world.time - last_update) / 10) : 0,
 	)
 
 /datum/crewmonitor/proc/update_data()
@@ -906,18 +959,6 @@ GLOBAL_LIST_EMPTY_TYPED(crew_monitor, /datum/crewmonitor)
 	last_update = world.time
 
 	return results
-
-/*
- * Unimplemented. Was for AIs tracking but we never had them working.
- *
-/datum/crewmonitor/ui_act(action,params)
-	. = ..()
-	if(.)
-		return
-	switch (action)
-		if ("select_person")
-
-*/
 
 /datum/crewmonitor/proc/check_faction(mob/living/carbon/human/target)
 	if((target.faction == faction) || (target.faction in extra_factions))

@@ -2,6 +2,14 @@ import { useBackend } from 'tgui/backend';
 import { Section } from 'tgui/components';
 import { Window } from 'tgui/layouts';
 
+type Data = {
+  alarms: {
+    Fire: string[];
+    Atmosphere: string[];
+    Power: string[];
+  };
+};
+
 export const StationAlertConsole = () => {
   return (
     <Window width={325} height={500}>
@@ -10,10 +18,6 @@ export const StationAlertConsole = () => {
       </Window.Content>
     </Window>
   );
-};
-
-type Data = {
-  alarms: { Fire: string[]; Atmosphere: string[]; Power: string[] };
 };
 
 export const StationAlertConsoleContent = (props) => {

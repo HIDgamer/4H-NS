@@ -3,6 +3,16 @@
 /client/proc/view_var_Topic(href, href_list, hsrc)
 	if( (usr.client != src) || !src.admin_holder || !admin_holder.CheckAdminHref(href, href_list))
 		return
+	vv_do_href_list(href, href_list)
+
+/// The actual VV dispatch logic, split out of view_var_Topic() so it can be called two ways:
+/// from a genuine external <a href='byond://...'> click (via view_var_Topic()'s Topic()-specific
+/// checks above — usr/src identity, CheckAdminHref's clickjacking guard), and directly from the
+/// tgui ViewVariables window's ui_act() (see view_variables_session.dm), which already gates on
+/// R_MOD itself and isn't reached via a real hyperlink click, so re-entering /client/Topic() just
+/// to get back here was redundant indirection through Topic()'s unrelated middleware (rate
+/// limiter, asset-cache handling) — this proc is the shared logic both paths actually want.
+/client/proc/vv_do_href_list(href, href_list)
 	var/target = GET_VV_TARGET
 	vv_do_basic(target, href_list, href)
 	if(isdatum(target))
@@ -26,7 +36,7 @@
 				to_chat(usr, "This can only be used on instances of type /mob", confidential = TRUE)
 				return
 
-			var/new_name = stripped_input(usr,"What would you like to name this mob?","Input a name",M.real_name,MAX_NAME_LEN)
+			var/new_name = tgui_input_text(usr, "What would you like to name this mob?", "Input a name", M.real_name, MAX_NAME_LEN)
 
 			if( !new_name || !M )
 				return
@@ -104,12 +114,11 @@
 			return
 
 		var/mob/A = locate(href_list["view_combat_logs"])
+		if(!istype(A))
+			return
 
-		var/list/logs = list("<html><head><meta http-equiv='Content-Type' content='text/html; charset=UTF-8'><title>Combat Logs</title></head>")
-		for(var/entry in A.attack_log)
-			logs += "[entry]<br>"
-
-		show_browser(usr, logs.Join(), "Combat Logs", "logs_\ref[src]", width = 600, height = 480)
+		var/datum/combat_log_viewer/viewer = new(A)
+		viewer.tgui_interact(usr)
 
 
 	//Finally, refresh if something modified the list.

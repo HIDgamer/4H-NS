@@ -342,7 +342,7 @@ export const NavigationShuttle = (props) => {
   const { data } = useBackend<NavigationProps>();
   return (
     <Window theme="crtlobby" height={505} width={700}>
-      <Window.Content className="NavigationMenu">
+      <Window.Content className="NavigationMenu" scrollable>
         {data.is_disabled === 1 && <DisabledScreen />}
         {data.is_disabled === 0 && <RenderScreen />}
       </Window.Content>

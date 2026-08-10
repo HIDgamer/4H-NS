@@ -3,38 +3,48 @@ import { useBackend } from 'tgui/backend';
 import { Box, Button, Flex, LabeledList, Section, Tabs } from 'tgui/components';
 import { Window } from 'tgui/layouts';
 
+type Charge = {
+  name: string;
+  desc: string;
+  special_punishment: string | null;
+  ref: string;
+};
+
+type Law = {
+  name: string;
+  desc: string;
+  brig_time: number;
+  special_punishment: string | null;
+  ref: string;
+};
+
+type LawCategory = {
+  label: string;
+  laws: Law[];
+};
+
+type WitnessOrEvidence = {
+  name: string;
+  notes: string;
+  ref: string;
+};
+
+type Data = {
+  current_menu: 'main' | 'incident_report' | 'new_charge';
+  suspect_name?: string;
+  summary?: string;
+  sentence?: string;
+  current_charges?: Charge[];
+  witnesses?: WitnessOrEvidence[];
+  evidence?: WitnessOrEvidence[];
+  laws: LawCategory[];
+};
+
 const PAGES = {
   main: () => MainMenu,
   incident_report: () => NewReport,
   new_charge: () => NewCharge,
 };
-
-type Law = {
-  name: String;
-  desc: String;
-  brig_time: number;
-  special_punishment: string;
-  ref: string;
-};
-
-type IncidentData = {
-  suspect_name: string;
-  summary: string;
-  sentence: string;
-  current_charges: {
-    name: String;
-    desc: string;
-    special_punishment: string;
-    ref: string;
-  }[];
-  evidence: { name: string; notes: string; ref: string }[];
-  witnesses: { name: string; notes: string; ref: string }[];
-};
-
-type Data = {
-  current_menu: string;
-  laws: { laws: Law[]; label: string }[];
-} & Partial<IncidentData>;
 
 export const Sentencing = (props) => {
   const { data } = useBackend<Data>();
@@ -349,7 +359,7 @@ const Evidence = (props) => {
 
         {/* Objects */}
         <Flex direction="column" width="50%">
-          {evidence.map((evidence, i) => (
+          {evidence.map((item, i) => (
             <Flex
               key={i}
               className="candystripe"
@@ -359,10 +369,10 @@ const Evidence = (props) => {
             >
               <Flex direction="column" align="middle" width="100%">
                 <Flex.Item bold mb=".5rem">
-                  {evidence.name}
+                  {item.name}
                 </Flex.Item>
 
-                <Flex.Item italic>{evidence.notes}</Flex.Item>
+                <Flex.Item italic>{item.notes}</Flex.Item>
               </Flex>
 
               <Flex
@@ -375,15 +385,13 @@ const Evidence = (props) => {
                   icon="pen"
                   width="100%"
                   onClick={() =>
-                    act('edit_evidence_notes', { evidence: evidence.ref })
+                    act('edit_evidence_notes', { evidence: item.ref })
                   }
                 />
                 <Button
                   icon="trash"
                   width="100%"
-                  onClick={() =>
-                    act('remove_evidence', { evidence: evidence.ref })
-                  }
+                  onClick={() => act('remove_evidence', { evidence: item.ref })}
                 />
               </Flex>
             </Flex>

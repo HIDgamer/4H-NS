@@ -80,31 +80,41 @@ GLOBAL_LIST_INIT_TYPED(undershirt_f, /datum/sprite_accessory/undershirt, setup_u
 			name += " (Black)"
 	icon_state = "[camo_prefix][icon_state]"
 
-// Plural - Non-Camo-Conforming (classic) variants
+// Shared (unisex/NEUTER) variants. camo_conforming must be TRUE here: icons/mob/humans/
+// undershirt.dmi has no bare "t_undershirt"-family state at all, only c_/b_/j_/s_/d_/u_-prefixed
+// ones (confirmed directly against the .dmi's icon_state list) — with camo_conforming FALSE,
+// get_image() requested the literal unprefixed icon_state, which doesn't exist, so every
+// "Undershirt"/"Undershirt Sleeveless"/etc pick rendered as nothing for every gender (the female
+// "Bra" family already had camo_conforming = TRUE, which is why those always looked fine).
 /datum/sprite_accessory/undershirt/t_undershirt
 	name = "Undershirt"
 	icon_state = "t_undershirt"
 	gender = NEUTER
+	camo_conforming = TRUE
 
 /datum/sprite_accessory/undershirt/t_undershirt_sleeveless
 	name = "Undershirt Sleeveless"
 	icon_state = "t_undershirt_sleeveless"
 	gender = NEUTER
+	camo_conforming = TRUE
 
 /datum/sprite_accessory/undershirt/t_rolled_undershirt
 	name = "Undershirt Rolled"
 	icon_state = "t_rolled_undershirt"
 	gender = NEUTER
+	camo_conforming = TRUE
 
 /datum/sprite_accessory/undershirt/t_rolled_undershirt_sleeveless
 	name = "Undershirt Rolled Sleeveless"
 	icon_state = "t_rolled_undershirt_sleeveless"
 	gender = NEUTER
+	camo_conforming = TRUE
 
 /datum/sprite_accessory/undershirt/t_long_undershirt
 	name = "Undershirt Long"
 	icon_state = "t_long_undershirt"
 	gender = NEUTER
+	camo_conforming = TRUE
 
 // Male
 /datum/sprite_accessory/undershirt/none
@@ -119,10 +129,13 @@ GLOBAL_LIST_INIT_TYPED(undershirt_f, /datum/sprite_accessory/undershirt, setup_u
 	gender = FEMALE
 	camo_conforming = TRUE
 
+// Same missing-bare-state issue as the shared "Undershirt" family above — the DMI only has
+// c_/j_/d_/s_/b_/u_-prefixed "sports_c"/"strapless_c" states, no bare one.
 /datum/sprite_accessory/undershirt/sports_c
 	name = "Sports Bra Classic"
 	icon_state = "sports_c"
 	gender = FEMALE
+	camo_conforming = TRUE
 
 /datum/sprite_accessory/undershirt/sports
 	name = "Sports Bra"
@@ -136,9 +149,11 @@ GLOBAL_LIST_INIT_TYPED(undershirt_f, /datum/sprite_accessory/undershirt, setup_u
 	gender = FEMALE
 	camo_conforming = TRUE
 
+// Same missing-bare-state issue — DMI only has prefixed "strapless_c" states.
 /datum/sprite_accessory/undershirt/strapless_c
 	name = "Strapless Bra Classic"
 	icon_state = "strapless_c"
+	camo_conforming = TRUE
 	gender = FEMALE
 
 /datum/sprite_accessory/undershirt/strapless

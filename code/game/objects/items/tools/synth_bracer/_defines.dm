@@ -42,3 +42,8 @@
 #define SIMI_STATUS_LOWPOWER "status_lowbattery"
 #define SIMI_STATUS_NOPOWER "status_nobattery"
 #define SIMI_STATUS_CHARGING "status_charging"
+
+/// Fraction of battery_charge_max below which the bracer reports SIMI_STATUS_LOWPOWER.
+/// Sent to the tgui UI via ui_static_data() so the low-battery warning color matches
+/// the point at which the bracer actually starts limiting functionality.
+#define SIMI_LOWPOWER_RATIO 0.1

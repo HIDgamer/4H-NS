@@ -11,7 +11,7 @@ export const Disposals = () => {
   const { pressure, mode, flush } = data;
 
   return (
-    <Window width={350} height={150}>
+    <Window width={350} height={200}>
       <Window.Content scrollable>
         <Section>
           <Button

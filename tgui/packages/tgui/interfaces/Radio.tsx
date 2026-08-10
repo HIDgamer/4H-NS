@@ -23,7 +23,7 @@ type Data = {
   useCommand: BooleanLike;
   subspace: BooleanLike;
   subspaceSwitchable: BooleanLike;
-  headset: false;
+  headset: BooleanLike;
 };
 
 export const Radio = (props) => {

@@ -69,7 +69,11 @@
 
 			character_trait.try_give_trait(prefs)
 			if(character_trait.refresh_choices)
-				prefs.ShowChoices(ui.user)
+				// Refreshes the live preview instead of the legacy popup. Traits that
+				// affect OTHER open pickers (e.g. hair_dye unlocking HairPicker's gradient
+				// section) won't live-push into an already-open picker window this way — a
+				// minor rough edge (reopen the window to see it), not a functional bug.
+				prefs.update_preview_icon()
 
 		if("remove")
 			var/trait = params["type"]
@@ -86,7 +90,11 @@
 
 			character_trait.try_remove_trait(prefs)
 			if(character_trait.refresh_choices)
-				prefs.ShowChoices(ui.user)
+				// Refreshes the live preview instead of the legacy popup. Traits that
+				// affect OTHER open pickers (e.g. hair_dye unlocking HairPicker's gradient
+				// section) won't live-push into an already-open picker window this way — a
+				// minor rough edge (reopen the window to see it), not a functional bug.
+				prefs.update_preview_icon()
 
 	return TRUE
 

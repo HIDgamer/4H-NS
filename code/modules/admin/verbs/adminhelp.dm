@@ -19,6 +19,9 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 	var/obj/effect/statclick/ticket_list/astatclick = new(null, null, AHELP_ACTIVE)
 	var/obj/effect/statclick/ticket_list/cstatclick = new(null, null, AHELP_CLOSED)
 	var/obj/effect/statclick/ticket_list/rstatclick = new(null, null, AHELP_RESOLVED)
+	/// Which state tab BrowseTickets() should open the tgui list to — set right
+	/// before tgui_interact() so ui_static_data() can pick it up for this open.
+	var/initial_browse_state = AHELP_ACTIVE
 
 /datum/admin_help_tickets/Destroy()
 	QDEL_LIST(active_tickets)
@@ -67,29 +70,75 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 				return
 	ticket_list += new_ticket
 
-//opens the ticket listings for one of the 3 states
+//opens the ticket listings for one of the 3 states — now opens the tgui ticket-list window
+//(which shows all 3 states as tabs), rather than a state-specific browser popup. Kept the proc
+//name/signature so existing callers (statclicks below) don't need to change.
 /datum/admin_help_tickets/proc/BrowseTickets(state)
-	var/list/l2b
-	var/title
-	switch(state)
-		if(AHELP_ACTIVE)
-			l2b = active_tickets
-			title = "Active Tickets"
-		if(AHELP_CLOSED)
-			l2b = closed_tickets
-			title = "Closed Tickets"
-		if(AHELP_RESOLVED)
-			l2b = resolved_tickets
-			title = "Resolved Tickets"
-	if(!l2b)
-		return
-	var/list/dat = list("<html><head><meta http-equiv='Content-Type' content='text/html; charset=UTF-8'><link rel='stylesheet' type='text/css' href='[SSassets.transport.get_asset_url("common.css")]'><title>[title]</title></head>")
-	dat += "<A href='byond://?_src_=admin_holder;[HrefToken()];ahelp_tickets=[state]'>Refresh</A><br><br>"
-	for(var/I in l2b)
-		var/datum/admin_help/AH = I
-		dat += "[SPAN_ADMINNOTICE("[SPAN_ADMINHELP("Ticket #[AH.id]")]: <A href='byond://?_src_=admin_holder;[HrefToken()];ahelp=[REF(AH)];ahelp_action=ticket'>[AH.initiator_key_name]: [AH.name]</A>")]<br>"
+	if(state)
+		initial_browse_state = state
+	tgui_interact(usr)
 
-	usr << browse(dat.Join(), "window=ahelp_list[state];size=600x480")
+/datum/admin_help_tickets/tgui_interact(mob/user, datum/tgui/ui)
+	ui = SStgui.try_update_ui(user, src, ui)
+	if(!ui)
+		ui = new(user, src, "AhelpTicketList", "Adminhelp Tickets")
+		ui.open()
+
+// A bare /datum has no loc — the default tgui state does a physical distance check that can never
+// resolve for a location-less datum, silently closing the UI right after ui.open() fires (server
+// logs show the window "opening" every time, but it never actually renders client-side). Same
+// fix as view_variables_session.dm/combat_log_viewer.dm.
+/datum/admin_help_tickets/ui_state(mob/user)
+	return GLOB.always_state
+
+/datum/admin_help_tickets/ui_status(mob/user, datum/ui_state/state)
+	if(!CLIENT_IS_STAFF(user.client))
+		return UI_CLOSE
+	return ..()
+
+/datum/admin_help_tickets/ui_static_data(mob/user)
+	var/list/data = list()
+	switch(initial_browse_state)
+		if(AHELP_CLOSED)
+			data["initial_tab"] = "closed"
+		if(AHELP_RESOLVED)
+			data["initial_tab"] = "resolved"
+		else
+			data["initial_tab"] = "active"
+	return data
+
+/datum/admin_help_tickets/ui_data(mob/user)
+	var/list/data = list()
+	data["active_tickets"] = ticket_summary_list(active_tickets)
+	data["closed_tickets"] = ticket_summary_list(closed_tickets)
+	data["resolved_tickets"] = ticket_summary_list(resolved_tickets)
+	return data
+
+/datum/admin_help_tickets/proc/ticket_summary_list(list/tickets)
+	var/list/out = list()
+	for(var/datum/admin_help/AH in tickets)
+		out += list(list(
+			"ref" = REF(AH),
+			"id" = AH.id,
+			"name" = AH.name,
+			"initiator" = AH.initiator_key_name,
+			"marked_admin" = AH.marked_admin,
+			"disconnected" = !AH.initiator,
+		))
+	return out
+
+/datum/admin_help_tickets/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
+	. = ..()
+	if(.)
+		return
+	if(!CLIENT_IS_STAFF(usr.client))
+		return TRUE
+	switch(action)
+		if("open_ticket")
+			var/datum/admin_help/AH = locate(params["ticket_ref"])
+			if(istype(AH))
+				AH.tgui_interact(usr)
+			return TRUE
 
 //Tickets statpanel
 /datum/admin_help_tickets/proc/stat_entry()
@@ -358,6 +407,10 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 	ticket_interactions += "[time_stamp()]: [formatted_message]"
 	if (!isnull(player_message))
 		player_interactions += "[time_stamp()]: [player_message]"
+	// Live-refresh anyone currently viewing this ticket's tgui panel (admin or the
+	// initiating player) — the old browser popup needed a manual "Refresh" click,
+	// tgui interfaces should just update.
+	SStgui.update_uis(src)
 
 //Removes the ahelp verb and returns it after 2 minutes
 /datum/admin_help/proc/TimeoutVerb()
@@ -640,36 +693,80 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 		Resolve(silent = TRUE)
 
 //Show the ticket panel
+//Opens the tgui ticket panel — kept the proc name/no-arg signature so existing callers
+//(Action("ticket"), Reopen()'s self-refresh, Retitle()'s self-refresh, the ahelp statclick)
+//don't need to change; they all already run in a usr-having, client-Topic()-triggered context.
 /datum/admin_help/proc/TicketPanel()
-	var/list/dat = list("<html><head><meta http-equiv='Content-Type' content='text/html; charset=UTF-8'><link rel='stylesheet' type='text/css' href='[SSassets.transport.get_asset_url("common.css")]'><title>Ticket #[id]</title></head>")
-	var/ref_src = "[REF(src)]"
-	dat += "<h4>Admin Help Ticket #[id]: [LinkedReplyName(ref_src)]</h4>"
-	dat += "<b>State: [ticket_status()]</b>"
-	dat += "[FOURSPACES][TicketHref("Refresh", ref_src)][FOURSPACES][TicketHref("Re-Title", ref_src, "retitle")]"
-	if(state != AHELP_ACTIVE)
-		dat += "[FOURSPACES][TicketHref("Reopen", ref_src, "reopen")]"
-	dat += "<br><br>Opened at: [gameTimestamp(wtime = opened_at)] (Approx [DisplayTimeText(world.time - opened_at)] ago)"
+	tgui_interact(usr)
+
+/datum/admin_help/tgui_interact(mob/user, datum/tgui/ui)
+	ui = SStgui.try_update_ui(user, src, ui)
+	if(!ui)
+		ui = new(user, src, "AhelpTicket", "Ticket #[id]")
+		ui.open()
+
+//Admin staff can view any ticket; the ticket's own initiator can view (read-only) their own.
+/datum/admin_help/ui_status(mob/user, datum/ui_state/state)
+	if(CLIENT_IS_STAFF(user.client))
+		return UI_INTERACTIVE
+	if(user.client && user.client == initiator)
+		return UI_INTERACTIVE
+	return UI_CLOSE
+
+/datum/admin_help/ui_data(mob/user)
+	var/list/data = list()
+	var/is_staff = CLIENT_IS_STAFF(user.client)
+
+	data["id"] = id
+	data["ticket_name"] = name
+	data["state"] = state
+	data["is_staff"] = is_staff
+	data["opened_at"] = gameTimestamp(wtime = opened_at)
+	data["opened_ago"] = DisplayTimeText(world.time - opened_at)
 	if(closed_at)
-		dat += "<br>Closed at: [gameTimestamp(wtime = closed_at)] (Approx [DisplayTimeText(world.time - closed_at)] ago)"
-	dat += "<br>"
-	if(initiator)
-		dat += "[FullMonty(ref_src)]<br>" //All the action buttons for tickets/ahelps
-	else
-		dat += "<b>DISCONNECTED</b>[FOURSPACES][ClosureLinks(ref_src)]<br>"
-	dat += "<br><b>Log:</b><br><br>"
-	for(var/I in ticket_interactions)
-		dat += "[I]<br>"
+		data["closed_at"] = gameTimestamp(wtime = closed_at)
+		data["closed_ago"] = DisplayTimeText(world.time - closed_at)
 
-	// Append any tickets also opened by this user if relevant
-	var/list/related_tickets = GLOB.ahelp_tickets.TicketsByCKey(initiator_ckey)
-	if (length(related_tickets) > 1)
-		dat += "<br/><b>Other Tickets by User</b><br/>"
-		for (var/datum/admin_help/related_ticket in related_tickets)
-			if (related_ticket.id == id)
+	if(is_staff)
+		data["initiator_name"] = initiator_key_name
+		data["disconnected"] = !initiator
+		data["marked_admin"] = marked_admin
+		data["interactions"] = ticket_interactions?.Copy() || list()
+
+		var/list/related = list()
+		var/list/related_tickets = GLOB.ahelp_tickets.TicketsByCKey(initiator_ckey)
+		for(var/datum/admin_help/related_ticket in related_tickets)
+			if(related_ticket.id == id)
 				continue
-			dat += "[related_ticket.TicketHref("#[related_ticket.id]")] ([related_ticket.ticket_status()]): [related_ticket.name]<br/>"
+			related += list(list(
+				"ref" = REF(related_ticket),
+				"id" = related_ticket.id,
+				"name" = related_ticket.name,
+				"state" = related_ticket.state,
+			))
+		data["related_tickets"] = related
+	else
+		data["interactions"] = player_interactions?.Copy() || list()
 
-	usr << browse(dat.Join(), "window=ahelp[id];size=700x480")
+	return data
+
+//Real actions all flow through the existing Action() dispatcher — same webhook-ack logic,
+//same permission checks inside each sub-proc, same audit logging — so tgui and the legacy
+//chat-embedded quick-action links (TicketHref()/LinkedReplyName(), still used in admin chat)
+//stay behaviorally identical instead of diverging into two implementations.
+/datum/admin_help/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
+	. = ..()
+	if(.)
+		return
+	if(!CLIENT_IS_STAFF(usr.client))
+		return TRUE
+	if(action == "open_ticket")
+		var/datum/admin_help/AH = locate(params["ticket_ref"])
+		if(istype(AH))
+			AH.TicketPanel()
+		return TRUE
+	Action(action)
+	return TRUE
 
 /**
  * Renders the current status of the ticket into a displayable string
@@ -687,7 +784,7 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 			return "INVALID, CALL A CODER"
 
 /datum/admin_help/proc/Retitle()
-	var/new_title = input(usr, "Enter a title for the ticket", "Rename Ticket", name) as text|null
+	var/new_title = tgui_input_text(usr, "Enter a title for the ticket", "Rename Ticket", name)
 	if(new_title)
 		name = new_title
 		//not saying the original name cause it could be a long ass message
@@ -733,30 +830,11 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 		if("defer")
 			defer_to_mentors()
 
+//Opens the same tgui ticket panel used by staff — ui_status()/ui_data() above already
+//give the ticket's own initiator a reduced, read-only view (player_interactions only,
+//no action buttons, no admin-only fields), so this just needs to open the window.
 /datum/admin_help/proc/player_ticket_panel()
-	var/list/dat = list("<html><head><meta http-equiv='Content-Type' content='text/html; charset=UTF-8'><title>Player Ticket</title></head>")
-	dat += "<b>State: "
-	switch(state)
-		if(AHELP_ACTIVE)
-			dat += "<font color='red'>OPEN</font></b>"
-		if(AHELP_RESOLVED)
-			dat += "<font color='green'>RESOLVED</font></b>"
-		if(AHELP_CLOSED)
-			dat += "CLOSED</b>"
-		else
-			dat += "UNKNOWN</b>"
-	dat += "\n[FOURSPACES]<A href='byond://?_src_=admin_holder;[HrefToken(forceGlobal = TRUE)];player_ticket_panel=1'>Refresh</A>"
-	dat += "<br><br>Opened at: [gameTimestamp("hh:mm:ss", opened_at)] (Approx [DisplayTimeText(world.time - opened_at)] ago)"
-	if(closed_at)
-		dat += "<br>Closed at: [gameTimestamp("hh:mm:ss", closed_at)] (Approx [DisplayTimeText(world.time - closed_at)] ago)"
-	dat += "<br><br>"
-	dat += "<br><b>Log:</b><br><br>"
-	for (var/interaction in player_interactions)
-		dat += "[interaction]<br>"
-
-	var/datum/browser/player_panel = new(usr, "ahelp[id]", 0, GLOB.stylesheets["Legacy"], 620, 480)
-	player_panel.set_content(dat.Join())
-	player_panel.open()
+	tgui_interact(usr)
 
 
 //
