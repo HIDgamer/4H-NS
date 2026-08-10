@@ -166,7 +166,9 @@
 		return
 	if(!can_hug(human_target, hugger.hivenumber))
 		return
-	if(!do_after(hugger, FACEHUGGER_WINDUP_DURATION, INTERRUPT_ALL, BUSY_ICON_HOSTILE, human_target, INTERRUPT_MOVED, BUSY_ICON_HOSTILE))
+	// Already running on the AI controller itself here (src), unlike the shared ability
+	// files - no ai_controller null-check needed, this proc only ever runs AI-side.
+	if(!do_after(hugger, FACEHUGGER_WINDUP_DURATION, INTERRUPT_ALL, BUSY_ICON_HOSTILE, human_target, INTERRUPT_MOVED, BUSY_ICON_HOSTILE, extra_interrupt_check = CALLBACK(src, PROC_REF(should_abort_action), human_target)))
 		return
 	if(human_target.body_position != LYING_DOWN || !can_hug(human_target, hugger.hivenumber))
 		return

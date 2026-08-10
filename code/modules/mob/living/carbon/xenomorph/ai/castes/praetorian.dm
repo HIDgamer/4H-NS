@@ -360,8 +360,8 @@
 	if(!rage || !rage.action_cooldown_check())
 		return FALSE
 	var/mob/living/carbon/xenomorph/best_ally
-	for(var/mob/living/carbon/xenomorph/ally as anything in GLOB.xeno_mob_list) // GLOB.xeno_mob_list already covers AI-piloted xenos too - see find_nearby_ally_xeno()'s doc comment (xeno_ai_controller.dm).
-		if(ally == pilot || ally.stat == DEAD || !ally.ally_of_hivenumber(pilot.hivenumber))
+	for(var/mob/living/carbon/xenomorph/ally as anything in GLOB.living_xeno_list) // excludes corpses without a manual stat check - see find_nearby_ally_xeno()'s doc comment (xeno_ai_controller.dm).
+		if(ally == pilot || !ally.ally_of_hivenumber(pilot.hivenumber))
 			continue
 		if(get_dist(pilot, ally) > AI_XENO_ALLY_SCAN_RADIUS)
 			continue
@@ -395,8 +395,8 @@
 	if(!heal || !heal.action_cooldown_check())
 		return FALSE
 	var/hurt_allies = 0
-	for(var/mob/living/carbon/xenomorph/ally as anything in GLOB.xeno_mob_list) // GLOB.xeno_mob_list already covers AI-piloted xenos too - see find_nearby_ally_xeno()'s doc comment (xeno_ai_controller.dm).
-		if(ally == pilot || ally.stat == DEAD || !ally.ally_of_hivenumber(pilot.hivenumber))
+	for(var/mob/living/carbon/xenomorph/ally as anything in GLOB.living_xeno_list) // excludes corpses without a manual stat check - see find_nearby_ally_xeno()'s doc comment (xeno_ai_controller.dm).
+		if(ally == pilot || !ally.ally_of_hivenumber(pilot.hivenumber))
 			continue
 		if(get_dist(pilot, ally) > AI_XENO_ALLY_SCAN_RADIUS)
 			continue
@@ -423,8 +423,8 @@
 	var/datum/action/xeno_action/activable/prae_retrieve/retrieve = get_ability(/datum/action/xeno_action/activable/prae_retrieve)
 	if(!retrieve || !retrieve.action_cooldown_check())
 		return FALSE
-	for(var/mob/living/carbon/xenomorph/ally as anything in GLOB.xeno_mob_list) // GLOB.xeno_mob_list already covers AI-piloted xenos too - see find_nearby_ally_xeno()'s doc comment (xeno_ai_controller.dm).
-		if(ally == pilot || ally.stat == DEAD || !ally.ally_of_hivenumber(pilot.hivenumber))
+	for(var/mob/living/carbon/xenomorph/ally as anything in GLOB.living_xeno_list) // excludes corpses without a manual stat check - see find_nearby_ally_xeno()'s doc comment (xeno_ai_controller.dm).
+		if(ally == pilot || !ally.ally_of_hivenumber(pilot.hivenumber))
 			continue
 		if(ally.body_position != LYING_DOWN && ally.stat != UNCONSCIOUS)
 			continue

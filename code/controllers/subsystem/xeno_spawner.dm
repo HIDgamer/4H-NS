@@ -167,11 +167,16 @@ GLOBAL_LIST_INIT(xeno_spawner_caste_weights, list(
 	// push should feel like a wave, not the same background trickle.
 	var/max_per_fire = max(1, round(XENO_SPAWNER_MAX_PER_FIRE * GLOB.ai_difficulty_multiplier)) * (assaulting ? 2 : 1)
 	var/spawned_this_fire = 0
+	// Marine positions don't change mid-fire() - build the "which landmark is near which
+	// marine" table once for this whole batch (up to max_per_fire spawns) instead of every
+	// spawner_pick_spawn_turf() call independently re-scanning every GLOB.xeno_spawns landmark
+	// against every GLOB.human_mob_list marine from scratch, up to 6 times back-to-back.
+	var/list/spawn_candidates = spawner_build_spawn_candidates()
 	while(current < target && spawned_this_fire < max_per_fire)
 		var/caste_type = spawner_pick_caste()
 		if(!caste_type)
 			break
-		var/turf/spawn_turf = spawner_pick_spawn_turf()
+		var/turf/spawn_turf = spawner_pick_spawn_turf(spawn_candidates)
 		if(!spawn_turf)
 			break
 		var/mob/living/carbon/xenomorph/new_xeno = spawn_ai_xeno(caste_type, spawn_turf, hive.hivenumber)
@@ -263,23 +268,15 @@ GLOBAL_LIST_INIT(xeno_spawner_caste_weights, list(
 	return pick_weight(available)
 
 /**
- * "Weighted near marines" placement (user decision) - directly addresses "there seems to be
- * a radius to the AI advancing from the hive": spawning far from the actual fight just
- * recreates that problem with more spawn points, since each spawn's own return_distance
- * leash then locks it out of relevance for the rest of the round. Builds a candidate list
- * from GLOB.xeno_spawns (already scattered map-wide), excludes anything within
- * XENO_SPAWNER_PLACEMENT_MIN_MARINE_DIST of a living marine (no spawn-in-someone's-face),
- * then picks randomly among whichever remaining candidates are closest to the nearest
- * marine (same "pick among the near-tied best, not always the single nearest" pattern
- * xeno_ai_movement.dm's find_cover_turf() already uses, so it doesn't always land on the
- * exact same landmark). Falls back to a plain random landmark if no marines are alive
- * anywhere (round hasn't started fighting yet, or all marines are down) - ambient map-wide
- * presence rather than nothing spawning at all.
+ * Builds the "which landmark is near which marine" table spawner_pick_spawn_turf() picks
+ * from. Split out from that proc so a batch of several spawns in the same
+ * spawner_maintain_population() call can share one scan instead of each repeating the same
+ * O(spawns x marines) work - marine positions don't move mid-batch, so nothing after the
+ * first scan can change the answer anyway. Returns an assoc list: "all" = every candidate
+ * turf, "dists" = assoc turf -> nearest living marine distance (only for turfs past
+ * XENO_SPAWNER_PLACEMENT_MIN_MARINE_DIST), "any_marines" = whether a living marine exists at all.
  */
-/proc/spawner_pick_spawn_turf()
-	if(!length(GLOB.xeno_spawns))
-		return null
-
+/proc/spawner_build_spawn_candidates()
 	var/list/all_candidates = list()
 	var/list/candidate_dists = list()
 	var/any_marines = FALSE
@@ -302,8 +299,40 @@ GLOBAL_LIST_INIT(xeno_spawner_caste_weights, list(
 			continue
 		candidate_dists[candidate] = nearest_marine_dist
 
+	return list("all" = all_candidates, "dists" = candidate_dists, "any_marines" = any_marines)
+
+/**
+ * "Weighted near marines" placement (user decision) - directly addresses "there seems to be
+ * a radius to the AI advancing from the hive": spawning far from the actual fight just
+ * recreates that problem with more spawn points, since each spawn's own return_distance
+ * leash then locks it out of relevance for the rest of the round. Picks randomly among
+ * whichever candidates are closest to the nearest marine (same "pick among the near-tied
+ * best, not always the single nearest" pattern xeno_ai_movement.dm's find_cover_turf()
+ * already uses, so it doesn't always land on the exact same landmark). Falls back to a plain
+ * random landmark if no marines are alive anywhere (round hasn't started fighting yet, or all
+ * marines are down) - ambient map-wide presence rather than nothing spawning at all.
+ *
+ * Consumes the picked turf out of spawn_candidates so a caller spawning several xenos off the
+ * same table (spawner_maintain_population()) doesn't stack them all on the exact same
+ * landmark. Pass no argument (or null) to build and use a fresh one-off table, e.g.
+ * spawner_ensure_queen()'s single Queen-placement call.
+ */
+/proc/spawner_pick_spawn_turf(list/spawn_candidates)
+	if(!length(GLOB.xeno_spawns))
+		return null
+	if(!spawn_candidates)
+		spawn_candidates = spawner_build_spawn_candidates()
+
+	var/list/all_candidates = spawn_candidates["all"]
+	var/list/candidate_dists = spawn_candidates["dists"]
+	var/any_marines = spawn_candidates["any_marines"]
+
 	if(!any_marines || !length(candidate_dists))
-		return length(all_candidates) ? pick(all_candidates) : null
+		if(!length(all_candidates))
+			return null
+		var/turf/picked = pick(all_candidates)
+		all_candidates -= picked
+		return picked
 
 	var/best_dist = INFINITY
 	for(var/turf/candidate in candidate_dists)
@@ -314,4 +343,8 @@ GLOBAL_LIST_INIT(xeno_spawner_caste_weights, list(
 	for(var/turf/candidate in candidate_dists)
 		if(candidate_dists[candidate] <= best_dist + XENO_SPAWNER_PLACEMENT_VARIETY_TOLERANCE)
 			near_best += candidate
-	return pick(near_best)
+
+	var/turf/picked = pick(near_best)
+	candidate_dists -= picked
+	all_candidates -= picked
+	return picked

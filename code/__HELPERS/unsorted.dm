@@ -751,7 +751,7 @@ GLOBAL_DATUM(action_purple_power_up, /image)
  * Note: 'delay' should be divisible by numticks in order for the timing to work as intended. numticks should also be a whole number.
  */
 /proc/do_after(mob/user, delay, user_flags = INTERRUPT_ALL, show_busy_icon, atom/movable/target, target_flags = INTERRUPT_MOVED, show_target_icon, max_dist = 1, \
-		show_remaining_time = FALSE, numticks = DA_DEFAULT_NUM_TICKS) // These args should primarily be named args, since you only modify them in niche situations
+		show_remaining_time = FALSE, numticks = DA_DEFAULT_NUM_TICKS, datum/callback/extra_interrupt_check) // These args should primarily be named args, since you only modify them in niche situations
 	if(!istype(user) || delay < 0)
 		return FALSE
 
@@ -923,6 +923,13 @@ GLOBAL_DATUM(action_purple_power_up, /image)
 		if(user_flags & INTERRUPT_CHANGED_LYING && busy_user.body_position != cur_user_lying || \
 			target_is_mob && (target_flags & INTERRUPT_CHANGED_LYING && T.body_position != cur_target_lying)
 		)
+			. = FALSE
+			break
+		// Optional extra check polled the same way/cadence as every flag-driven
+		// interrupt above, without needing a new flag - only ever set by
+		// AI-piloted xeno abilities (should_abort_action(), xeno_ai_controller.dm)
+		// so a real player's own windup is never second-guessed by it.
+		if(extra_interrupt_check && extra_interrupt_check.Invoke())
 			. = FALSE
 			break
 

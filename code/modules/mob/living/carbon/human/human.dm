@@ -1325,25 +1325,6 @@
 		hud_used.locate_leader.setDir(Get_Compass_Dir(src, tracking_atom))
 		hud_used.locate_leader.icon_state = "trackon[tracking_suffix]"
 
-/mob/living/carbon/proc/locate_nearest_nuke()
-	if(!GLOB.bomb_set)
-		return
-	var/obj/structure/machinery/nuclearbomb/N
-	for(var/obj/structure/machinery/nuclearbomb/bomb in world)
-		if(!istype(N) || N.z != src.z )
-			N = bomb
-		if(bomb.z == src.z && get_dist(src,bomb) < get_dist(src,N))
-			N = bomb
-	if(N.z != src.z || !N)
-		hud_used.locate_nuke.icon_state = "trackoff"
-		return
-
-	if(get_dist(src,N) < 1)
-		hud_used.locate_nuke.icon_state = "nuke_trackondirect"
-	else
-		hud_used.locate_nuke.setDir(Get_Compass_Dir(src,N))
-		hud_used.locate_nuke.icon_state = "nuke_trackon"
-
 
 
 

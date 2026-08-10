@@ -420,7 +420,16 @@
 			X.anchored = TRUE
 		pre_windup_effects()
 
-		if (!do_after(X, windup_duration, INTERRUPT_NO_NEEDHAND, BUSY_ICON_HOSTILE))
+		// AI-piloted only (should_abort_action() lives on the AI controller, null for a
+		// player-controlled xeno) - lets the AI actually bail on an in-progress windup
+		// (target died/fled, or the fight turned bad enough to flee) instead of always
+		// finishing it regardless of what changed. A real player's own windup is never
+		// second-guessed by this.
+		var/datum/callback/ai_abort_check
+		if(X.ai_controller)
+			ai_abort_check = CALLBACK(X.ai_controller, TYPE_PROC_REF(/datum/xeno_ai_controller, should_abort_action), A)
+
+		if (!do_after(X, windup_duration, INTERRUPT_NO_NEEDHAND, BUSY_ICON_HOSTILE, extra_interrupt_check = ai_abort_check))
 			to_chat(X, SPAN_XENODANGER("We cancel our [action_text]!"))
 			if (!windup_interruptable)
 				REMOVE_TRAIT(X, TRAIT_IMMOBILIZED, TRAIT_SOURCE_ABILITY("Pounce"))
@@ -797,7 +806,12 @@
 		to_chat(xeno, SPAN_WARNING("We begin to prepare a large spit!"))
 		xeno.visible_message(SPAN_WARNING("[xeno] prepares to spit a massive glob!"),
 		SPAN_WARNING("We begin to spit [xeno.ammo.name]!"))
-		if (!do_after(xeno, xeno.ammo.spit_windup, INTERRUPT_ALL|BEHAVIOR_IMMOBILE, BUSY_ICON_HOSTILE))
+		// AI-piloted only - see the pounce windup above for why (should_abort_action()
+		// only exists on an attached AI controller, never a player).
+		var/datum/callback/ai_abort_check
+		if(xeno.ai_controller)
+			ai_abort_check = CALLBACK(xeno.ai_controller, TYPE_PROC_REF(/datum/xeno_ai_controller, should_abort_action), atom)
+		if (!do_after(xeno, xeno.ammo.spit_windup, INTERRUPT_ALL|BEHAVIOR_IMMOBILE, BUSY_ICON_HOSTILE, extra_interrupt_check = ai_abort_check))
 			to_chat(xeno, SPAN_XENODANGER("We decide to cancel our spit."))
 			spitting = FALSE
 			return

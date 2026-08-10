@@ -68,6 +68,14 @@
 	var/atom/committed_obstacle
 	/// world.time committed_obstacle can be abandoned for a different one even though it's still blocking - a generous minimum commitment window, not a hard lock, so a genuinely better route (a real door opening up) isn't ignored forever.
 	var/committed_obstacle_until = 0
+	/// Cover/retreat turf currently committed to - see get_or_pick_cover_turf() (xeno_ai_movement.dm). find_cover_turf() deliberately randomizes among near-tied candidates; caching the pick for a while keeps a room with several similar options from re-rolling a different "best" tile every tick, which read as visibly oscillating in place.
+	var/turf/committed_cover_turf
+	/// world.time committed_cover_turf can be abandoned for a fresh pick even though it's still valid cover.
+	var/committed_cover_until = 0
+	/// Flanking side turf currently committed to - see get_or_pick_flank_turf() (xeno_ai_movement.dm). Same "don't re-derive every tick" reasoning as committed_cover_turf - an ally shifting position mid-fight shouldn't flip which side of the target we're approaching from every heartbeat.
+	var/turf/committed_flank_turf
+	/// world.time committed_flank_turf can be abandoned for a fresh pick even though it's still valid.
+	var/committed_flank_until = 0
 	/// Absolute direction of the last successful navigate_around() sidestep - tried again first next time, so the pilot commits to going around one side of an obstacle instead of flip-flopping as target_dir shifts tick to tick.
 	var/last_sidestep_dir
 	/// Direction navigate_around() is currently committed to walking for AI_XENO_FALLBACK_WALK_DURATION - the last-resort "actually clear a corner instead of re-aiming every tick" commitment, only ever engaged once real A* routing has already failed this tick. Null when not committed.
@@ -1121,16 +1129,15 @@ GLOBAL_LIST_INIT(ai_codenames_brawler, list("Red Death", "Hail Mary", "Grim Tall
 		return null
 	var/list/candidates = list()
 	var/worst_health_fraction = 1
-	// GLOB.xeno_mob_list already contains every xenomorph mob, AI-piloted or
-	// not (Xenomorph.dm's New()) - GLOB.ai_xeno_list is a strict subset of
-	// it, so "+ GLOB.ai_xeno_list" was allocating a fresh concatenated list
-	// (with every AI xeno duplicated in it) on every single call for no
-	// actual coverage gain. Real cost: this runs from patrol()/idle-tick
-	// procs (Healer's Apply Salve/Sacrifice, Valkyrie's Rage/Fight or
-	// Flight/Retrieve) for every Healer/Valkyrie in the hive, every idle
-	// heartbeat - population-scaling waste, not correctness.
-	for(var/mob/living/carbon/xenomorph/ally as anything in GLOB.xeno_mob_list)
-		if(ally == pilot || ally.hivenumber != pilot.hivenumber || ally.stat == DEAD)
+	// GLOB.living_xeno_list (not GLOB.xeno_mob_list, which keeps every xeno
+	// mob ever created this round including undeleted corpses) - this runs
+	// from patrol()/idle-tick procs (Healer's Apply Salve/Sacrifice,
+	// Valkyrie's Rage/Fight or Flight/Retrieve) for every Healer/Valkyrie in
+	// the hive, every idle heartbeat, so scanning dead xenos that can never
+	// match require_damaged's live-ally intent is pure population-scaling
+	// waste that only grows as corpses pile up over a round.
+	for(var/mob/living/carbon/xenomorph/ally as anything in GLOB.living_xeno_list)
+		if(ally == pilot || ally.hivenumber != pilot.hivenumber)
 			continue
 		if(get_dist(pilot, ally) > radius)
 			continue
@@ -1296,6 +1303,25 @@ GLOBAL_LIST_INIT(ai_codenames_brawler, list("Red Death", "Hail Mary", "Grim Tall
  * Only actually flees when neither of those apply - hurt, alone, and the
  * fight isn't about to end in our favor anyway.
  */
+/**
+ * Mid-windup "is this still worth finishing" check - passed as do_after()'s
+ * extra_interrupt_check (code/__HELPERS/unsorted.dm) so an AI-piloted xeno can actually bail
+ * out of an in-progress windup instead of always finishing it regardless of what changes.
+ * Reuses the same reasoning tick() already applies between actions rather than inventing new
+ * criteria: bail if the target that justified starting this action is no longer valid (died,
+ * left, became untargetable - the same check process_attack()/process_movement() make every
+ * tick), or if the fight/health situation has flipped enough mid-action that should_flee()
+ * would now say retreat instead of finish the swing. original_target defaults to
+ * current_target so most call sites can omit it; pass it explicitly for windups that aim at
+ * something other than current_target.
+ */
+/datum/xeno_ai_controller/proc/should_abort_action(atom/original_target = current_target)
+	if(!pilot || QDELETED(pilot))
+		return TRUE
+	if(original_target && !is_valid_target(original_target))
+		return TRUE
+	return should_flee()
+
 /datum/xeno_ai_controller/proc/should_flee()
 	if(!pilot)
 		return FALSE

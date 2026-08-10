@@ -71,8 +71,8 @@
 	exterior = null
 	entrance_markers = null
 
+	SSinterior.unregister_interior(src, reservation?.bottom_left_turfs?[1]?.z)
 	QDEL_NULL(reservation)
-	SSinterior.interiors -= src
 
 	return ..()
 

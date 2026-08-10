@@ -216,6 +216,8 @@
 * * sig_typeor_types Signal string key or list of signal keys to stop listening to specifically
 */
 /datum/proc/UnregisterSignal(datum/target, sig_type_or_types)
+	if(QDELETED(target)) // RegisterSignal() already guards this (see above) - a target that died/was deleted mid-registration (e.g. an ability's owner gibbed during a windup) still needs its cleanup call to no-op safely instead of crashing on a null target.comp_lookup read.
+		return
 	var/list/lookup = target.comp_lookup
 	if(!signal_procs || !signal_procs[target] || !lookup)
 		return

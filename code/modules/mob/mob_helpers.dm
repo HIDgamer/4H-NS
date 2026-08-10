@@ -554,11 +554,19 @@ GLOBAL_LIST_INIT(limb_types_by_name, list(
 /mob/proc/handle_blood_splatter(angle)
 	new /obj/effect/temp_visual/dir_setting/bloodsplatter/human(loc, angle)
 
+/**
+ * Every caller (crashable.dm, boltaction.dm's vulture report, yautja_sound.dm's roar) only
+ * ever to_chat()s the result - a no-op on a clientless mob - so scanning GLOB.clients (already
+ * maintained, and far smaller than every mob object still in memory - corpses, simple_animals,
+ * observers) instead of GLOB.mob_list skips exactly the iterations that could never do
+ * anything anyway.
+ */
 /proc/get_mobs_in_z_level_range(turf/starting_turf, range)
 	var/list/mobs_in_range = list()
 	var/z_level = starting_turf.z
-	for(var/mob/mob as anything in GLOB.mob_list)
-		if(mob.z != z_level)
+	for(var/client/client as anything in GLOB.clients)
+		var/mob/mob = client.mob
+		if(!mob || mob.z != z_level)
 			continue
 		if(range && get_dist(starting_turf, mob) > range)
 			continue

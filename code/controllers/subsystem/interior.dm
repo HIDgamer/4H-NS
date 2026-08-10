@@ -4,6 +4,8 @@ SUBSYSTEM_DEF(interior)
 	name = "Interiors"
 	flags = SS_NO_FIRE|SS_NO_INIT
 	var/list/datum/interior/interiors = list()
+	/// interiors.Copy() bucketed by z-level ("[z]" string keys) - lets get_interior_by_coords() skip straight to the interiors that could possibly match instead of scanning every interior on every z-level, since bounds are always per-z-level anyway
+	var/list/interiors_by_z = list()
 
 /// Loads an interior, requires the interior datum
 /datum/controller/subsystem/interior/proc/load_interior(datum/interior/interior)
@@ -31,17 +33,33 @@ SUBSYSTEM_DEF(interior)
 		current_area.add_base_lighting()
 
 	interiors += interior
+	var/z_key = "[bottom_left.z]"
+	if(!interiors_by_z[z_key])
+		interiors_by_z[z_key] = list()
+	interiors_by_z[z_key] += interior
 	return reserved_area
 
 /// Finds which interior is at (x, y, z) and returns its interior datum
 /datum/controller/subsystem/interior/proc/get_interior_by_coords(x, y, z)
-	for(var/datum/interior/current_interior in interiors)
+	var/list/candidates = interiors_by_z["[z]"]
+	if(!candidates)
+		return
+	for(var/datum/interior/current_interior in candidates)
 		var/list/turf/bounds = current_interior.get_bound_turfs()
 		if(!bounds)
 			continue
 		if(x >= bounds[1].x && x <= bounds[2].x && y >= bounds[1].y && y <= bounds[2].y)
 			return current_interior
 	return
+
+/// Removes an interior from both the flat list and its z-level bucket - call with the z it was registered under (from load_interior()'s bottom_left.z) before anything nulls out what held that z, e.g. the turf reservation
+/datum/controller/subsystem/interior/proc/unregister_interior(datum/interior/interior, z)
+	interiors -= interior
+	if(!z)
+		return
+	var/z_key = "[z]"
+	if(interiors_by_z[z_key])
+		interiors_by_z[z_key] -= interior
 
 /// Checks if an atom is in an interior
 /datum/controller/subsystem/interior/proc/in_interior(loc)

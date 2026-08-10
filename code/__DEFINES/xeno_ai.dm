@@ -244,6 +244,8 @@
 #define AI_XENO_RANGED_HIDE_DISTANCE 8
 /// How many tiles wider than the single closest option find_cover_turf() will still consider "tied" and pick randomly among - "too predictable, walking in the same 3 tiles over and over" was a deterministic nearest-cover pick with no variety; this keeps the choice genuinely close without it always resolving to the exact same tile.
 #define AI_XENO_COVER_VARIETY_TOLERANCE 2
+/// How long get_or_pick_cover_turf()/get_or_pick_flank_turf() (xeno_ai_movement.dm) stay committed to whatever cover/flank tile they last picked before allowing a fresh re-roll - find_cover_turf()'s own near-tied randomization (AI_XENO_COVER_VARIETY_TOLERANCE, above) re-picking every single uncached tick read as visibly oscillating in place. Shorter than AI_XENO_OBSTACLE_COMMIT_DURATION since a retreat/flank position should still adapt reasonably quickly to a real fight shifting, just not every tick.
+#define AI_XENO_COVER_COMMIT_DURATION 3 SECONDS
 /// How long other hive members will respond to the Queen's last hive-alert broadcast before it goes stale (see hive_status.dm's queen_alert_turf).
 #define AI_XENO_HIVE_ALERT_WINDOW 30 SECONDS
 /// How far away a hive-alert will actually pull an idle builder off what she's doing - a fight on the far side of the map shouldn't empty out every drone's weeding queue.

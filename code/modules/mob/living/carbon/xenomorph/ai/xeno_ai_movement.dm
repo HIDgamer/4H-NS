@@ -43,7 +43,12 @@
 			return TRUE
 		if((travel_flags & TRAVEL_FLAG_COVER_CHECK) && current_target && is_direct_approach_too_risky(climbable_obstacle, current_target) && retreat_to_cover(current_target))
 			return TRUE
-		if(attempt_climb_obstacle(climbable_obstacle))
+		// "Is climbing a table worth it or not" - do_climb() costs a real
+		// ~2-second do_after(), stalling this controller's tick() the whole
+		// time; open ground immediately beside the obstacle is a free
+		// alternative navigate_around() (below) will actually take, so it's
+		// only worth vaulting when there's nowhere cheaper to step instead.
+		if(!has_open_detour(get_dir(pilot, goal)) && attempt_climb_obstacle(climbable_obstacle))
 			return TRUE
 
 	if(travel_flags & TRAVEL_FLAG_FORCE_OBSTACLES)
@@ -77,7 +82,7 @@
 
 	var/atom/movable/approach_goal = current_target
 	if(count_engaged_allies(current_target))
-		var/turf/flank_turf = get_flanking_position(current_target)
+		var/turf/flank_turf = get_or_pick_flank_turf(current_target)
 		if(flank_turf)
 			approach_goal = flank_turf
 
@@ -223,7 +228,7 @@
 	if(dist < preferred_distance)
 		// No obstacle-forcing while backing up - retreating through a wall
 		// is never the move; route around or take the reactive back-step.
-		var/turf/defensible = seek_cover ? (find_cover_turf(target) || find_defensible_turf()) : find_defensible_turf()
+		var/turf/defensible = seek_cover ? (get_or_pick_cover_turf(target) || find_defensible_turf()) : find_defensible_turf()
 		if(defensible && get_dist(pilot, defensible) > 0 && travel_to(defensible, 0))
 			return
 		var/away_dir = get_dir(target, pilot)
@@ -385,6 +390,16 @@
 			best_score = score
 			best = candidate
 	return best
+
+/// Same "commit for a while instead of re-deriving every tick" wrapper as get_or_pick_cover_turf() above, applied to get_flanking_position() - recomputing which side of the target is "free" fresh every tick as allies shift position mid-fight could flip the chosen side by more than a route replan tolerates, reading as reversing direction mid-approach.
+/datum/xeno_ai_controller/proc/get_or_pick_flank_turf(atom/movable/target)
+	if(!pilot || !target)
+		return null
+	if(committed_flank_turf && world.time < committed_flank_until && !committed_flank_turf.density)
+		return committed_flank_turf
+	committed_flank_turf = get_flanking_position(target)
+	committed_flank_until = world.time + AI_XENO_COVER_COMMIT_DURATION
+	return committed_flank_turf
 
 /**
  * Consumes one step of a cached native-pathfinder route toward goal,
@@ -748,6 +763,24 @@
 	return pick(near_best)
 
 /**
+ * Wraps find_cover_turf() with the same "commit for a while instead of re-deriving every
+ * tick" pattern get_blocking_obstacle() already uses for committed_obstacle.
+ * find_cover_turf()'s own near-tied pick(near_best) is deliberate (see its doc comment), but
+ * called fresh and uncached every tick from a hide/retreat branch it reads as visibly
+ * oscillating between two nearby cover tiles instead of committing to one. Every existing
+ * caller already falls back to find_defensible_turf() on a null return, so this only needs to
+ * cache the find_cover_turf() half.
+ */
+/datum/xeno_ai_controller/proc/get_or_pick_cover_turf(atom/threat)
+	if(!pilot || !threat)
+		return null
+	if(committed_cover_turf && world.time < committed_cover_until && !committed_cover_turf.density)
+		return committed_cover_turf
+	committed_cover_turf = find_cover_turf(threat)
+	committed_cover_until = world.time + AI_XENO_COVER_COMMIT_DURATION
+	return committed_cover_turf
+
+/**
  * "Flipping tables to use as cover" - if an unflipped table is adjacent,
  * flip it to face the current threat instead of only ever using cover that
  * already happens to exist. flip() (tables_racks.dm) is the same real proc
@@ -937,6 +970,33 @@
  * walls unless their claws are strong enough, so they attack instead, same
  * as a player would.
  */
+/**
+ * Cheap one-tile lookahead shared by get_blocking_obstacle() (walls only) and travel_to()'s
+ * climb branch: is there open ground immediately beside the blocked direction? Checks the
+ * same two perpendicular directions navigate_around()'s own sidestep fallback would try
+ * (turn(blocked_dir, ±90)) - doesn't move the pilot, just answers "would a sidestep actually
+ * go somewhere right now," using the same density/climbable-structure check
+ * find_charge_lane() already uses for its own lane-clearing scan. "Which is faster, going
+ * around or smashing a wall" / "is climbing a table worth it" both come down to this: if a
+ * free tile is sitting right beside the obstacle, take it instead of paying to break through
+ * or vault it.
+ */
+/datum/xeno_ai_controller/proc/has_open_detour(blocked_dir)
+	if(!pilot || !blocked_dir)
+		return FALSE
+	for(var/side_dir in list(turn(blocked_dir, 90), turn(blocked_dir, -90)))
+		var/turf/side_turf = get_step(pilot, side_dir)
+		if(!side_turf || side_turf.density)
+			continue
+		var/blocked = FALSE
+		for(var/obj/structure/blocker in side_turf)
+			if(blocker.density && !blocker.climbable)
+				blocked = TRUE
+				break
+		if(!blocked)
+			return TRUE
+	return FALSE
+
 /datum/xeno_ai_controller/proc/get_blocking_obstacle(atom/goal)
 	if(!pilot || !goal)
 		return null
@@ -965,6 +1025,7 @@
 	var/obj/structure/other_candidate
 	var/atom/vehicle_candidate
 	var/turf/closed/wall/wall_candidate
+	var/wall_candidate_dir
 
 	for(var/candidate_dir in candidates)
 		if(!candidate_dir)
@@ -1002,6 +1063,7 @@
 			var/turf/closed/wall/candidate_wall = next_turf
 			if(!(candidate_wall.turf_flags & TURF_HULL) && pilot.claw_type >= candidate_wall.claws_minimum && !(candidate_wall.acided_hole && pilot.mob_size < MOB_SIZE_BIG))
 				wall_candidate = candidate_wall
+				wall_candidate_dir = candidate_dir
 
 	// A door is the intended route through a structure - worth forcing
 	// before opening a fresh hole in a wall/window on the other candidate.
@@ -1011,7 +1073,11 @@
 		return commit_to_obstacle(other_candidate)
 	if(vehicle_candidate)
 		return commit_to_obstacle(vehicle_candidate)
-	if(wall_candidate)
+	// Walls only (doors/vehicles/other structures above are already the
+	// intended route, left unconditional): "which is faster, going around or
+	// smashing a wall" - a wall is only ever the one thing genuinely optional
+	// to force through, so it's the one case worth a cheap side-check first.
+	if(wall_candidate && !has_open_detour(wall_candidate_dir))
 		return commit_to_obstacle(wall_candidate)
 	return null
 

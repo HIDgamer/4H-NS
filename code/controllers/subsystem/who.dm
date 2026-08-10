@@ -14,8 +14,14 @@ SUBSYSTEM_DEF(who)
 	return SS_INIT_SUCCESS
 
 /datum/controller/subsystem/who/fire(resumed = TRUE)
-	who.update_data()
-	staff_who.update_data()
+	// Rebuilding is a full GLOB.clients/GLOB.admins scan with per-client faction/job/hive
+	// lookups and a sort - not worth paying every 5 seconds regardless of round length/player
+	// count if nobody actually has the panel open to see it. SStgui.open_uis_by_src already
+	// tracks live UIs per src_object datum, so reuse that instead of adding a new counter.
+	if(length(SStgui.open_uis_by_src["[REF(who)]"]))
+		who.update_data()
+	if(length(SStgui.open_uis_by_src["[REF(staff_who)]"]))
+		staff_who.update_data()
 
 
 
@@ -157,6 +163,7 @@ SUBSYSTEM_DEF(who)
 /datum/player_list/tgui_interact(mob/user, datum/tgui/ui)
 	ui = SStgui.try_update_ui(user, src, ui)
 	if(!ui)
+		update_data() // First open since the last close could be showing data from a while ago - SSwho/fire() only refreshes while at least one UI is already open, so prime it here instead of waiting up to wait for the next fire.
 		ui = new(user, src, tgui_name, tgui_interface_name)
 		ui.open()
 		ui.set_autoupdate(TRUE)

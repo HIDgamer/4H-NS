@@ -163,7 +163,7 @@
 	if(!ability_ready)
 		if(dist < AI_BOILER_HIDE_DISTANCE)
 			attempt_acid_shroud_retreat() // Side effect only - covers the walk-away below, doesn't change whether it happens.
-			var/turf/defensible = find_cover_turf(current_target) || find_defensible_turf()
+			var/turf/defensible = get_or_pick_cover_turf(current_target) || find_defensible_turf()
 			if(defensible && get_dist(pilot, defensible) > 0 && cardinal_step_towards(defensible, avoid_mobs = TRUE))
 				return
 			var/away_dir = get_dir(current_target, pilot)

@@ -45,7 +45,7 @@
 	var/ability_ready = ability && ability.action_cooldown_check()
 	if(!ability_ready)
 		if(dist < AI_XENO_RANGED_HIDE_DISTANCE)
-			var/turf/defensible = find_cover_turf(current_target) || find_defensible_turf()
+			var/turf/defensible = get_or_pick_cover_turf(current_target) || find_defensible_turf()
 			if(defensible && get_dist(pilot, defensible) > 0 && cardinal_step_towards(defensible, avoid_mobs = TRUE))
 				return
 			var/away_dir = get_dir(current_target, pilot)
