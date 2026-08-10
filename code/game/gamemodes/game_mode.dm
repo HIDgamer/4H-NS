@@ -73,6 +73,12 @@ GLOBAL_VAR_INIT(cas_tracking_id_increment, 0) //this var used to assign unique t
 ///Attempts to select players for special roles the mode might have.
 /datum/game_mode/proc/pre_setup()
 	SHOULD_CALL_PARENT(TRUE)
+	// The AI Xeno Spawner (SSxeno_spawner) should only ever run automatically in the PVE Hive
+	// mode - reset to off here, before any subtype's own pre_setup logic runs, so every other
+	// mode always starts clean regardless of what a previous round (or a leftover admin toggle
+	// from the AI Difficulty panel) left GLOB.xeno_spawner_enabled at. pve_hive.dm's own
+	// pre_setup() re-enables it after this base proc returns via its ..() call chain.
+	GLOB.xeno_spawner_enabled = FALSE
 	setup_structures()
 	if(static_comms_amount)
 		spawn_static_comms()

@@ -24,6 +24,18 @@
 	return AI_BOILER_FLEE_HEALTH_PERCENT
 
 /**
+ * Same "granted but never called" gap as Spitter/Sentinel (see ranged.dm/
+ * sentinel.dm) - tail_stab/boiler applies a molecular acid DoT or a
+ * neurotoxin duration bump depending on her current ammo type (Boiler.dm's
+ * use_ability() override), but nothing ever fired it; the cornered case fell
+ * straight to plain melee. Worth trying even for an artillery caste that
+ * should rarely be adjacent at all in a healthy fight - it's still the
+ * better option than plain claws on the rare occasion she is.
+ */
+/datum/xeno_ai_controller/ranged/boiler/use_caste_ability(mob/living/target)
+	return attempt_tail_stab(target)
+
+/**
  * Trapper strain removes bombard/spray_acid entirely (get_ability() already
  * no-ops the base chain below for her), so her own ranged kit - Acid Mine
  * (the strain's real cooldown-gated hitter) then Acid Shotgun (always-there

@@ -164,6 +164,18 @@
 	if(!pilot)
 		return FALSE
 
+	// "Kidnapping a human for the hive at times before burrowing back to
+	// safety" - the same drag-and-isolate tow Runner already uses
+	// (attempt_start_drag()/process_drag(), driven generically by the base
+	// controller regardless of which caste started it); tried before Tremor
+	// so grabbing a target that's already down takes priority over an AoE
+	// that would just knock them right back down anyway.
+	if(ishuman(target))
+		var/mob/living/carbon/human/downed = target
+		if((downed.is_mob_incapacitated() || downed.body_position == LYING_DOWN) && prob(AI_BURROWER_DRAG_CHANCE) && attempt_start_drag(downed))
+			drop_target()
+			return TRUE
+
 	var/datum/action/xeno_action/onclick/tremor/tremor = get_ability(/datum/action/xeno_action/onclick/tremor)
 	if(tremor && tremor.action_cooldown_check())
 		var/found_target = FALSE

@@ -132,6 +132,18 @@
 	attempt_charge_spit()
 	return ..()
 
+/**
+ * Her base_actions grants tail_stab/spitter specifically (a subtype that
+ * adds a molecular acid DoT on hit, Spitter.dm), not the plain base type -
+ * the same "granted but never called" gap as Charge Spit above meant the
+ * cornered case fell straight to plain melee unconditionally.
+ * get_ability()'s subtype-matching (see attempt_tail_stab()'s own doc
+ * comment) finds the /spitter variant fine even though the shared helper
+ * only ever queries the plain base type.
+ */
+/datum/xeno_ai_controller/ranged/spitter/use_caste_ability(mob/living/target)
+	return attempt_tail_stab(target)
+
 /// Only worth firing while still closing - the speed buff is wasted once she's already holding her kiting band.
 /datum/xeno_ai_controller/ranged/spitter/proc/attempt_charge_spit()
 	if(!pilot || !current_target)

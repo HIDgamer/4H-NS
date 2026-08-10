@@ -136,6 +136,8 @@
 #define AI_TUNNEL_TRIP_OVERHEAD 10
 /// Chance per attack tick that a Runner drags a marine she's downed out of their squad's cover fire (attempt_start_drag()). Starting point for playtesting.
 #define AI_RUNNER_DRAG_CHANCE 40
+/// Same as AI_RUNNER_DRAG_CHANCE, but for a Burrower - "slashing and hacking or even kidnapping a human... before burrowing back to safety" is an occasional, not constant, play pattern for her (she's a build/ambush hybrid, not a harasser), so this starts lower than Runner's. Starting point for playtesting.
+#define AI_BURROWER_DRAG_CHANCE 25
 /// Acid fraction (of max) at which an Acider counts as charged and switches to the deliberate detonation-run pattern.
 #define AI_ACIDER_CHARGED_PERCENT 0.8
 /// Distance band at which a charged Acider holds before committing her detonation run.

@@ -11,7 +11,7 @@
  * expected, non-broken state, not a regression.
  */
 /datum/unit_test/xeno_pathfind_native/Run()
-	var/result = rustg_xeno_pathfind("5,5,0,0,4,0", "0000000000000000000000000")
+	var/result = rust_xeno_pathfind("5,5,0,0,4,0", "0000000000000000000000000")
 
 	if(!__xeno_pathfind_available)
 		Warn("Native xeno_pathfind library not found/loadable on this host - AI xeno movement will fall back to the greedy step_towards() behavior instead of real pathfinding. Build tools/rust/xeno_pathfind for this platform to enable it.")

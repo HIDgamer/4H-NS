@@ -476,7 +476,7 @@
 	if(!pilot_turf || !goal_turf || pilot_turf.z != goal_turf.z)
 		return null
 
-	var/result = rustg_xeno_pathfind_route("[pilot_turf.z],[pilot_turf.x],[pilot_turf.y],[goal_turf.x],[goal_turf.y]")
+	var/result = rust_xeno_pathfind_route("[pilot_turf.z],[pilot_turf.x],[pilot_turf.y],[goal_turf.x],[goal_turf.y]")
 	if(!result || !length(result))
 		return null
 
@@ -553,7 +553,7 @@
 	var/grid_desc = "[width],[height],[pilot_turf.x - min_x],[pilot_turf.y - min_y],[goal_turf.x - min_x],[goal_turf.y - min_y]"
 	var/blocked_map = blocked.Join("")
 
-	var/result = rustg_xeno_pathfind(grid_desc, blocked_map)
+	var/result = rust_xeno_pathfind(grid_desc, blocked_map)
 	if(!result || !length(result))
 		return null
 

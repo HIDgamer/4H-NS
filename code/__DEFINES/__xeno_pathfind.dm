@@ -49,7 +49,7 @@
  * "fall back to the existing step_towards()-based movement", since that's
  * also the answer for a genuinely missing library, not just "no path."
  */
-/proc/rustg_xeno_pathfind(grid_desc, blocked_map)
+/proc/rust_xeno_pathfind(grid_desc, blocked_map)
 	// A bad caller (null/empty args) must not get conflated with "library
 	// missing/broken" - returning here, before the one-shot check below is
 	// ever consulted or written, keeps a caller bug from permanently
@@ -76,7 +76,7 @@
 // Persistent full-map grid entry points (see SSxeno_pathfinding,
 // code/controllers/subsystem/xeno_pathfinding.dm, which owns the round-start
 // bulk load and the turf/door delta pipeline). Same hardening discipline as
-// rustg_xeno_pathfind() above: never throws, "" always means "treat the
+// rust_xeno_pathfind() above: never throws, "" always means "treat the
 // native path as unavailable and fall back." A host running an older DLL
 // without these exports fails the first call, flips the persistent
 // availability flag below, and degrades to the bounded local solver.
@@ -106,33 +106,33 @@
 	__xeno_pathfind_persistent_checked = TRUE
 
 /// Bulk-loads one z-level's walkability. z_desc is "z,width,height"; packed_cells is width*height chars of '0' open / '1' blocked / '2' closed door, row-major from tile (1,1). Returns "ok" or "".
-/proc/rustg_xeno_pathfind_init_z(z_desc, packed_cells)
+/proc/rust_xeno_pathfind_init_z(z_desc, packed_cells)
 	if(!z_desc || !packed_cells)
 		return ""
 	return __xeno_pathfind_persistent_call("xeno_pathfind_init_z", z_desc, packed_cells)
 
-/// Applies batched cell deltas: ';'-separated "z,x,y,c" entries (c: 0 open / 1 blocked / 2 door). Unknown z / malformed entries are skipped individually.
-/proc/rustg_xeno_pathfind_update(deltas)
+/// Applies batched cell deltas: ';'-separated "z,x,y,c" entries (c: 0 open / 1 blocked / 2 door / 3 breakable obstacle). Unknown z / malformed entries are skipped individually.
+/proc/rust_xeno_pathfind_update(deltas)
 	if(!deltas)
 		return ""
 	return __xeno_pathfind_persistent_call("xeno_pathfind_update", deltas)
 
 /// Solves a full-map route. route_desc is "z,sx,sy,ex,ey" (world 1-based coords). Returns ';'-separated "x,y" world coords start-to-end inclusive, or "" (no route / z unloaded / library unavailable - callers always fall back).
-/proc/rustg_xeno_pathfind_route(route_desc)
+/proc/rust_xeno_pathfind_route(route_desc)
 	if(!route_desc)
 		return ""
 	return __xeno_pathfind_persistent_call("xeno_pathfind_route", route_desc)
 
 /// Adds decaying threat cost at "z,x,y,amount" with radius-2 falloff - routes bend away from hot cells until xeno_pathfind_decay() cools them.
-/proc/rustg_xeno_pathfind_threat(threat_desc)
+/proc/rust_xeno_pathfind_threat(threat_desc)
 	if(!threat_desc)
 		return ""
 	return __xeno_pathfind_persistent_call("xeno_pathfind_threat", threat_desc)
 
 /// Halves every threat value on every loaded z-level - called periodically so kill zones cool off.
-/proc/rustg_xeno_pathfind_decay()
+/proc/rust_xeno_pathfind_decay()
 	return __xeno_pathfind_persistent_call("xeno_pathfind_decay", "")
 
 /// Wipes all retained native-side state (round restart).
-/proc/rustg_xeno_pathfind_clear()
+/proc/rust_xeno_pathfind_clear()
 	return __xeno_pathfind_persistent_call("xeno_pathfind_clear", "")

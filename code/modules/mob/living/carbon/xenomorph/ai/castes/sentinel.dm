@@ -83,8 +83,18 @@
 
 	maintain_kiting_distance(current_target, AI_XENO_RANGED_PREFERRED_DISTANCE, seek_cover = TRUE)
 
+/**
+ * xeno_ai_attack.dm's attempt_tail_stab() doc comment already lists Sentinel
+ * among its users, but this always returned FALSE unconditionally, so the
+ * cornered case (the only time this caste ever melees at all) fell straight
+ * to plain melee every time. Tail Stab has a genuine 2-tile stab_range
+ * (general_abilities.dm) - worth trying before plain melee even while
+ * cornered, not just a wasted ability. Paralyzing Slash is still armed
+ * unconditionally first regardless of whether Tail Stab lands this tick - it
+ * buffs whichever swing actually connects next, plain or stab.
+ */
 /datum/xeno_ai_controller/ranged/sentinel/use_caste_ability(mob/living/target)
 	var/datum/action/xeno_action/onclick/paralyzing_slash/buff = get_ability(/datum/action/xeno_action/onclick/paralyzing_slash)
 	if(buff && buff.action_cooldown_check())
 		buff.use_ability(pilot)
-	return FALSE // Arms the next swing rather than replacing it - always fall through to the plain melee attack this tick.
+	return attempt_tail_stab(target)

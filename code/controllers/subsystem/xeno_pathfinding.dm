@@ -29,7 +29,7 @@ SUBSYSTEM_DEF(xeno_pathfinding)
 	// The DLL outlives world reboots (the Dream Daemon process doesn't
 	// restart between rounds) - wipe last round's grid/threat before
 	// rebuilding for this one.
-	rustg_xeno_pathfind_clear()
+	rust_xeno_pathfind_clear()
 
 	var/loaded_count = 0
 	for(var/z in 1 to world.maxz)
@@ -58,7 +58,7 @@ SUBSYSTEM_DEF(xeno_pathfinding)
 	var/turf/death_turf = get_turf(dead_xeno)
 	if(!death_turf)
 		return
-	rustg_xeno_pathfind_threat("[death_turf.z],[death_turf.x],[death_turf.y],[AI_THREAT_DEATH_AMOUNT]")
+	rust_xeno_pathfind_threat("[death_turf.z],[death_turf.x],[death_turf.y],[AI_THREAT_DEATH_AMOUNT]")
 
 /// Packs one z-level's turf walkability row-major from (1,1) and bulk-loads it into the native grid. Returns whether the native side accepted it.
 /datum/controller/subsystem/xeno_pathfinding/proc/load_z_level(z)
@@ -68,7 +68,7 @@ SUBSYSTEM_DEF(xeno_pathfinding)
 			var/turf/scanned = locate(x, y, z)
 			cells += turf_cell_code(scanned)
 		CHECK_TICK
-	return rustg_xeno_pathfind_init_z("[z],[world.maxx],[world.maxy]", cells.Join("")) == "ok"
+	return rust_xeno_pathfind_init_z("[z],[world.maxx],[world.maxy]", cells.Join("")) == "ok"
 
 /**
  * The native cell code for a turf's current state: '1' dense turf (wall),
@@ -100,12 +100,19 @@ SUBSYSTEM_DEF(xeno_pathfinding)
  * it) and from door.dm's density-flip sites. Cheap enough to call
  * redundantly - a delta that doesn't actually change the cell is harmless
  * on the native side.
+ *
+ * turf_cell_code() can return "3" (a breakable obstacle - window/girder),
+ * matching the Rust side's own CELL_OBSTACLE code - the mapping below must
+ * produce it too, or a window/girder placed or revealed mid-round (e.g. a
+ * wall demolished down to a girder) syncs into the native grid as a
+ * zero-cost open tile instead of the intended higher STEP_COST_OBSTACLE,
+ * degrading route quality without erroring.
  */
 /datum/controller/subsystem/xeno_pathfinding/proc/push_delta(turf/changed)
 	if(!available || !changed)
 		return
 	var/code_char = turf_cell_code(changed)
-	var/code = (code_char == "1") ? 1 : ((code_char == "2") ? 2 : 0)
+	var/code = (code_char == "1") ? 1 : ((code_char == "2") ? 2 : ((code_char == "3") ? 3 : 0))
 	pending_deltas += "[changed.z],[changed.x],[changed.y],[code]"
 	if(length(pending_deltas) >= XENO_PATHFIND_DELTA_FLUSH_AT)
 		flush_deltas()
@@ -113,7 +120,7 @@ SUBSYSTEM_DEF(xeno_pathfinding)
 /datum/controller/subsystem/xeno_pathfinding/proc/flush_deltas()
 	if(!length(pending_deltas))
 		return
-	rustg_xeno_pathfind_update(pending_deltas.Join(";"))
+	rust_xeno_pathfind_update(pending_deltas.Join(";"))
 	pending_deltas = list()
 
 /datum/controller/subsystem/xeno_pathfinding/fire(resumed = FALSE)
@@ -123,4 +130,4 @@ SUBSYSTEM_DEF(xeno_pathfinding)
 	decay_counter++
 	if(decay_counter >= XENO_PATHFIND_DECAY_EVERY_FIRES)
 		decay_counter = 0
-		rustg_xeno_pathfind_decay()
+		rust_xeno_pathfind_decay()
