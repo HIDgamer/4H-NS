@@ -538,6 +538,7 @@ GLOBAL_LIST_INIT(cm_vending_gear_marine, list(
 		list("EXTRA RPG AMMUNITION", 0, null, null, null),
 		list("84mm Anti-Armor Rocket", 40, /obj/item/ammo_magazine/rocket/ap, null, VENDOR_ITEM_REGULAR),
 		list("84mm High-Explosive Rocket", 40, /obj/item/ammo_magazine/rocket, null, VENDOR_ITEM_REGULAR),
+		list("84mm High-Explosive Fragmentation Rocket", 20, /obj/item/ammo_magazine/rocket/frag, null, VENDOR_ITEM_REGULAR),
 		list("84mm White-Phosphorus Rocket", 40, /obj/item/ammo_magazine/rocket/wp, null, VENDOR_ITEM_REGULAR),
 
 		list("EXTRA SHARP AMMUNITION", 0, null, null, null),

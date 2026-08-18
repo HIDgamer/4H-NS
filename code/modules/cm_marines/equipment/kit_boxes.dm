@@ -37,6 +37,8 @@
 	new /obj/item/attachable/scope/mini/alt_iff_scope(src)
 	new /obj/item/ammo_magazine/rocket(src)
 	new /obj/item/ammo_magazine/rocket(src)
+	new /obj/item/ammo_magazine/rocket/frag(src)
+	new /obj/item/ammo_magazine/rocket/frag(src)
 	new /obj/item/ammo_magazine/rocket/ap(src)
 	new /obj/item/ammo_magazine/rocket/ap(src)
 	new /obj/item/ammo_magazine/rocket/wp(src)

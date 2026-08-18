@@ -708,9 +708,9 @@
 							/obj/item/ammo_magazine/rocket,
 							/obj/item/ammo_magazine/rocket/ap,
 							/obj/item/ammo_magazine/rocket/ap,
-							/obj/item/ammo_magazine/rocket/ap,
-							/obj/item/ammo_magazine/rocket/wp,
-							/obj/item/ammo_magazine/rocket/wp,
+							/obj/item/ammo_magazine/rocket/frag,
+							/obj/item/ammo_magazine/rocket/frag,
+							/obj/item/ammo_magazine/rocket/frag,
 							/obj/item/ammo_magazine/rocket/wp)
 		if(2) //Smartgun supplies
 			spawnitems = list(
