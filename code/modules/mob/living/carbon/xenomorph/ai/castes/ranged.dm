@@ -17,6 +17,30 @@
 	return null
 
 /**
+ * Decides whether retreating to cover on ability cooldown is still worth it -
+ * a ranged caste's actual priority ("know when to go out of cover or stay
+ * behind cover to fight," not be melee-happy like Queen). A target already
+ * beaten (AI_RANGED_HOLD_TARGET_HEALTH_PERCENT or below) or genuinely alone
+ * (fewer than AI_RANGED_HOLD_GROUP_THRESHOLD other hostiles clustered within
+ * AI_RANGED_HOLD_GROUP_RADIUS of it) isn't worth spending a hide-and-wait
+ * cycle on - close in and finish it instead. A real group is still exactly
+ * the case cover discipline exists for.
+ */
+/datum/xeno_ai_controller/ranged/proc/should_hold_and_fight(mob/living/target)
+	if(!istype(target))
+		return FALSE
+	if(target.maxHealth && target.health <= target.maxHealth * AI_RANGED_HOLD_TARGET_HEALTH_PERCENT)
+		return TRUE
+	var/nearby_hostiles = 0
+	for(var/mob/living/nearby in orange(AI_RANGED_HOLD_GROUP_RADIUS, target))
+		if(nearby == target || !is_valid_target(nearby))
+			continue
+		nearby_hostiles++
+		if(nearby_hostiles >= AI_RANGED_HOLD_GROUP_THRESHOLD)
+			return FALSE // A real group - retreating to reload/reposition is still the smart move.
+	return TRUE
+
+/**
  * Overrides the base melee movement policy entirely. Two-phase, matching
  * boiler.dm's already-correct pattern: hold/retreat to AI_XENO_RANGED_HIDE_DISTANCE
  * whenever every ranged ability is on cooldown, only closing back in to the
@@ -44,6 +68,9 @@
 	var/datum/action/xeno_action/ability = get_ranged_ability()
 	var/ability_ready = ability && ability.action_cooldown_check()
 	if(!ability_ready)
+		if(should_hold_and_fight(current_target))
+			travel_to(current_target, TRAVEL_FLAG_FORCE_OBSTACLES) // Already winning this fight - close in and finish it instead of wasting the cooldown hiding.
+			return
 		if(dist < AI_XENO_RANGED_HIDE_DISTANCE)
 			var/turf/defensible = get_or_pick_cover_turf(current_target) || find_defensible_turf()
 			if(defensible && get_dist(pilot, defensible) > 0 && cardinal_step_towards(defensible, avoid_mobs = TRUE))
@@ -79,10 +106,12 @@
 
 	if(pilot.Adjacent(current_target)) // Cornered - fight back rather than just standing there and dying.
 		execute_attack(current_target)
+		if(stale_attack_ticks >= AI_PRIORITY_STALE_ATTACK_GIVEUP) // This override replaces the base process_attack() entirely instead of calling ..() - without this she'd claw an undamageable cornering target forever instead of giving up like every other caste does.
+			drop_target()
 		return
 
 	var/datum/action/xeno_action/ability = get_ranged_ability()
-	if(ability && ability.action_cooldown_check() && has_line_of_sight(current_target))
+	if(ability && ability.action_cooldown_check() && has_line_of_sight(current_target, allow_partial_cover = TRUE))
 		pilot.setDir(get_dir(pilot, current_target))
 		ability.use_ability(current_target)
 	ai_state = AI_STATE_APPROACHING // Always re-evaluate positioning next tick, win or lose - process_movement() above decides hide vs. hold vs. close in.

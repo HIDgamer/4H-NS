@@ -15,6 +15,8 @@
 #define IDLE_ACTIVITY_COMMANDING "Commanding"
 #define IDLE_ACTIVITY_SABOTAGE "Sabotaging power"
 #define IDLE_ACTIVITY_SOCIAL "Socializing"
+#define IDLE_ACTIVITY_REST "Resting"
+#define IDLE_ACTIVITY_ORDERED "Under orders"
 /// Target acquired, closing distance.
 #define AI_STATE_APPROACHING 2
 /// Adjacent to target, actively attacking.
@@ -52,6 +54,8 @@
 #define AI_XENO_FLEE_ALLY_RADIUS 7
 /// Nearby same-hive allies (see count_nearby_hive_allies()) at/above which a hurt xeno keeps fighting instead of disengaging - not fighting alone, so the hive's numbers carry it instead. Raised from 1 - a single other daughter happening to be nearby isn't real backup, it was just cancelling the flee decision almost every time.
 #define AI_XENO_FLEE_ALLY_THRESHOLD 2
+/// Health fraction (0-1) below which no amount of nearby/engaged ally backup suppresses should_flee() - "I would engage, but as soon as I got low, I would retreat" even with an escort present. Below this, retreat-and-heal-on-weeds always wins over standing with the group.
+#define AI_XENO_FLEE_ALLY_SUPPRESS_FLOOR 0.20
 /// Tiles from anchor_turf within which a larva no longer bothers fleeing - see larva.dm's should_flee() doc comment for why "flee home" is a no-op this close to it already.
 #define AI_XENO_LARVA_SAFE_HOME_RADIUS 3
 /// Health fraction (0-1) below which a fleeing xeno gives up on running and turns to fight instead - "unless they are very desperate and want to live." Well below the flee threshold: by this point a parting hit while her back's turned is just as likely to kill her as standing and swinging, so running only pays off if she can actually reach safety, not just because she's hurt. Only relevant while already fleeing (return_to_anchor()) and only when there's still a real target adjacent to turn on.
@@ -87,6 +91,8 @@
 #define AI_PATHFIND_MAX_MARGIN 14
 /// Tiles a live target can drift from where a cached path was computed for before advance_along_path() throws it out and replans - keeps a moving target from forcing a fresh plan (and a fresh solver tie-break near corners) every single tick.
 #define PATH_GOAL_REPLAN_TOLERANCE 2
+/// How soon after a step a direction-reversal counts as suspicious enough to log (GLOB.ai_debug_pathing) - see ai_step()'s reversal-detection doc comment. A reversal long after the prior step is just a normal, deliberate direction change, not ping-ponging.
+#define AI_DEBUG_REVERSAL_WINDOW 3 SECONDS
 /// How long advance_along_path() waits after a failed compute_path() attempt before trying again against essentially the same goal - a doomed hop (bbox too big for the cell budget, e.g. across an open LZ/Thunderdome pad) would otherwise re-run the full grid-build every single tick forever.
 #define PATH_RETRY_COOLDOWN 2 SECONDS
 /// How long get_blocking_obstacle() stays committed to a specific wall/structure once it starts being smashed, even if a target shifting behind cover would otherwise make a different obstacle line up - "keeps moving between smashing different walls instead of focusing on the original wall." Refreshed on every successful hit (attack_blocking_obstacle()), so continuous smashing never lapses; only actual inactivity lets a stale commitment expire.
@@ -104,6 +110,8 @@
 #define TRAVEL_FLAG_COVER_CHECK (1<<1)
 /// Don't step onto tiles occupied by other living mobs - idle drift/cohesion flows, so idlers stop shuffling through each other.
 #define TRAVEL_FLAG_AVOID_MOBS (1<<2)
+/// Skip the short-range direct-step shortcut (AI_TRAVEL_DIRECT_RANGE) and always route, even at close range - for a STATIC goal (a fixed build-site tile, never a moving chase target) where that shortcut's whole rationale ("goal might have moved, don't trust a stale route") doesn't apply. A build site a couple of tiles away but genuinely walled off (own fort-line corner, a dead-end alcove) needs a real route around, which raw cardinal-step-plus-sidestep fundamentally can't solve - see attempt_build_fort_line()/attempt_build_defense()'s travel_to() calls.
+#define TRAVEL_FLAG_STATIC_GOAL (1<<3)
 /// Distance at or under which travel_to() steps directly at the goal instead of routing - routing to a moving nearby goal walks stale paths the wrong way and reads as pacing back and forth.
 #define AI_TRAVEL_DIRECT_RANGE 3
 /// How long navigate_around()'s last-resort direction commitment lasts once real A* routing has failed - long enough to actually clear a building corner instead of re-aiming at the goal (and walking straight back into the same wall) every tick.
@@ -206,6 +214,26 @@
 #define AI_XENO_DEFENSE_PERIMETER_MIN_RADIUS 4
 /// Farthest a defensive perimeter wall is allowed from anchor_turf.
 #define AI_XENO_DEFENSE_PERIMETER_MAX_RADIUS 8
+/// Tiles of resin wall built in a row before attempt_build_fort_line() switches to a paired-door gate - matches the real player convention ("2x2 or 4 resin wall") of a solid run rather than one tile at a time. Playtesting starting point.
+#define AI_FORT_WALL_SEGMENT_LENGTH 4
+/// Resin doors built side-by-side per gate - real doors require an adjacent dense tile (wall or another door) to even be buildable, so a lone door was never a real option; two together is the actual minimum viable gate. Playtesting starting point.
+#define AI_FORT_GATE_WIDTH 2
+/// Total tiles (wall+door combined) attempt_build_fort_line() will place before ending the current line and letting a fresh one start elsewhere - a safety cap so one builder doesn't wall off half the map solo over a long round. Playtesting starting point.
+#define AI_FORT_MAX_LINE_LENGTH 24
+/// How far find_cover_turf()/find_defensible_turf() look for an already-built fort gate (hive_status.dm's fort_gates) before falling back to their generic cover/defensible-tile scans.
+#define AI_FORT_GATE_SEARCH_RADIUS 12
+/// Percent chance per idle tick a dedicated builder caste (Drone/Hivelord) starts a FRESH fort line, once no line is currently in progress - "castle after castle," deliberately much higher than the shared AI_DEFENSE_BUILD_CHANCE default other/future callers of the fort-line system keep. Playtesting starting point.
+#define AI_BUILDER_FORT_LINE_START_CHANCE 60
+/// Minimum distance (tiles) a fresh fort line's start turf must keep from any existing hive.fort_gates entry - "defenses all over the hive," not restacking the same spot. Playtesting starting point.
+#define AI_FORT_ANTI_CLUSTER_RADIUS 10
+/// How close (tiles) to the single farthest-from-anchor candidate a fresh fort line's start-turf pick still counts as "frontier" - same near-tied-pick variety pattern AI_XENO_COVER_VARIETY_TOLERANCE already uses elsewhere, applied to outward spread instead of cover. Playtesting starting point.
+#define AI_FORT_FRONTIER_TOLERANCE 3
+/// Bounded search radius for would_block_passage()'s chokepoint check - "hivelords and drones would block doors... and block whole roads." Large enough to catch a real corridor/route, small enough to stay cheap per build attempt. Playtesting starting point.
+#define AI_FORT_PASSAGE_CHECK_RADIUS 20
+/// attempt_build_fort_line() is laying a solid wall run.
+#define FORT_LINE_PHASE_WALL "wall"
+/// attempt_build_fort_line() is laying a paired-door gate.
+#define FORT_LINE_PHASE_GATE "gate"
 /// How far an egg-carrying caste (Drone/Hivelord/Carrier) looks for a loose /obj/item/xeno_egg to pick up - see attempt_carry_egg().
 #define AI_XENO_EGG_SEARCH_RADIUS 9
 /// Percent chance per idle tick that a Drone/Hivelord bothers going to fetch a fresh egg, once nothing higher-priority (helping build the core, building defenses, weeding) rolled true first - "all they do is plant eggs, never building the hive" was attempt_carry_egg() being checked unconditionally ahead of every build/weed roll. Only gates picking a NEW egg up - once actually carrying one, she always finishes the delivery regardless of this roll (see is_carrying_egg()).
@@ -236,10 +264,14 @@
 #define AI_QUEEN_BUILD_CHANCE 12
 /// Percent chance per movement tick, while actively fighting, that Queen/Drone/Hivelord lay a weed patch mid-combat instead of just idle economy - "weeds heal, slow enemies, speed up xenos... a real tactical move mid-fight." Low - must never meaningfully compete with actually fighting. Shared across all three castes since the behavior and reasoning are identical.
 #define AI_XENO_COMBAT_WEED_CHANCE 8
+/// Queen-only override of AI_XENO_COMBAT_WEED_CHANCE (get_combat_weed_chance()) - "weeding is important overall, you rest on it to heal" was reported specifically about her marching behavior. Higher than the shared population-scale value since she's a single unit, same reasoning as AI_QUEEN_BUILD_CHANCE above being raised past a Drone's own build chance.
+#define AI_QUEEN_COMBAT_WEED_CHANCE 18
 /// Tiles an AI ranged xeno tries to stay from its target - closer than this and it backs off instead of closing to melee.
 #define AI_XENO_RANGED_PREFERRED_DISTANCE 5
 /// If the target closes to within this distance, a ranged xeno actively backs away instead of just holding position.
 #define AI_XENO_RANGED_MIN_DISTANCE 2
+/// Width of maintain_kiting_distance()'s neutral "hold and fire" band above preferred_distance - see its own doc comment for why this needs real slack (a single ai_step() against a target that's also moving can swing distance by more than 1 tile) rather than the bare minimum. Playtesting starting point.
+#define AI_KITING_HOLD_BAND 2
 /// Distance a ranged xeno retreats to and holds at whenever every ranged ability it has is on cooldown - matches Boiler's own AI_BOILER_HIDE_DISTANCE reasoning ("attack ranged, hide, come back out") instead of holding the normal, much closer preferred band and getting walked down while it has nothing to fire.
 #define AI_XENO_RANGED_HIDE_DISTANCE 8
 /// How many tiles wider than the single closest option find_cover_turf() will still consider "tied" and pick randomly among - "too predictable, walking in the same 3 tiles over and over" was a deterministic nearest-cover pick with no variety; this keeps the choice genuinely close without it always resolving to the exact same tile.
@@ -255,8 +287,27 @@
 /// Once this many same-hive xenos are already near a live hive-alert, further idle xenos hold back and stay on their own business instead of also converging - "the queen ordering the other aliens shouldn't be the only way they behave, ultimately they'd scout, weed, take over sections of the map on their own." Unbounded participation also meant a Queen stuck on one bad/unreachable target (the "stall" report) could in principle pull the entire hive toward the same dead end - this caps the blast radius of that too.
 #define AI_XENO_HIVE_ALERT_MAX_RESPONDERS 8
 
+// player_order_type (xeno_ai_orders.dm) - a Hive Leader/admin command console
+// order issued directly to a selected xeno, distinct from the ambient
+// hive-wide broadcasts above. See respond_to_player_order().
+/// No active order - normal autonomous behavior (hive alerts, patrol, combat) applies unchanged.
+#define PLAYER_ORDER_NONE 0
+/// Walk to player_order_turf, then clear and re-anchor there.
+#define PLAYER_ORDER_MOVE 1
+/// Fight player_order_target - issued via a direct acquire_target() call, not patrol()-level polling.
+#define PLAYER_ORDER_ATTACK 2
+/// Hold the current tile - suppresses every lower-priority patrol() behavior (building, wandering, resting) without moving; process_target() still runs every tick regardless, so a held xeno still fights back if something wanders adjacent.
+#define PLAYER_ORDER_HOLD 3
+
+/// Distance at which an ordered xeno counts as "arrived" for a MOVE order and re-anchors there - matches AI_TRAVEL_DIRECT_RANGE's own short-range tolerance rather than requiring an exact tile match.
+#define AI_XENO_PLAYER_ORDER_ARRIVE_RADIUS 3
+/// How long a fresh PLAYER_ORDER_ATTACK is protected from check_nearby_threats()'s periodic re-scan stealing focus onto something else - an explicit "attack THIS" order should stick for a few seconds, not get silently swapped the moment a marginally higher-priority target wanders into view. A genuine DELTA-tier threat (an actively-firing turret) still overrides regardless - see check_nearby_threats().
+#define AI_XENO_PLAYER_ORDER_COMMIT_WINDOW 5 SECONDS
+
 /// Plasma cost for an AI xeno's own opportunistic combat pheromone burst - matches emit_pheromones()'s own default cost (general_powers.dm) rather than inventing a separate balance number.
 #define AI_XENO_PHEROMONE_COST 30
+/// How often a Queen/King re-evaluates its aura choice mid-engagement (attempt_periodic_combat_pheromones()) - "I used my healing pheromones to heal everyone... as we marched," not just once at the start of a fight. A few seconds, not every tick - a fresh emit_pheromones() call has its own real plasma cost each time it actually switches.
+#define AI_XENO_COMBAT_PHERO_RECHECK_INTERVAL 6 SECONDS
 /// There's only ever one Queen at a time, so she can afford a much wider awareness radius than population-scale castes.
 #define AI_QUEEN_ATTACK_DISTANCE 18
 #define AI_QUEEN_RETURN_DISTANCE 28
@@ -277,12 +328,29 @@
 #define AI_QUEEN_REMOUNT_COOLDOWN 20 SECONDS
 /// How often a mounted Queen uses expand_weeds to grow the hive's territory from her throne - "build... in weeded areas" while staying productive on ovi instead of only ever laying eggs.
 #define AI_QUEEN_EXPAND_WEEDS_INTERVAL 45 SECONDS
+/// Minimum banked stored_larva (hive_status.dm) the Queen requires before she'll voluntarily leave the ovipositor to reinforce a struggling frontline - "deovi and go to the frontline to help if possible" needs enough larvae already saved that leaving doesn't stall the hive's growth while she's away. Playtesting starting point.
+#define AI_QUEEN_DEOVI_MIN_LARVA 3
+/// Same-hive members already near a live hive-wide push (assault_alert_turf) below which the Queen judges it under-defended enough to personally reinforce - joining a fight that's already well-staffed would just be gambling her for nothing. Playtesting starting point.
+#define AI_QUEEN_DEOVI_RESPONDER_THRESHOLD 4
 /// Radius expand_weeds' frontier-tile search covers from the Queen's own position.
 #define AI_QUEEN_EXPAND_WEEDS_RADIUS 6
-/// Living hostiles clustered within this radius of a target before the Queen leads with Screech instead of just closing to melee/spitting range - "Screech is her most powerful ability," worth opening with against a group instead of only using it reactively once already swinging.
+/// Living hostiles clustered within this radius of a target before should_close_to_melee() treats it as a real group worth kiting/softening from range instead of just closing in - a confident, dangerous Queen still doesn't walk into a crowd she should spit down first.
 #define AI_QUEEN_GROUP_SCREECH_RADIUS 3
-/// Minimum clustered hostiles (the primary target plus this many more) before a pre-emptive Screech opener is worth it - a single marine doesn't justify announcing her position before she's even in range.
+/// Minimum clustered hostiles (the primary target plus this many more) before a target counts as "a group" for should_close_to_melee() - a single marine isn't a crowd worth kiting around.
 #define AI_QUEEN_GROUP_SCREECH_THRESHOLD 2
+/// Target health fraction (0-1) at or below which the Queen closes to finish it in melee instead of continuing to peck at it from range - she's dangerous enough to just win that fight outright once it's this far gone.
+#define AI_QUEEN_MELEE_TARGET_HEALTH_PERCENT 0.5
+
+// --- Ranged caste cover discipline (shared by ranged.dm/boiler.dm/sentinel.dm) ---
+// A ranged caste's actual priority is knowing when cover is worth it, not being melee-happy
+// like Queen - should_hold_and_fight() only ever decides "is retreating to cover still worth
+// it right now," never "should I close to melee instead of shooting."
+/// Target health fraction (0-1) at or below which a ranged caste holds ground and closes in instead of retreating to cover on ability cooldown - it's already lost, not worth spending the hide-and-wait cycle on.
+#define AI_RANGED_HOLD_TARGET_HEALTH_PERCENT 0.5
+/// Living hostiles clustered within this radius of a target before should_hold_and_fight() treats it as a real group still worth retreating from - same reasoning as AI_QUEEN_GROUP_SCREECH_RADIUS.
+#define AI_RANGED_HOLD_GROUP_RADIUS 3
+/// Minimum clustered hostiles (the primary target plus this many more) before a target counts as "a group" for should_hold_and_fight() - a single, nearly-beaten marine doesn't justify hiding from.
+#define AI_RANGED_HOLD_GROUP_THRESHOLD 2
 /// Health fraction below which a Crusher disengages - lower than the population-wide default since it's meant to be the hive's tank, not a caste that breaks off early, but not so low she has no margin left to actually reach safety - "crusher... dive to their deaths."
 #define AI_CRUSHER_FLEE_HEALTH_PERCENT 0.18
 /// Percent chance after a Ravager's attack that it sidesteps to a flanking tile instead of standing still - the behavioral stand-in for its "nimble/evasive" identity (there's no actual dodge/evasion stat on the caste).
@@ -367,8 +435,12 @@
 /// Assault phase duration bounds - hive-wide attack broadcast toward the marine center of mass, spawn rate doubled.
 #define XENO_SPAWNER_ASSAULT_MIN 90 SECONDS
 #define XENO_SPAWNER_ASSAULT_MAX 120 SECONDS
+/// Minimum drift (tiles) between the currently-broadcast assault turf and a freshly-recomputed one before update_hive_phase() actually moves it - spawner_marine_mass_turf() picks whichever living marine is closest to the group's average position, which flips identity (and therefore turf) between two similarly-placed marines as they move; without this every hive-wide responder reversed direction in lockstep on every 20-second recheck. Playtesting starting point.
+#define XENO_SPAWNER_ASSAULT_TURF_UPDATE_THRESHOLD 8
 /// Lull phase duration - spawning paused, no broadcasts; the recovery beat that makes the next assault land.
 #define XENO_SPAWNER_LULL_DURATION 60 SECONDS
+/// Tiles around the assault turf checked for a living, hostile marine before update_hive_phase() banks it as frontier_turf on the ASSAULT -> LULL transition - "the goal is always to take over the colony... not just staying in their spawn positions." Ground still actively contested doesn't get banked as won.
+#define XENO_FRONTIER_CONTEST_RADIUS 10
 /// A spawn-point landmark closer than this to a living marine is skipped entirely - "weighted near marines" should put new xenos near the action, not directly in someone's face.
 #define XENO_SPAWNER_PLACEMENT_MIN_MARINE_DIST 6
 /// How many tiles wider than the single nearest-to-a-marine spawn point spawner_pick_spawn_turf() still considers "tied" and picks randomly among - same reasoning as find_cover_turf()'s AI_XENO_COVER_VARIETY_TOLERANCE, avoids every spawn landing on the exact same landmark.
@@ -382,3 +454,28 @@
 #define AI_HEALER_SACRIFICE_HEALTH_PERCENT 0.3
 /// Health fraction below which an Acider strain Runner will consider For The Hive (self-destruct) as a last resort - deliberately low, same conservative-suicide-ability spirit as AI_HEALER_SACRIFICE_HEALTH_PERCENT. Starting point for playtesting, not final balance.
 #define AI_ACIDER_LAST_STAND_HEALTH_PERCENT 0.15
+
+// --- Threat-priority retargeting ---
+// get_target_priority() scores every candidate target on a common scale so the controller
+// can compare "what I'm currently fighting" against "what just hit me" or "what's nearby"
+// instead of the old all-or-nothing rule (never reconsider once current_target is set).
+/// Baseline priority for a human target that's stationary, unarmed, and unarmored - present but not worth breaking off an existing fight for.
+#define AI_PRIORITY_LOW 2
+/// Priority for a human with all threat factors present (moving, weapon drawn, armored), or an active-but-not-currently-firing turret/crewed vehicle - a real, on-its-own-worth-switching-to threat.
+#define AI_PRIORITY_HIGH 10
+/// Reserved for a threat actively harming the pilot right now (a turret with its barrel on the pilot and cycling) - always wins a retarget comparison, no margin required, and should also weigh into should_flee() same as any other lethal threat.
+#define AI_PRIORITY_DELTA 1000
+/// Per-factor priority bump for a human target: moving recently, weapon drawn, wearing body armor. Three factors x this = spans LOW to HIGH.
+#define AI_PRIORITY_HUMAN_FACTOR_WEIGHT 2.5
+/// world.time window since last_move_time within which a human counts as "moving" for priority purposes.
+#define AI_PRIORITY_MOVING_WINDOW 2 SECONDS
+/// Priority bonus for a candidate at melee range, tapering to 0 by AI_PRIORITY_DISTANCE_TAPER tiles - closer is scarier, same reasoning motion detectors already use distance for.
+#define AI_PRIORITY_DISTANCE_BONUS_MAX 2
+/// Distance (tiles) at which the closeness bonus above fully tapers to 0.
+#define AI_PRIORITY_DISTANCE_TAPER 7
+/// Minimum priority margin a new candidate must beat the current target by before check_retaliation()/periodic re-scan will actually switch - keeps a slightly-better nearby target from causing constant flip-flopping instead of finishing a fight.
+#define AI_PRIORITY_RETARGET_MARGIN 3
+/// How often (world.time) the controller re-scans for a higher-priority target while already engaged, independent of being hit - lets a xeno notice e.g. a turret powering on nearby without needing to be shot first. Not every tick: same performance reasoning as everything else in this controller.
+#define AI_PRIORITY_RESCAN_INTERVAL 3 SECONDS
+/// Consecutive process_attack() ticks against the same current_target with zero recorded health-delta before the controller gives up and drops it - process_attack() otherwise has no timeout at all, unlike movement (blocked_attempts) and search (AI_XENO_SEARCH_TIMEOUT), so a target the pilot mechanically can't damage was fought forever.
+#define AI_PRIORITY_STALE_ATTACK_GIVEUP 4

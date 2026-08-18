@@ -91,10 +91,12 @@
 
 	if(pilot.Adjacent(current_target)) // Cornered - fight back rather than just standing there and dying.
 		execute_attack(current_target)
+		if(stale_attack_ticks >= AI_PRIORITY_STALE_ATTACK_GIVEUP) // This override replaces the base process_attack() entirely instead of calling ..() - without this she'd claw an undamageable cornering target forever instead of giving up like every other caste does.
+			drop_target()
 		return
 
 	var/datum/action/xeno_action/ability = get_ranged_ability()
-	if(ability && ability.action_cooldown_check() && has_line_of_sight(current_target))
+	if(ability && ability.action_cooldown_check() && has_line_of_sight(current_target, allow_partial_cover = TRUE))
 		pilot.setDir(get_dir(pilot, current_target))
 		ability.use_ability(get_ranged_aim_point(ability, current_target))
 	ai_state = AI_STATE_APPROACHING // Always re-evaluate positioning next tick, win or lose - process_movement() below decides hide vs. hold vs. close in.
@@ -138,6 +140,9 @@
  * cooldown, instead of holding the plain ranged kiting band and waiting
  * around to get closed on. Once something's ready again, closes back in to
  * the normal preferred band so process_attack() can actually use it.
+ * should_hold_and_fight() (ranged.dm) is checked first though - a target
+ * already beaten or genuinely alone isn't worth spending a hide cycle on,
+ * cover discipline is for real threats, not mopping up.
  */
 /datum/xeno_ai_controller/ranged/boiler/process_movement()
 	if(!pilot || !current_target)
@@ -161,6 +166,9 @@
 	var/datum/action/xeno_action/ability = get_ranged_ability()
 	var/ability_ready = ability && ability.action_cooldown_check()
 	if(!ability_ready)
+		if(should_hold_and_fight(current_target))
+			travel_to(current_target, TRAVEL_FLAG_FORCE_OBSTACLES) // Already winning this fight - close in and finish it instead of wasting the cooldown hiding.
+			return
 		if(dist < AI_BOILER_HIDE_DISTANCE)
 			attempt_acid_shroud_retreat() // Side effect only - covers the walk-away below, doesn't change whether it happens.
 			var/turf/defensible = get_or_pick_cover_turf(current_target) || find_defensible_turf()

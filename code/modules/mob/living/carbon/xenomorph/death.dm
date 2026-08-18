@@ -11,6 +11,22 @@ GLOBAL_VAR_INIT(total_dead_xenos, 0)
 
 	GLOB.living_xeno_list -= src
 
+	// detach_xeno_ai() otherwise only ever fired from Destroy() - the actual
+	// object deletion, which for a corpse can be the rest of the round away
+	// (DELETE_TIME/gibbing, not death itself). Until then the dead mob's
+	// ai_controller kept ticking every heartbeat for nothing (tick()
+	// no-ops once pilot.is_mob_incapacitated() reads DEAD, but still pays
+	// the coroutine's own per-heartbeat cost), and stayed in
+	// GLOB.ai_xeno_list, which every OTHER living AI xeno's own scan procs
+	// (count_nearby_hive_allies(), find_nearby_ally_xeno(), etc.) iterate
+	// over every tick - live-reported as server lag with ~200 AI xenos
+	// spawned and 100+ already dead but still fully registered. Detaching
+	// immediately at death is safe to call even though Destroy() will call
+	// it again later - detach_xeno_ai() already no-ops on a second call
+	// once ai_controller is null.
+	if(ai_controller)
+		detach_xeno_ai(src)
+
 	if(is_zoomed)
 		zoom_out()
 

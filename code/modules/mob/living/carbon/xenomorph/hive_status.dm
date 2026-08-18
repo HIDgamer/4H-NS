@@ -48,14 +48,29 @@
 	var/turf/queen_alert_turf
 	/// world.time queen_alert_turf was last set, so the alert goes stale (see AI_XENO_HIVE_ALERT_WINDOW) instead of calling the whole hive to a fight that's long since over.
 	var/queen_alert_time = 0
+	/// Turf of the primary LZ during an assault phase (SSxeno_spawner's update_hive_phase()) - deliberately separate from queen_alert_turf above, not just reusing it: that field's AI_XENO_HIVE_ALERT_RESPONSE_RANGE cap exists specifically so distant builders aren't yanked off their economy work by every isolated skirmish the Queen/King gets into, but "the hive begins marching to the fob or primary LZ" during assault is meant to draw effort from across the WHOLE hive - sharing one range-capped field meant that march only ever reached whoever already happened to be within 25 tiles of the LZ. See respond_to_hive_alert().
+	var/turf/assault_alert_turf
+	/// world.time assault_alert_turf was last set - same staleness reasoning as queen_alert_time.
+	var/assault_alert_time = 0
 	/// Turf the AI Queen wants nearby idle daughters to personally guard her at - distinct from queen_alert_turf (which points at a threat) since "come fight the thing I'm fighting" and "come stand near me" are different asks. See queen.dm's broadcast_escort_call() and xeno_ai_controller.dm's respond_to_queen_escort().
 	var/turf/queen_escort_turf
 	/// world.time queen_escort_turf was last set - same staleness reasoning as queen_alert_time.
 	var/queen_escort_time = 0
+	/// Whichever Queen/King mob most recently called broadcast_escort_call() - lets respond_to_queen_escort() resolve a live formation slot (get_escort_formation_slot()) around the actual boss instead of just a bare turf. There's no separate living_xeno_king field to fall back on the way living_xeno_queen exists, so this is set directly by broadcast_escort_call() alongside the turf/time pair above. Left stale/pointing at a dead mob is harmless - every reader null/QDELETED/stat-checks it before use, same tolerance as every other broadcast field here.
+	var/mob/living/carbon/xenomorph/queen_escort_boss
 	/// world.time SSxeno_spawner can next attempt to auto-replace a dead Queen for this hive - see xeno_spawner.dm's spawner_ensure_queen(). Throttles retry attempts rather than hammering a failing spawn every subsystem tick.
 	var/next_queen_spawn_attempt = 0
+	/// Persistent rally point set by a Hive Leader/admin command console (xeno_command_console.dm) - freshly spawned/evolved AI xenos anchor here instead of their spawn point (see xeno_ai_lifecycle.dm's attach_xeno_ai()) once set. Null means "no rally point, use the default spawn-point anchor" - unlike the alert/escort broadcasts above, this deliberately has no staleness window; a commander's staging point should hold until explicitly changed.
+	var/turf/rally_turf
+	/// Autonomous "the hive's frontier has advanced here" turf - set by SSxeno_spawner (update_hive_phase()) when an assault phase ends with the hive holding the LZ and no immediate hostile threat nearby. Distinct from rally_turf (a player's deliberate staging order, never auto-overwritten by this) - this is the AI's own signal that ground was actually won and should be treated as new home territory, not just a transient LZ push. Null until the hive has actually banked a frontier advance. See attach_xeno_ai()'s anchor precedence (xeno_ai_lifecycle.dm).
+	var/turf/frontier_turf
+	/// world.time frontier_turf was last set/reinforced - purely observational (hive status roster); unlike an alert, banked territory doesn't go stale on its own.
+	var/frontier_turf_time = 0
 	var/allowed_nest_distance = 15 //How far away do we allow nests from an ovied Queen. Default 15 tiles.
 	var/obj/effect/alien/resin/special/pylon/core/hive_location = null //Set to ref every time a core is built, for defining the hive location
+
+	/// Turfs of completed AI-built fort gates (paired resin doors flanked by wall runs - see xeno_ai_controller.dm's attempt_build_fort_line()/register_fort_gate()). Checked by find_cover_turf()/find_defensible_turf() (xeno_ai_movement.dm) so fleeing/kiting/cautious-approach xenos prefer a real built ambush pocket over an ad hoc tile. Entries aren't pruned if the gate is later destroyed - a stale entry just fails the caller's own can-still-use-this check, same tolerance as committed_cover_turf elsewhere.
+	var/list/turf/fort_gates = list()
 
 	var/tier_slot_multiplier = 1
 	var/larva_gestation_multiplier = 1
@@ -373,6 +388,7 @@
 	xeno.update_minimap_icon()
 
 	give_action(xeno, /datum/action/xeno_action/activable/info_marker)
+	give_action(xeno, /datum/action/xeno_action/onclick/command_console)
 
 	hive_ui.update_xeno_keys()
 	return TRUE
@@ -406,6 +422,12 @@
 	xeno.update_minimap_icon()
 
 	remove_action(xeno, /datum/action/xeno_action/activable/info_marker)
+	remove_action(xeno, /datum/action/xeno_action/onclick/command_console)
+	// Losing leader status must force-close the console (clears any armed
+	// client.click_intercept via Destroy()) - otherwise a demoted leader
+	// could be left with an order-issuing intercept armed forever with no
+	// UI left open to disarm it from.
+	QDEL_NULL(xeno.hive_command_console)
 
 	return TRUE
 
@@ -421,11 +443,14 @@
 	original.handle_xeno_leader_pheromones()
 	original.hud_update() // To remove leader star
 	remove_action(original, /datum/action/xeno_action/activable/info_marker)
+	remove_action(original, /datum/action/xeno_action/onclick/command_console)
+	QDEL_NULL(original.hive_command_console) // See remove_hive_leader()'s identical call for why.
 
 	replacement.hive_pos = XENO_LEADER_HIVE_POS(leader_num)
 	replacement.handle_xeno_leader_pheromones()
 	replacement.hud_update() // To add leader star
 	give_action(replacement, /datum/action/xeno_action/activable/info_marker)
+	give_action(replacement, /datum/action/xeno_action/onclick/command_console)
 
 	hive_ui.update_xeno_keys()
 

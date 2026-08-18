@@ -1,36 +1,21 @@
-// __xeno_pathfind.dm - DM bindings for the xeno_pathfind native extension
-// (tools/rust/xeno_pathfind/). Not a fork of rust-g - a separate library
-// using the same call_ext()-compatible C ABI convention (see __rust_g.dm for
-// the reference pattern this mirrors). See
-// code/modules/mob/living/carbon/xenomorph/ai/xeno_ai_movement.dm for the
-// BYOND-side grid-building and fallback-to-step_towards() logic that calls
-// into this - the AI must work correctly even if this library is entirely
-// absent from a given host.
-
-#ifndef XENO_PATHFIND_LIB
-/var/__xeno_pathfind_lib
-
-/proc/__detect_xeno_pathfind_lib()
-	if(world.system_type == UNIX)
-		if(fexists("./libxeno_pathfind.so"))
-			return __xeno_pathfind_lib = "./libxeno_pathfind.so"
-		return __xeno_pathfind_lib = "libxeno_pathfind.so"
-	else
-		return __xeno_pathfind_lib = "xeno_pathfind"
-
-#define XENO_PATHFIND_LIB (__xeno_pathfind_lib || __detect_xeno_pathfind_lib())
-#endif
-
-#if DM_VERSION >= 515
-#define XENO_PATHFIND_CALL call_ext
-#else
-#define XENO_PATHFIND_CALL call
-#endif
-
-// Plain globals rather than GLOBAL_VAR_INIT()/GLOB - this file is included
-// before code/__DEFINES/_globals.dm in colonialmarines.dme (same position as
-// __rust_g.dm, which does the same thing), so that machinery isn't defined
-// yet at this point in the build.
+// __xeno_pathfind.dm - DM bindings for the xeno pathfinding native
+// functions. These are exports of rust-g itself (tools/rust/rust-g/src/
+// xeno_pathfind.rs, feature "xeno_pathfind") - a second, separately loaded
+// library (tools/rust/xeno_pathfind/, the original home of this module)
+// reproducibly failed call_ext() with "undefined symbol" in production
+// despite being architecture/symbol/dependency-correct, while the same style
+// of call against rust-g's own functions succeeded every time in the same
+// process - so these functions were merged into rust-g's own build rather
+// than continuing to chase why a second library wouldn't load. Calls route
+// through __rust_g.dm's RUST_G/RUSTG_CALL, the same proven detection every
+// other rust-g function on this codebase uses.
+//
+// See code/modules/mob/living/carbon/xenomorph/ai/xeno_ai_movement.dm for
+// the BYOND-side grid-building and fallback-to-step_towards() logic that
+// calls into this - the AI must work correctly even if this rust-g build
+// predates these exports (an older DLL/so without them fails the first call
+// below and degrades to the bounded local solver, same as if native
+// pathfinding were absent entirely).
 
 /// Set once the first call either succeeds or fails, so a missing library is only probed once instead of retried every AI tick.
 /var/__xeno_pathfind_checked = FALSE
@@ -60,16 +45,24 @@
 		return ""
 	. = ""
 	try
-		. = XENO_PATHFIND_CALL(XENO_PATHFIND_LIB, "xeno_pathfind")(grid_desc, blocked_map)
+		. = RUSTG_CALL(RUST_G, "xeno_pathfind")(grid_desc, blocked_map)
 		// The doc comment above promises callers always get a string back -
 		// a non-text result (e.g. null) is just as much a "this isn't
 		// actually working" signal as a thrown exception.
 		if(!istext(.))
 			. = ""
 		__xeno_pathfind_available = TRUE
-	catch
+	catch(var/exception/error)
+		// "Native grid unavailable" used to be the whole story in the log -
+		// the actual DM exception (wrong architecture, missing symbol, lib
+		// not found at this working directory, ABI mismatch) was thrown away
+		// right here. Logged once, on the very first failure only - this proc
+		// is only ever reached before __xeno_pathfind_checked latches, so
+		// there's no risk of spamming this every AI tick for the rest of the
+		// round.
 		. = ""
 		__xeno_pathfind_available = FALSE
+		log_debug("SSxeno_pathfinding: rust_xeno_pathfind() native call failed - [error]")
 	__xeno_pathfind_checked = TRUE
 
 // ---------------------------------------------------------------------------
@@ -94,15 +87,22 @@
 	. = ""
 	try
 		if(isnull(arg2))
-			. = XENO_PATHFIND_CALL(XENO_PATHFIND_LIB, func_name)(arg1)
+			. = RUSTG_CALL(RUST_G, func_name)(arg1)
 		else
-			. = XENO_PATHFIND_CALL(XENO_PATHFIND_LIB, func_name)(arg1, arg2)
+			. = RUSTG_CALL(RUST_G, func_name)(arg1, arg2)
 		if(!istext(.))
 			. = ""
 		__xeno_pathfind_persistent_available = TRUE
-	catch
+	catch(var/exception/error)
+		// Same reasoning as rust_xeno_pathfind()'s catch above - this is the
+		// one that was actually silently failing in production (missing
+		// libxeno_pathfind.so on a Linux host), and "failed to load z-level
+		// N" with no further detail was the entire diagnostic trail left
+		// behind. Logged once per round (first call only, before
+		// __xeno_pathfind_persistent_checked latches).
 		. = ""
 		__xeno_pathfind_persistent_available = FALSE
+		log_debug("SSxeno_pathfinding: native call to [func_name] failed - [error]")
 	__xeno_pathfind_persistent_checked = TRUE
 
 /// Bulk-loads one z-level's walkability. z_desc is "z,width,height"; packed_cells is width*height chars of '0' open / '1' blocked / '2' closed door, row-major from tile (1,1). Returns "ok" or "".

@@ -201,9 +201,15 @@
 			if(attacking_xeno.attempt_tackle(src, tackle_mult, tackle_min_offset, tackle_max_offset))
 				var/strength = rand(attacking_xeno.tacklestrength_min, attacking_xeno.tacklestrength_max)
 				var/datum/status_effect/incapacitating/stun/stun = Stun(strength, resistable=TRUE)
-				var/stun_resisted = strength != stun.last_amount
+				// Stun() can return null (CANSTUN off - stun immunity - or a
+				// clamped duration of 0 with no existing stun to extend) -
+				// live-reported crashing an AI Drone's whole tick() reading
+				// null.last_amount the instant it disarm-tackled an immune
+				// target. A resisted tackle still knocks the target down for
+				// the visual (below) even without a real stun to report.
+				var/stun_resisted = !stun || (strength != stun.last_amount)
 				playsound(loc, 'sound/weapons/alien_knockdown.ogg', 25, stun_resisted ? 1.5 : 0)
-				KnockDown(stun.last_amount) // Purely for knockdown visuals. All the heavy lifting is done by Stun
+				KnockDown(stun ? stun.last_amount : strength) // Purely for knockdown visuals. All the heavy lifting is done by Stun
 				attacking_xeno.visible_message(SPAN_DANGER("[attacking_xeno] tackles down [src]!"),
 				SPAN_DANGER("We tackle down [src]!"), null, 5, CHAT_TYPE_XENO_COMBAT)
 				SEND_SIGNAL(src, COMSIG_MOB_TACKLED_DOWN, attacking_xeno)

@@ -27,15 +27,41 @@
 	// nearby goal (a pack buddy, a shifting target) plans to where it WAS,
 	// walks the stale route the wrong way, replans, turns around - which is
 	// exactly the "walking back and forth" pacing. At this range a plain
-	// cardinal step can't meaningfully be wrong.
-	if(get_dist(pilot, goal) <= AI_TRAVEL_DIRECT_RANGE)
+	// cardinal step can't meaningfully be wrong. Skipped entirely for a
+	// TRAVEL_FLAG_STATIC_GOAL goal (a fixed build site, never moving) - that
+	// whole rationale doesn't apply, and a nearby-but-genuinely-walled-off
+	// goal (own fort-line corner, a dead-end alcove) needs the real router,
+	// not blind cardinal-stepping that can only ever ping-pong against it.
+	if(!(travel_flags & TRAVEL_FLAG_STATIC_GOAL) && get_dist(pilot, goal) <= AI_TRAVEL_DIRECT_RANGE)
 		if(cardinal_step_towards(goal, travel_flags & TRAVEL_FLAG_AVOID_MOBS))
 			return TRUE
-	else if(advance_along_path(goal))
+		return handle_travel_obstacles(goal, travel_flags)
+	if(advance_along_path(goal))
 		return TRUE
-	if(cardinal_step_towards(goal, travel_flags & TRAVEL_FLAG_AVOID_MOBS))
-		return TRUE
+	// Mirror of the short-range fix above, for long-range goals: a routed
+	// step that just failed means a straight line to goal specifically ISN'T
+	// safe - that's the entire reason a route was needed over plain distance
+	// in the first place. Falling back to a blind cardinal_step_towards(goal)
+	// here (as this used to do unconditionally) walks straight back into
+	// whatever the route was detouring around - and since a failed route step
+	// clears path_queue (advance_along_path()), forcing a fresh replan next
+	// tick, that fresh route immediately corrects by stepping right back. A
+	// stable two-tile ping-pong that repeats forever, reported live as "all
+	// xenos walking between the same two tiles, never actually expanding
+	// into the map." Falls through to the same obstacle-aware handling a
+	// genuinely-blocked route step already uses instead of retrying a step
+	// with no route awareness at all.
+	return handle_travel_obstacles(goal, travel_flags)
 
+/**
+ * Shared obstacle-handling tail for travel_to()'s two "a direct/routed step
+ * didn't work" cases: climb what's climbable (unless a free ground detour
+ * exists), claw through whatever's blocking (TRAVEL_FLAG_FORCE_OBSTACLES
+ * only), retreating to cover first if the approach reads as too risky
+ * (TRAVEL_FLAG_COVER_CHECK), and finally a one-tile sidestep
+ * (navigate_around()) as the last resort.
+ */
+/datum/xeno_ai_controller/proc/handle_travel_obstacles(atom/goal, travel_flags)
 	var/obj/structure/climbable_obstacle = get_climbable_obstacle(goal)
 	if(climbable_obstacle)
 		if((travel_flags & TRAVEL_FLAG_FORCE_OBSTACLES) && should_smash_instead_of_climb(climbable_obstacle))
@@ -127,6 +153,8 @@
 		if(world.time >= staged_until || pilot.health < stage_start_health || pack["engaged"] || pack["in_range"] || !pack["inbound"])
 			// Wait cap hit, taking fire, a sister's already fighting/arrived,
 			// or nobody's actually coming any more - rush now.
+			if(GLOB.ai_debug_pathing)
+				log_debug("XENO AI STAGE RELEASE: [pilot] ([pilot.type]) committing on [current_target] - [get_ai_debug_snapshot()]")
 			staged_until = 0
 			next_stage_time = world.time + AI_XENO_STAGE_COOLDOWN
 			return FALSE
@@ -142,6 +170,8 @@
 	// releases the first's hold the same tick via the in_range commit above.
 	if(!pack["inbound"] || pack["in_range"] || pack["engaged"])
 		return FALSE
+	if(GLOB.ai_debug_pathing)
+		log_debug("XENO AI STAGE HOLD: [pilot] ([pilot.type]) holding for pack near [current_target] - [get_ai_debug_snapshot()]")
 	staged_until = world.time + AI_XENO_STAGE_MAX_WAIT
 	stage_start_health = pilot.health
 	pilot.setDir(get_dir(pilot, current_target))
@@ -236,7 +266,18 @@
 			navigate_around(target)
 		return
 
-	if(dist <= preferred_distance + 1)
+	// "The ping pong still happens" - the hold band below used to be just
+	// preferred_distance..preferred_distance+1 (width 2), which is barely
+	// wide enough to survive a single ai_step() even against a perfectly
+	// stationary target (a 1-tile retreat/approach step can land exactly on
+	// either edge with zero slack). Against a target that's also moving -
+	// the normal case - the combined per-tick distance swing can exceed 1
+	// tile, overshooting straight through the band: retreat one tick,
+	// overshoot past the far edge, approach back in next tick, undershoot
+	// past the near edge, retreat again - a stable oscillation with no
+	// actual obstacle or route bug involved, just an under-sized neutral
+	// zone. AI_KITING_HOLD_BAND widens it to absorb that swing instead.
+	if(dist <= preferred_distance + AI_KITING_HOLD_BAND)
 		// "Smaller T1/T2 ranged are light and small enough to kite and dodge
 		// while aiming and firing accurately" - a caste that opts in (see
 		// process_attack()'s own alternating fire/move ticks) takes one dodge
@@ -306,8 +347,20 @@
  * it doesn't happen mid-dash. Callers doing a physical gap-closer (crusher/
  * ravager charge, runner/lurker pounce) pass this TRUE; ranged spit/shot
  * callers leave it FALSE.
+ *
+ * allow_partial_cover = TRUE lets a ranged fire-decision see past a
+ * HANDLE_BARRIER_CHANCE structure (every barricade type - the same flag
+ * _onclick/adjacent.dm's own melee/movement barrier-chance resolution
+ * already keys off) instead of refusing the shot outright - "not every
+ * ranged shot should be a bullseye." The projectile system's own
+ * calculate_cover_hit_boolean()/get_projectile_hit_chance() (projectile.dm)
+ * already resolves the actual hit/miss/cover-block probabilistically, same
+ * as it does for a player blind-firing through the same cover - this just
+ * stops the AI from being pre-emptively stricter than a player ever is. A
+ * real wall (turf density) or a non-barrier-chance structure still always
+ * blocks, regardless of this param.
  */
-/datum/xeno_ai_controller/proc/has_line_of_sight(atom/target, physical_path = FALSE)
+/datum/xeno_ai_controller/proc/has_line_of_sight(atom/target, physical_path = FALSE, allow_partial_cover = FALSE)
 	if(!pilot || !target)
 		return FALSE
 	var/turf/pilot_turf = get_turf(pilot)
@@ -320,8 +373,13 @@
 		if(line_turf.density)
 			return FALSE
 		for(var/obj/structure/blocker in line_turf)
-			if(blocker.density && (physical_path || !blocker.climbable))
-				return FALSE
+			if(!blocker.density || (!physical_path && blocker.climbable))
+				continue
+			if(!physical_path && allow_partial_cover && (blocker.flags_barrier & HANDLE_BARRIER_CHANCE))
+				if(GLOB.ai_debug_pathing)
+					log_debug("XENO AI RANGED FIRE THROUGH COVER: [pilot] firing at [target] past [blocker] instead of refusing the shot.")
+				continue
+			return FALSE
 	return TRUE
 
 /// Same-hive AI xenos already actively approaching/attacking this exact target - see get_flanking_position()/process_movement()'s flanking check.
@@ -400,6 +458,114 @@
 	committed_flank_turf = get_flanking_position(target)
 	committed_flank_until = world.time + AI_XENO_COVER_COMMIT_DURATION
 	return committed_flank_turf
+
+/**
+ * "Escort behind and in front of me, not just converging on one point" -
+ * daughters answering broadcast_escort_call() used to all beeline for
+ * boss_pilot's own tile with no formation at all. This picks a real slot
+ * instead: two lead positions ~2 tiles ahead of boss_pilot's facing (offset
+ * left/right of the marching axis) and two-plus rear positions mirrored
+ * behind, same occupied-slot-avoidance scan get_flanking_position() already
+ * does for combat approach, applied to marching formation instead. Balances
+ * front/rear rather than always filling front first, so escorts don't all
+ * pile ahead of her. Returns null (fall back to the old flat-radius
+ * behavior) if every slot is taken or blocked.
+ */
+/datum/xeno_ai_controller/proc/get_escort_formation_slot(mob/living/carbon/xenomorph/boss_pilot)
+	var/turf/boss_turf = get_turf(boss_pilot)
+	if(!boss_turf)
+		return null
+
+	var/facing = boss_pilot.dir || SOUTH
+	var/behind = turn(facing, 180)
+	var/left = turn(facing, 90)
+	var/right = turn(facing, -90)
+
+	var/list/slot_turfs = list()
+	var/turf/front_center = get_step(boss_turf, facing)
+	if(front_center)
+		var/turf/front_left = get_step(front_center, left)
+		var/turf/front_right = get_step(front_center, right)
+		if(front_left)
+			slot_turfs += front_left
+		if(front_right)
+			slot_turfs += front_right
+	var/turf/rear_center = get_step(boss_turf, behind)
+	if(rear_center)
+		var/turf/rear_left = get_step(rear_center, left)
+		var/turf/rear_right = get_step(rear_center, right)
+		if(rear_left)
+			slot_turfs += rear_left
+		if(rear_right)
+			slot_turfs += rear_right
+		slot_turfs += rear_center
+
+	var/list/free_slots = list()
+	for(var/turf/slot_turf in slot_turfs)
+		if(!slot_turf || slot_turf.density)
+			continue
+		var/occupied = FALSE
+		for(var/mob/living/carbon/xenomorph/ally in slot_turf)
+			if(ally != pilot && ally.hivenumber == boss_pilot.hivenumber && ally.stat != DEAD)
+				occupied = TRUE
+				break
+		if(!occupied)
+			free_slots += slot_turf
+
+	if(!length(free_slots))
+		return null
+	return free_slots[1]
+
+/// Same "commit for a while instead of re-deriving every tick" wrapper as get_or_pick_flank_turf() above, applied to get_escort_formation_slot() - recomputing which slot is "free" fresh every tick as the boss turns/other escorts shift could flip the chosen slot faster than a route replan tolerates.
+/datum/xeno_ai_controller/proc/get_or_pick_escort_slot(mob/living/carbon/xenomorph/boss_pilot)
+	if(!pilot || !boss_pilot)
+		return null
+	if(committed_escort_turf && world.time < committed_escort_until && !committed_escort_turf.density)
+		return committed_escort_turf
+	committed_escort_turf = get_escort_formation_slot(boss_pilot)
+	committed_escort_until = world.time + AI_XENO_COVER_COMMIT_DURATION
+	return committed_escort_turf
+
+/**
+ * "A visible path per AI xeno for debugging pathfinding as part of the
+ * debug toggle" - one small marker image per remaining path_queue tile,
+ * shown only to currently-connected admin clients (GLOB.admins) via
+ * client.images, the same client-local-only technique the sniper's
+ * focused-fire marker already uses (sniper.dm) - zero visibility to
+ * regular players, zero real game-object/turf-state pollution regardless
+ * of how many AI xenos are actively routing. Called once per AI heartbeat
+ * (ai_loop(), xeno_ai_controller.dm), not from inside advance_along_path()
+ * itself - path_queue can be mutated from several different return points
+ * in there, and reading its settled state once after tick() finishes is
+ * simpler and cheaper than threading a refresh through every one of them;
+ * a marker set that's up to one heartbeat stale is a non-issue for a debug
+ * overlay.
+ */
+/datum/xeno_ai_controller/proc/update_debug_path_visual()
+	if(!GLOB.ai_debug_pathing || !pilot || !length(path_queue))
+		if(debug_path_images)
+			clear_debug_path_visual()
+		return
+
+	clear_debug_path_visual()
+	debug_path_images = list()
+	for(var/turf/step_turf as anything in path_queue)
+		var/image/marker = image('icons/mob/hud/hud.dmi', step_turf, "hudeye")
+		marker.color = "#ffcc00"
+		marker.alpha = 160
+		marker.layer = ABOVE_MOB_LAYER // Same world plane as the turf itself (no plane override) - just drawn above mobs standing on it, same as any other overhead marker.
+		debug_path_images += marker
+		for(var/client/C as anything in GLOB.admins)
+			C.images += marker
+
+/// Removes every currently-shown marker (see update_debug_path_visual()) from every admin client and clears the list - called whenever the path changes/ends, the toggle turns off, and on controller Destroy() (xeno_ai_controller.dm) so a mid-route detach/death never leaves an orphaned marker behind.
+/datum/xeno_ai_controller/proc/clear_debug_path_visual()
+	if(!debug_path_images)
+		return
+	for(var/image/marker as anything in debug_path_images)
+		for(var/client/C as anything in GLOB.admins)
+			C.images -= marker
+	debug_path_images = null
 
 /**
  * Consumes one step of a cached native-pathfinder route toward goal,
@@ -609,17 +775,91 @@
  * a player of this caste would actually move at) before allowing another
  * step, independent of how often tick() itself runs.
  */
+/**
+ * Decomposes a possibly-diagonal direction down to a single cardinal
+ * component - xenos never move diagonally, full stop. A pure cardinal (or
+ * null/zero) direction passes through unchanged. Shared by ai_step() and
+ * ai_step_avoiding_mobs() so a caller pre-checking a destination turf (the
+ * latter's own occupancy check) and the step actually taken always agree on
+ * the same tile - normalizing only inside ai_step() would let the two
+ * disagree whenever the input was diagonal.
+ */
+/datum/xeno_ai_controller/proc/get_cardinal_direction(direction)
+	if(!direction || !(direction & (direction - 1)))
+		return direction // Already a pure cardinal (or zero) - nothing to decompose.
+	var/list/components = list()
+	if(direction & NORTH)
+		components += NORTH
+	else if(direction & SOUTH)
+		components += SOUTH
+	if(direction & EAST)
+		components += EAST
+	else if(direction & WEST)
+		components += WEST
+	return pick(components)
+
+/**
+ * "The ping pong still happens" - single choke point every AI-driven step()
+ * in this whole controller goes through, so it's also the one place that can
+ * catch a reversal regardless of which caller/branch produced it. Compares
+ * this step's direction against the last successful one; if they're exact
+ * opposites within AI_DEBUG_REVERSAL_WINDOW, dumps a full decision-state
+ * snapshot (get_ai_debug_snapshot()) to the DEBUG log when
+ * GLOB.ai_debug_pathing is on (admin AI Difficulty panel) - meant to catch
+ * the mechanism red-handed the next time it's reported live, instead of
+ * theorizing from the symptom alone.
+ */
 /datum/xeno_ai_controller/proc/ai_step(direction)
 	if(!pilot || world.time < next_step_time)
 		return FALSE
-	. = step(pilot, direction)
+	direction = get_cardinal_direction(direction)
+	var/mob/living/carbon/xenomorph/stepping_pilot = pilot
+	. = step(stepping_pilot, direction)
 	if(.)
+		// step() can kill the pilot as a side effect (a hazard tile, a
+		// retaliating attack triggered mid-move) - death detaches the AI
+		// controller and clears pilot, so re-reading the datum var below
+		// live-reported crashed a tick() reading null.movement_delay() on
+		// whichever xeno died in its own footstep.
+		if(!pilot)
+			return .
+		if(GLOB.ai_debug_pathing && last_move_dir && direction == turn(last_move_dir, 180) && world.time - last_move_time <= AI_DEBUG_REVERSAL_WINDOW)
+			log_debug("XENO AI REVERSAL: [pilot] ([pilot.type]) stepped [dir2text(direction)] [(world.time - last_move_time) / 10]s after stepping [dir2text(last_move_dir)] - [get_ai_debug_snapshot()]")
+		last_move_dir = direction
+		last_move_time = world.time
 		next_step_time = world.time + pilot.movement_delay()
+
+/// Full decision-state dump for GLOB.ai_debug_pathing's log lines - shared so every debug call site (ai_step()'s reversal detection, fort-line lifecycle logging, etc.) reports the same fields the same way instead of each hand-rolling its own subset.
+/datum/xeno_ai_controller/proc/get_ai_debug_snapshot()
+	var/turf/pilot_turf = get_turf(pilot)
+	var/list/parts = list()
+	parts += "pos=[pilot_turf ? "([pilot_turf.x],[pilot_turf.y],[pilot_turf.z])" : "?"]"
+	parts += "state=[ai_state]"
+	parts += "idle=[idle_activity]"
+	parts += "target=[current_target ? "[current_target] @ [get_turf(current_target)]" : "none"]"
+	parts += "path_len=[length(path_queue)]"
+	if(path_goal)
+		parts += "path_goal=([path_goal.x],[path_goal.y])"
+	parts += "path_failed=[path_failed]"
+	parts += "blocked_attempts=[blocked_attempts]"
+	parts += "no_progress_ticks=[no_progress_ticks]"
+	if(fallback_walk_dir)
+		parts += "fallback_walk_dir=[dir2text(fallback_walk_dir)]"
+	if(committed_obstacle)
+		parts += "committed_obstacle=[committed_obstacle]"
+	if(fort_line_next_turf)
+		parts += "fort_line=[fort_line_phase]@([fort_line_next_turf.x],[fort_line_next_turf.y])"
+	if(pilot?.hive?.queen_alert_turf)
+		parts += "hive_alert=([pilot.hive.queen_alert_turf.x],[pilot.hive.queen_alert_turf.y]) age=[(world.time - pilot.hive.queen_alert_time) / 10]s"
+	if(pilot?.hive?.assault_alert_turf)
+		parts += "assault_alert=([pilot.hive.assault_alert_turf.x],[pilot.hive.assault_alert_turf.y]) age=[(world.time - pilot.hive.assault_alert_time) / 10]s"
+	return parts.Join(", ")
 
 /// Same as ai_step() but treats a destination turf already holding another living mob as blocked - see turf_occupied_by_other_mob()'s doc comment. Used by wander()'s own free-heading steps, which don't go through cardinal_step_towards()'s avoid_mobs param.
 /datum/xeno_ai_controller/proc/ai_step_avoiding_mobs(direction)
 	if(!pilot)
 		return FALSE
+	direction = get_cardinal_direction(direction)
 	if(turf_occupied_by_other_mob(get_step(pilot, direction)))
 		return FALSE
 	return ai_step(direction)
@@ -680,12 +920,50 @@
  * if nothing suitable exists within radius - callers just fall back to
  * their normal destination.
  */
+/**
+ * Nearest still-intact AI-built fort gate (hive_status.dm's fort_gates,
+ * populated by xeno_ai_controller.dm's register_fort_gate()) within
+ * AI_FORT_GATE_SEARCH_RADIUS - shared by find_defensible_turf() and
+ * find_cover_turf() so every existing caller of either (fleeing, kiting,
+ * cautious-approach cover-diversion) prefers a deliberately-built ambush
+ * pocket over an ad hoc tile, "all of them, full or low health." Entries
+ * aren't pruned when a gate is destroyed (hive_status.dm), so this
+ * re-validates live: a destroyed door leaves the turf walkable but no
+ * longer a real resin door, silently skipped rather than sent to as if it
+ * were still cover.
+ */
+/datum/xeno_ai_controller/proc/find_known_fort_gate(radius = AI_FORT_GATE_SEARCH_RADIUS)
+	if(!pilot?.hive || !length(pilot.hive.fort_gates))
+		return null
+	var/turf/pilot_turf = get_turf(pilot)
+	if(!pilot_turf)
+		return null
+
+	var/turf/best
+	var/best_dist = INFINITY
+	for(var/turf/gate_turf as anything in pilot.hive.fort_gates)
+		if(!gate_turf || gate_turf.density)
+			continue
+		if(!(locate(/obj/structure/mineral_door/resin) in gate_turf))
+			continue // Door's been destroyed - no longer a real gate.
+		var/dist = get_dist(pilot_turf, gate_turf)
+		if(dist > radius)
+			continue
+		if(dist < best_dist)
+			best_dist = dist
+			best = gate_turf
+	return best
+
 /datum/xeno_ai_controller/proc/find_defensible_turf(radius = AI_XENO_DEFENSIBLE_SEARCH_RADIUS)
 	if(!pilot)
 		return null
 	var/turf/pilot_turf = get_turf(pilot)
 	if(!pilot_turf)
 		return null
+
+	var/turf/known_gate = find_known_fort_gate()
+	if(known_gate)
+		return known_gate // A real built ambush pocket beats an ad hoc pick every time it's actually in range.
 
 	var/turf/best
 	var/best_dist = INFINITY
@@ -727,6 +1005,10 @@
 	var/turf/threat_turf = get_turf(threat)
 	if(!pilot_turf || !threat_turf)
 		return null
+
+	var/turf/known_gate = find_known_fort_gate()
+	if(known_gate)
+		return known_gate // Full enclosure beats a directional facing check - no need to validate an angle against threat_turf the way ad hoc cover below does.
 
 	// "Too predictable, walking in the same 3 tiles over and over" - a pure
 	// nearest-turf pick returns the exact same tile every single call for as
@@ -1036,7 +1318,7 @@
 		for(var/obj/structure/blocking_obstacle in next_turf)
 			if(!blocking_obstacle.density || blocking_obstacle.unslashable || blocking_obstacle.climbable)
 				continue
-			if(istype(blocking_obstacle, /obj/structure/machinery/door))
+			if(istype(blocking_obstacle, /obj/structure/machinery/door) || istype(blocking_obstacle, /obj/structure/mineral_door))
 				door_candidate = door_candidate || blocking_obstacle
 			else
 				other_candidate = other_candidate || blocking_obstacle
@@ -1057,11 +1339,20 @@
 		// - claw_type below the wall's claws_minimum can't scratch it.
 		// - an acided_hole wall only progresses for mob_size >= MOB_SIZE_BIG
 		//   (expand_hole()) - smaller pilots can no longer do anything to it.
+		// - a same-hive/allied resin wall is never forced through at all -
+		//   "they keep destroying specific walls too that they built before":
+		//   /turf/closed/wall/resin/attack_alien() still deals real damage
+		//   (25% of max health per hit) to a wall owned by the attacker's own
+		//   hive, and this whole chain has no other way to route through a
+		//   wall than attacking it - so a friendly wall blocking the only
+		//   direct line (a fort line's own corner, an intersecting segment
+		//   another builder placed) has to fall through to navigate_around()'s
+		//   sidestep instead, never get treated as optional demolition.
 		// Excluded the same way an unslashable/climbable structure already
 		// is above.
 		if(!wall_candidate && istype(next_turf, /turf/closed/wall))
 			var/turf/closed/wall/candidate_wall = next_turf
-			if(!(candidate_wall.turf_flags & TURF_HULL) && pilot.claw_type >= candidate_wall.claws_minimum && !(candidate_wall.acided_hole && pilot.mob_size < MOB_SIZE_BIG))
+			if(!(candidate_wall.turf_flags & TURF_HULL) && pilot.claw_type >= candidate_wall.claws_minimum && !(candidate_wall.acided_hole && pilot.mob_size < MOB_SIZE_BIG) && !is_friendly_resin_wall(candidate_wall))
 				wall_candidate = candidate_wall
 				wall_candidate_dir = candidate_dir
 
@@ -1080,6 +1371,13 @@
 	if(wall_candidate && !has_open_detour(wall_candidate_dir))
 		return commit_to_obstacle(wall_candidate)
 	return null
+
+/// Whether W is a resin wall owned by the pilot's own hive or an allied one - see get_blocking_obstacle()'s wall_candidate gate.
+/datum/xeno_ai_controller/proc/is_friendly_resin_wall(turf/closed/wall/W)
+	if(!pilot || !istype(W, /turf/closed/wall/resin))
+		return FALSE
+	var/turf/closed/wall/resin/resin_wall = W
+	return resin_wall.hivenumber == pilot.hivenumber || pilot.ally_of_hivenumber(resin_wall.hivenumber)
 
 /**
  * A pilot with Corrosive Acid melts a blocking structure instead of only
@@ -1184,6 +1482,30 @@
 	if(world.time <= pilot.next_move)
 		return
 	pilot.setDir(get_dir(pilot, target_obstacle))
+	// "They destroy doors when they try to interact with it on accident" -
+	// a resin door's own attack_alien() only opens safely (TryToSwitchState())
+	// under non-harm intent; with harm intent (unconditionally set below for
+	// every other obstacle type) a hit from the door's OWN hive is a ONE-HIT
+	// INSTANT KILL (mineral_door/resin/attack_alien()'s hivenumber check just
+	// qdel()s it outright, no health grind at all) - so a same-hive/allied
+	// door gets opened instead of forced through like every other obstacle.
+	if(istype(target_obstacle, /obj/structure/mineral_door/resin))
+		var/obj/structure/mineral_door/resin/door = target_obstacle
+		if(door.hivenumber == pilot.hivenumber || pilot.ally_of_hivenumber(door.hivenumber))
+			// The non-harm attack_alien()->TryToSwitchState() chain silently
+			// no-ops for any clientless mob (mineral_doors.dm's base
+			// TryToSwitchState() hard-requires user_mob.client) - an AI xeno
+			// routed through it never actually opens the door, just stands
+			// there re-committing to the same "obstacle" forever. Live-
+			// diagnosed via a Praetorian stuck at one tile for 1h42m in a
+			// 3-hour round. Calling SwitchState() directly bypasses that
+			// client gate (still respecting isSwitchingStates so this can't
+			// re-trigger mid-animation) - the correct fix, not a workaround:
+			// nothing about actually opening a door should require a client.
+			if(!door.isSwitchingStates)
+				door.SwitchState()
+			pilot.next_move = world.time + XENO_MELEE_ATTACK_DELAY
+			return
 	if(attempt_acid_on_obstacle(target_obstacle))
 		pilot.next_move = world.time + XENO_MELEE_ATTACK_DELAY
 		return

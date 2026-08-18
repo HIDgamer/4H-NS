@@ -8,16 +8,24 @@
  * and fought normally - "aid and assist in attacking" per the user, not a
  * builder that ignores threats.
  *
- * Also occasionally attempts a defensive resin wall at the hive perimeter
- * (attempt_build_defense(), xeno_ai_controller.dm) on top of plain weeding -
- * a real, if simple, "wall a chokepoint around the hive" placement instead
- * of only ever weeding wherever she happens to be standing.
+ * Also occasionally builds a real defensive wall line at the hive perimeter
+ * (attempt_build_fort_line(), xeno_ai_controller.dm) on top of plain
+ * weeding - a repeating wall-run/paired-door-gate pattern matching the real
+ * player convention, not just a single random tile/type.
  */
 /datum/xeno_ai_controller/drone_worker
 
 /// "Drones... dive to their deaths" - she's a builder pressed into a fight, not a caste actually built to brawl, so she should break off sooner than the population default.
 /datum/xeno_ai_controller/drone_worker/get_flee_threshold()
 	return AI_DRONE_FLEE_HEALTH_PERCENT
+
+/// "They should mainly do support, meaning they almost never idle... no rest, castle after castle" - a builder's whole purpose is churning out hive infrastructure; voluntary idle resting/dormancy is explicitly not part of that. should_flee()/return_to_anchor()'s own combat-driven disengage-and-recover is untouched - this only removes the "stand around/lie down because there's nothing better to do" option.
+/datum/xeno_ai_controller/drone_worker/can_rest()
+	return FALSE
+
+/// "Castle after castle after castle" - a fresh fort line starts almost immediately once the last one ends, instead of the shared conservative default.
+/datum/xeno_ai_controller/drone_worker/get_fort_line_start_chance()
+	return AI_BUILDER_FORT_LINE_START_CHANCE
 
 /**
  * Only override needed: patrol() is called from the base tick() at exactly
@@ -46,7 +54,7 @@
 	// egg-carrying is a lower-priority errand that only competes for a slot
 	// when there's nothing to build, and a carry already in progress always
 	// finishes regardless (is_carrying_egg() bypasses the roll below).
-	if(prob(AI_DEFENSE_BUILD_CHANCE) && attempt_build_defense())
+	if(attempt_build_fort_line())
 		idle_activity = IDLE_ACTIVITY_BUILD
 		return
 	if(prob(AI_DRONE_BUILD_CHANCE) && attempt_plant_weeds())
@@ -167,6 +175,6 @@
  * silently, same pattern queen.dm's identical addition uses.
  */
 /datum/xeno_ai_controller/drone_worker/process_movement()
-	if(current_target && prob(AI_XENO_COMBAT_WEED_CHANCE))
+	if(current_target && prob(get_combat_weed_chance()))
 		attempt_plant_weeds()
 	return ..()

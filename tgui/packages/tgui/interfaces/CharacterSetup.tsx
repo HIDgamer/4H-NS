@@ -1,5 +1,5 @@
 import { BooleanLike } from 'common/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useBackend } from '../backend';
 import {
@@ -48,6 +48,14 @@ export const CharacterSetup = () => {
 
   const [nameDraft, setNameDraft] = useState(real_name);
   const [ageDraft, setAgeDraft] = useState(`${age}`);
+
+  // useState's initial value only applies on first mount, so switching slots
+  // (which changes default_slot and pushes new real_name/age from the backend)
+  // otherwise leaves these drafts showing the previous slot's stale values.
+  useEffect(() => {
+    setNameDraft(real_name);
+    setAgeDraft(`${age}`);
+  }, [default_slot]);
 
   return (
     <Window title="Character Setup" theme="crtlobby" width={700} height={620}>

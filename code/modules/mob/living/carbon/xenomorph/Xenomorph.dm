@@ -83,6 +83,8 @@
 	var/is_ai_controlled = FALSE
 	/// Sticky flag set once at AI spawn time; survives ghost takeover/give-back so only mobs that started as AI ever fall back to AI on disconnect.
 	var/was_ai_spawned = FALSE
+	/// This Hive Leader's own RTS-style hive command console (xeno_command_console.dm), if they've opened one - null for anyone who isn't a leader or hasn't opened it yet. Used by click() to route shift-click selection while the console's selecting_mode is active.
+	var/datum/xeno_command_console/hive_command_console
 	var/speaking_key = "x"
 	var/speaking_noise = "alien_talk"
 	slash_verb = "slash"

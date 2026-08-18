@@ -125,6 +125,21 @@ so that it doesn't double up on the delays) so that it applies the delay immedia
 	var/middle_pressed = mods[MIDDLE_CLICK] == "1"
 	var/right_pressed = mods[RIGHT_CLICK] == "1"
 
+	// Hive command console selection (xeno_command_console.dm) - only while
+	// this Hive Leader has actually toggled "selecting mode" on from their
+	// console panel, so ordinary shift-click behavior (and every other click
+	// path below) is completely untouched the rest of the time. Checked
+	// ahead of the alt+shift overwatch combo below deliberately: selecting
+	// mode is an explicit, opt-in action a leader just took from the panel,
+	// so while it's on it should win over an incidental modifier collision
+	// rather than the reverse.
+	if(shift_pressed && !alt_pressed && hive_command_console?.selecting_mode && istype(target, /mob/living/carbon/xenomorph))
+		var/mob/living/carbon/xenomorph/xeno_target = target
+		hive_command_console.selection.toggle(xeno_target, hivenumber)
+		hive_command_console.sync_click_intercept()
+		SStgui.update_uis(hive_command_console)
+		return TRUE
+
 	if(alt_pressed && shift_pressed)
 		if(istype(target, /mob/living/carbon/xenomorph))
 			var/mob/living/carbon/xenomorph/xeno = target

@@ -28,6 +28,14 @@
 /datum/xeno_ai_controller/hivelord/get_flee_threshold()
 	return AI_HIVELORD_FLEE_HEALTH_PERCENT
 
+/// Same "almost never idle... no rest, castle after castle" reasoning as drone_worker.dm's identical override.
+/datum/xeno_ai_controller/hivelord/can_rest()
+	return FALSE
+
+/// Same "castle after castle after castle" reasoning as drone_worker.dm's identical override.
+/datum/xeno_ai_controller/hivelord/get_fort_line_start_chance()
+	return AI_BUILDER_FORT_LINE_START_CHANCE
+
 /datum/xeno_ai_controller/hivelord/patrol()
 	if(respond_to_hive_alert())
 		idle_activity = IDLE_ACTIVITY_ALERT
@@ -41,7 +49,7 @@
 	// egg-carrying is a lower-priority errand that only competes for a slot
 	// when there's nothing to build, and a carry already in progress always
 	// finishes regardless (is_carrying_egg() bypasses the roll below).
-	if(prob(AI_DEFENSE_BUILD_CHANCE) && attempt_build_defense())
+	if(attempt_build_fort_line())
 		idle_activity = IDLE_ACTIVITY_BUILD
 		return
 	if(prob(AI_HIVELORD_BUILD_CHANCE) && attempt_plant_weeds())
@@ -98,7 +106,7 @@
  * silently, same pattern queen.dm's identical addition uses.
  */
 /datum/xeno_ai_controller/hivelord/process_movement()
-	if(current_target && prob(AI_XENO_COMBAT_WEED_CHANCE))
+	if(current_target && prob(get_combat_weed_chance()))
 		attempt_plant_weeds()
 	return ..()
 

@@ -42,11 +42,15 @@
  *   shouldn't be the only way they behave" - the rest of the hive scouts/
  *   weeds/patrols on its own initiative via the base controller's own
  *   long-patrol/wander machinery).
- * - Group Screech: "Screech is her most powerful ability" - when a target
- *   isn't alone (AI_QUEEN_GROUP_SCREECH_THRESHOLD or more hostiles clustered
- *   within AI_QUEEN_GROUP_SCREECH_RADIUS of it), she opens with Screech
- *   before closing the distance instead of only ever using it reactively
- *   once she's already adjacent and swinging.
+ * - Screech: "Screech is her most powerful ability" - opens any real
+ *   engagement the moment it's off cooldown, not saved for a crowd.
+ * - Confident melee/ranged hybrid: "the smartest AI, and the most dangerous
+ *   only beaten by the king" - she closes and finishes a lone or already-
+ *   weakened target in melee (should_close_to_melee()) instead of only ever
+ *   fighting at range, but still kites and spits down a real cluster
+ *   (AI_QUEEN_GROUP_SCREECH_THRESHOLD+ hostiles within
+ *   AI_QUEEN_GROUP_SCREECH_RADIUS) rather than wading into all of them at
+ *   once.
  * - Last stand: overrides should_flee() so that when the base logic says
  *   she'd retreat (critically wounded/on fire) but she's the hive's only
  *   living member (or already backed by enough escorting daughters), she
@@ -93,6 +97,12 @@
 			queen_pilot.dismount_ovipositor(TRUE) // TRUE = instant, no confirmation dialog, no player-facing channel - she needs to react immediately, not wait through the flavor animation a player would.
 			next_mount_attempt = world.time + AI_QUEEN_REMOUNT_COOLDOWN
 			return
+		if(should_reinforce_frontline(queen_pilot))
+			queen_pilot.dismount_ovipositor() // Graceful, not instant - a considered strategic choice, not a reflex, so the normal dismount animation/hive-wide announcement plays.
+			next_mount_attempt = world.time + AI_QUEEN_REMOUNT_COOLDOWN
+			if(GLOB.ai_debug_pathing)
+				log_debug("XENO AI QUEEN REINFORCING: [queen_pilot] left the ovipositor to reinforce a struggling frontline - [get_ai_debug_snapshot()]")
+			return // patrol()'s respond_to_hive_alert() (reached next tick, now that she's off ovi) carries her the rest of the way there - no new movement code needed.
 		// Still active from the throne, not just laying eggs and waiting -
 		// keeps growing its territory (expand_weeds, an ovi-exclusive remote
 		// ability) instead of going fully dormant the moment she sits down.
@@ -208,6 +218,29 @@
 		return FALSE
 	var/datum/action/xeno_action/onclick/grow_ovipositor/mount_ability = get_ability(/datum/action/xeno_action/onclick/grow_ovipositor)
 	return mount_ability && mount_ability.action_cooldown_check()
+
+/**
+ * "The queen should be able to deovi and go to the frontline to help if
+ * possible" - distinct from tick()'s existing reactive dismount (a direct
+ * personal threat, instant, no judgment needed): this is a proactive
+ * strategic call, checked only while she's mounted with nothing already
+ * attacking her. Two things both have to be true - a real hive-wide crisis
+ * actually exists (reuses assault_alert_turf, the same "the hive begins
+ * marching to the fob/LZ" signal respond_to_hive_alert() already answers
+ * for every other idle xeno - not a new pressure metric), and there aren't
+ * already enough daughters there without her. Leaving the ovipositor to
+ * join a fight that's already well-staffed would just be gambling the
+ * hive's only queen for nothing, so both conditions have to hold, not just
+ * one.
+ */
+/datum/xeno_ai_controller/queen/proc/should_reinforce_frontline(mob/living/carbon/xenomorph/queen/queen_pilot)
+	if(!queen_pilot.hive)
+		return FALSE
+	if(!queen_pilot.hive.assault_alert_turf || world.time - queen_pilot.hive.assault_alert_time > AI_XENO_HIVE_ALERT_WINDOW)
+		return FALSE // No live hive-wide push happening - nothing to reinforce.
+	if(queen_pilot.hive.stored_larva < AI_QUEEN_DEOVI_MIN_LARVA)
+		return FALSE // Economy's too fragile to spare her right now - stay and keep laying.
+	return count_nearby_hive_members(queen_pilot.hive.assault_alert_turf, AI_XENO_HIVE_ALERT_RESPONDER_RADIUS) < AI_QUEEN_DEOVI_RESPONDER_THRESHOLD
 
 /**
  * Ovi-exclusive remote-targeted build ability (mount_ovipositor()'s
@@ -326,9 +359,12 @@
 		return TRUE
 	if(is_last_defender(queen_pilot))
 		return FALSE
-	if(current_target && count_engaged_allies(current_target) >= AI_QUEEN_ESCORT_STAND_THRESHOLD)
+	if((queen_pilot.health / queen_pilot.maxHealth) > AI_XENO_FLEE_ALLY_SUPPRESS_FLOOR && current_target && count_engaged_allies(current_target) >= AI_QUEEN_ESCORT_STAND_THRESHOLD)
 		return FALSE
 	return TRUE
+
+/datum/xeno_ai_controller/queen/get_combat_weed_chance()
+	return AI_QUEEN_COMBAT_WEED_CHANCE
 
 /datum/xeno_ai_controller/queen/proc/is_last_defender(mob/living/carbon/xenomorph/queen/queen_pilot)
 	if(!queen_pilot.hive)
@@ -340,12 +376,15 @@
 	return TRUE
 
 /**
- * "Modify the sentinel and queen AI to only use ranged, and to use melee if
- * unable to escape or enemies are too close" - overrides process_attack()
- * so melee is only ever the cornered case, and delegates positioning to the
- * shared maintain_kiting_distance() helper (xeno_ai_movement.dm) the same
- * way Boiler/Sentinel do, instead of the old "close to melee, only back off
- * once already hurt" policy.
+ * Confident hybrid, not purely reactive-melee: she's "the smartest AI, and
+ * the most dangerous only beaten by the king," so a lone or already-weakened
+ * target just gets closed on and finished, not peppered with spit from a
+ * safe distance forever - should_close_to_melee() makes that call. Only a
+ * real cluster (the case a spit-and-kite policy actually earns its keep
+ * against) keeps her at range softening things up first, same as
+ * Boiler/Sentinel's own kiting behavior. Screech opens any real engagement
+ * now, not only group ones - "her most powerful ability" is worth using
+ * whenever it's up, not saved for a crowd.
  */
 /datum/xeno_ai_controller/queen/process_attack()
 	var/mob/living/carbon/xenomorph/queen/queen_pilot = pilot
@@ -356,33 +395,43 @@
 		drop_target()
 		return
 
-	attempt_group_screech(current_target) // Screech's own range comfortably covers this before she's even adjacent - no-ops silently off cooldown/against a lone target, safe to call every tick.
+	attempt_screech() // No-ops silently off cooldown - safe to call every tick she's committed to a fight.
 
-	if(pilot.Adjacent(current_target)) // Cornered - fight back rather than just standing there.
+	if(pilot.Adjacent(current_target)) // Cornered, or she's chosen to close - fight back.
 		execute_attack(current_target)
+		if(stale_attack_ticks >= AI_PRIORITY_STALE_ATTACK_GIVEUP) // This override replaces the base process_attack() entirely instead of calling ..() - without this she'd claw an undamageable target forever instead of giving up like every other caste does.
+			drop_target()
+		return
+
+	if(should_close_to_melee(current_target))
+		ai_state = AI_STATE_APPROACHING // process_movement() closes the gap instead of kiting - see should_close_to_melee().
 		return
 
 	attempt_ranged_spit(current_target) // No-ops silently if it's on cooldown - safe to call speculatively.
 	ai_state = AI_STATE_APPROACHING // Always re-decide positioning next tick.
 
 /**
- * "Screech is her most powerful ability" - opens with it against a real
- * cluster instead of only ever using it reactively once she's already
- * adjacent and swinging (see use_caste_ability()'s own attempt_screech()
- * call, unchanged, for that reactive case). attempt_screech() itself is
- * cooldown/plasma-safe to call speculatively, so the only extra gate needed
- * here is "is this actually a group" - a lone marine doesn't justify
- * announcing her position from range for a single-target AoE.
+ * The melee-vs-ranged decision itself: closes in against anything she can
+ * confidently just win against outright - already weakened past
+ * AI_QUEEN_MELEE_TARGET_HEALTH_PERCENT, or genuinely alone (fewer than
+ * AI_QUEEN_GROUP_SCREECH_THRESHOLD other hostiles clustered within
+ * AI_QUEEN_GROUP_SCREECH_RADIUS of it). A real cluster is the one case
+ * spit-and-kite still earns its keep - softening several targets from range
+ * beats wading into all of them at once, even for her.
  */
-/datum/xeno_ai_controller/queen/proc/attempt_group_screech(mob/living/target)
+/datum/xeno_ai_controller/queen/proc/should_close_to_melee(mob/living/target)
+	if(!istype(target))
+		return FALSE
+	if(target.maxHealth && target.health <= target.maxHealth * AI_QUEEN_MELEE_TARGET_HEALTH_PERCENT)
+		return TRUE
 	var/nearby_hostiles = 0
 	for(var/mob/living/nearby in orange(AI_QUEEN_GROUP_SCREECH_RADIUS, target))
 		if(nearby == target || !is_valid_target(nearby))
 			continue
 		nearby_hostiles++
 		if(nearby_hostiles >= AI_QUEEN_GROUP_SCREECH_THRESHOLD)
-			attempt_screech()
-			return
+			return FALSE // A real group - stay ranged and soften them up instead.
+	return TRUE
 
 /**
  * "Weeds heal, slow enemies, speed up xenos" - a real tactical move
@@ -398,11 +447,15 @@
 		drop_target()
 		return
 
-	if(prob(AI_XENO_COMBAT_WEED_CHANCE))
+	if(prob(get_combat_weed_chance()))
 		attempt_plant_weeds()
+	attempt_periodic_combat_pheromones()
 
 	last_seen_turf = get_turf(current_target)
-	maintain_kiting_distance(current_target, AI_XENO_RANGED_PREFERRED_DISTANCE)
+	if(should_close_to_melee(current_target))
+		travel_to(current_target, TRAVEL_FLAG_FORCE_OBSTACLES|TRAVEL_FLAG_COVER_CHECK)
+	else
+		maintain_kiting_distance(current_target, AI_XENO_RANGED_PREFERRED_DISTANCE)
 
 /**
  * "Spitting is her main ability in combat, make sure she switches between

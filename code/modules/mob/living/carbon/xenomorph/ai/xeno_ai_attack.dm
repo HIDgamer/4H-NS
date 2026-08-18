@@ -31,6 +31,18 @@
 
 	execute_attack(current_target)
 
+	// execute_attack() has no failure return value of its own (abilities/melee
+	// both just fire-and-forget through attack_alien()), so lack of progress is
+	// read back off stale_attack_ticks (record_damage_dealt()) instead - a
+	// target the pilot mechanically can't damage (behind an unbreakable
+	// barrier, immune, etc.) would otherwise be attacked forever, unlike
+	// movement (blocked_attempts) and search (AI_XENO_SEARCH_TIMEOUT), which
+	// already both give up.
+	if(stale_attack_ticks >= AI_PRIORITY_STALE_ATTACK_GIVEUP)
+		if(GLOB.ai_debug_pathing)
+			log_debug("XENO AI STALE ATTACK GIVEUP: [pilot] ([pilot.type]) landed no damage on [current_target] for [stale_attack_ticks] ticks - [get_ai_debug_snapshot()]")
+		drop_target()
+
 /**
  * Orientation is only touched here, at the moment of the strike - never polled
  * every tick - per the reference implementation's own performance approach.
@@ -68,6 +80,8 @@
 		// checkable at a glance in the hive status roster instead (see
 		// event_tab.dm/AdminHiveStatus.jsx), rather than guessing blind
 		// again whether the logic actually fires or just looks right on paper.
+		if(GLOB.ai_debug_pathing)
+			log_debug("XENO AI ABILITY USED: [pilot] ([pilot.type]) used a caste ability on [living_target] - [get_ai_debug_snapshot()]")
 		last_ability_time = world.time
 		record_damage_dealt(living_target, health_before)
 		return
@@ -116,6 +130,9 @@
 	var/dealt = health_before - target.health
 	if(dealt > 0)
 		damage_dealt += dealt
+		stale_attack_ticks = 0
+	else if(target == current_target)
+		stale_attack_ticks++
 
 /**
  * Shared melee fallback for any caste with Tail Stab in its kit (Warrior,

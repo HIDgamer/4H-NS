@@ -4,8 +4,16 @@ import { useBackend } from '../backend';
 import { Button, LabeledList, NumberInput, Section } from '../components';
 import { Window } from '../layouts';
 
+type Data = {
+  data_target_x: number;
+  data_target_y: number;
+  data_target_z: number;
+  data_dial_x: number;
+  data_dial_y: number;
+};
+
 export const Mortar = (props) => {
-  const { act, data } = useBackend();
+  const { act, data } = useBackend<Data>();
   const {
     data_target_x,
     data_target_y,
@@ -21,7 +29,7 @@ export const Mortar = (props) => {
   const [dial_y, setDialY] = useState(data_dial_y);
 
   return (
-    <Window width={245} height={220}>
+    <Window width={245} height={240}>
       <Window.Content>
         <Section>
           <LabeledList>

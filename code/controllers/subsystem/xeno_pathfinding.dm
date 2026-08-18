@@ -68,7 +68,18 @@ SUBSYSTEM_DEF(xeno_pathfinding)
 			var/turf/scanned = locate(x, y, z)
 			cells += turf_cell_code(scanned)
 		CHECK_TICK
-	return rust_xeno_pathfind_init_z("[z],[world.maxx],[world.maxy]", cells.Join("")) == "ok"
+	var/result = rust_xeno_pathfind_init_z("[z],[world.maxx],[world.maxy]", cells.Join(""))
+	// "Failed to load z-level N" with no further detail was already fixed
+	// for the case where the native call throws (see __xeno_pathfind.dm's
+	// catch blocks) - this covers the other failure shape: the call
+	// completing without throwing but the native side rejecting the
+	// payload for some reason (bad dimensions, cell-string length mismatch,
+	// an internal panic that doesn't cross the FFI boundary as a DM
+	// exception). Logs the literal return value so that's distinguishable
+	// from "call never actually reached the library" at a glance.
+	if(result != "ok")
+		log_debug("SSxeno_pathfinding: xeno_pathfind_init_z(z=[z]) returned [result ? "\"[result]\"" : "null/empty"] instead of \"ok\" - cells=[length(cells)], expected=[world.maxx * world.maxy]")
+	return result == "ok"
 
 /**
  * The native cell code for a turf's current state: '1' dense turf (wall),

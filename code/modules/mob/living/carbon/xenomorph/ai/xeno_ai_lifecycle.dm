@@ -56,8 +56,21 @@ GLOBAL_LIST_INIT(ai_evolve_priority_castes, list(
 
 	var/controller_type = get_ai_controller_type_for_caste(xeno.caste_type)
 	xeno.ai_controller = new controller_type(xeno)
-	if(anchor_override)
-		xeno.ai_controller.anchor_turf = anchor_override
+	// A Hive Leader/admin-set rally point (hive_status.dm's rally_turf, see
+	// xeno_command_console.dm's "order_set_rally"/"order_clear_rally")
+	// takes priority over the default spawn-point anchor when set - lets a
+	// commander stage a marshalling point ahead of a push instead of every
+	// fresh reinforcement anchoring wherever the Spawner happened to place it.
+	// Falls back further to hive.frontier_turf (SSxeno_spawner's autonomous
+	// "ground actually won" signal, see attempt_bank_frontier_advance()) when
+	// no explicit rally point is set - once the hive has genuinely advanced,
+	// fresh reinforcements stage from the new frontier instead of the
+	// original spawn point, same "take over the colony... not just staying
+	// in their spawn positions" reasoning applied automatically.
+	var/turf/rally_turf = xeno.hive?.rally_turf
+	var/turf/frontier_turf = xeno.hive?.frontier_turf
+	if(anchor_override || rally_turf || frontier_turf)
+		xeno.ai_controller.anchor_turf = anchor_override || rally_turf || frontier_turf
 	xeno.is_ai_controlled = TRUE
 	xeno.was_ai_spawned = TRUE
 
@@ -66,6 +79,9 @@ GLOBAL_LIST_INIT(ai_evolve_priority_castes, list(
 
 	xeno.ai_controller.start()
 	xeno.free_for_ghosts(TRUE) // Lets a ghost claim the mob mid-fight at any time, same mechanism as an unclaimed King hatch.
+
+	if(GLOB.ai_debug_pathing)
+		log_debug("XENO AI ATTACHED: [xeno] ([xeno.type]) at [get_turf(xeno)], controller=[controller_type], anchor=[xeno.ai_controller.anchor_turf]")
 
 	return TRUE
 
@@ -77,6 +93,9 @@ GLOBAL_LIST_INIT(ai_evolve_priority_castes, list(
 /proc/detach_xeno_ai(mob/living/carbon/xenomorph/xeno)
 	if(!xeno || !xeno.ai_controller)
 		return FALSE
+
+	if(GLOB.ai_debug_pathing)
+		log_debug("XENO AI DETACHED: [xeno] ([xeno.type]) at [get_turf(xeno)], stat=[xeno.stat], client=[xeno.client ? "yes" : "no"]")
 
 	xeno.ai_controller.stop()
 	QDEL_NULL(xeno.ai_controller)
@@ -96,9 +115,17 @@ GLOBAL_LIST_INIT(ai_evolve_priority_castes, list(
  * behave exactly as today.
  */
 /proc/reattach_xeno_ai_on_disconnect(mob/living/carbon/xenomorph/xeno)
-	if(!xeno || !xeno.was_ai_spawned || xeno.client || xeno.stat == DEAD)
+	if(!xeno)
+		return FALSE
+	if(!xeno.was_ai_spawned)
+		if(GLOB.ai_debug_pathing)
+			log_debug("XENO AI REATTACH SKIPPED: [xeno] ([xeno.type]) disconnected but was never AI-spawned (a real player role, e.g. King/Queen picked at round start, or admin-assigned) - left with no controller and no client, per design.")
+		return FALSE
+	if(xeno.client || xeno.stat == DEAD)
 		return FALSE
 
+	if(GLOB.ai_debug_pathing)
+		log_debug("XENO AI REATTACH: [xeno] ([xeno.type]) disconnected - handing back to AI at [get_turf(xeno)]")
 	return attach_xeno_ai(xeno, get_turf(xeno))
 
 /**
@@ -210,6 +237,8 @@ GLOBAL_LIST_INIT(ai_evolve_priority_castes, list(
 	new_xeno.built_structures = old_xeno.built_structures?.Copy()
 
 	log_game("EVOLVE: [key_name(old_xeno)] (AI) evolved into [new_xeno].")
+	if(GLOB.ai_debug_pathing)
+		log_debug("XENO AI EVOLVED: [old_xeno] ([old_xeno.type]) -> [new_xeno] ([new_xeno.type]) at [get_turf(old_xeno)]")
 	SEND_SIGNAL(old_xeno, COMSIG_XENO_EVOLVE_TO_NEW_CASTE, new_xeno)
 
 	var/turf/new_turf = get_turf(new_xeno)

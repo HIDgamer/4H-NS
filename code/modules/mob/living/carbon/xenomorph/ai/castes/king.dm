@@ -60,6 +60,7 @@
 	if(current_target)
 		broadcast_hive_alert(pilot)
 		broadcast_escort_call(pilot, FALSE)
+		attempt_periodic_combat_pheromones()
 	return ..()
 
 /**
