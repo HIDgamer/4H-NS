@@ -87,6 +87,12 @@
 #define XENO_PATHFIND_MAX_CELLS 900
 /// Floor on compute_path()'s search margin around the direct pilot-goal bounding box.
 #define AI_PATHFIND_MIN_MARGIN 2
+/// Consecutive compute_path_global()/compute_path() failures against the same goal (path_fail_streak) before compute_path() escalates past its normal AI_PATHFIND_MAX_MARGIN/budget - see that proc's doc comment. "If unable to go where you want, and you keep failing to find a path around, search a wider area for a way around" - the normal margin stays tight since most replans are cheap and frequent; this only kicks in once a goal has genuinely proven hard to reach.
+#define AI_PATHFIND_ESCALATION_THRESHOLD 3
+/// Escalated margin ceiling compute_path() searches out to once AI_PATHFIND_ESCALATION_THRESHOLD consecutive failures have piled up - wider than AI_PATHFIND_MAX_MARGIN so a genuinely long detour (a door several extra tiles off the direct line) becomes visible to the solver instead of the pilot giving up on the whole target. Paired with AI_PATHFIND_ESCALATED_BUDGET_MULTIPLIER below since a wider margin needs a bigger cell budget to actually be reached, not just a higher cap the width*height check still clamps away.
+#define AI_PATHFIND_ESCALATED_MAX_MARGIN 22
+/// Multiplier on get_pathfind_cell_budget()'s normal result while escalated (see AI_PATHFIND_ESCALATION_THRESHOLD) - only ever spent after PATH_RETRY_COOLDOWN-throttled repeated failures against the same goal, not a per-tick cost, so a heavier one-off solve here is worth it.
+#define AI_PATHFIND_ESCALATED_BUDGET_MULTIPLIER 2
 /// Ceiling on compute_path()'s search margin, however much cell budget is left unused - "pathfinding cannot go around walls, only tries to go through them" was a flat margin of 2 regardless of budget, which almost never actually reached far enough sideways to include a real door/entrance for a typical room, so the solver came back "no path" and everything fell to the greedy walk-straight-at-the-wall-and-smash fallback instead. Capped rather than solved exactly for the budget so a close-together pilot/goal pair doesn't scan an enormous area just because the raw budget math would allow it.
 #define AI_PATHFIND_MAX_MARGIN 14
 /// Tiles a live target can drift from where a cached path was computed for before advance_along_path() throws it out and replans - keeps a moving target from forcing a fresh plan (and a fresh solver tie-break near corners) every single tick.
@@ -130,8 +136,14 @@
 #define AI_XENO_STAGE_COOLDOWN 10 SECONDS
 /// How long after arriving at (or giving up on) a flee destination before the flee transition can re-latch - the window in which a still-hurt xeno rests/heals/fights back instead of re-entering the flee state machine every tick.
 #define AI_XENO_FLEE_REARM_DELAY 15 SECONDS
-/// Net tiles of drag progress after which a dragged marine counts as isolated and gets released (see process_drag()). Starting point for playtesting.
+/// Net tiles of drag progress after which a dragged marine counts as isolated and gets released (see process_drag()) if no wall cap was reachable in time - the old isolation-only fallback. Starting point for playtesting.
 #define AI_DRAG_MAX_DIST 10
+/// Chance per idle tick a Drone/Hivelord attempts to build a new hive wall cap (attempt_build_human_cap(), human_cap.dm) - deliberately much rarer than a fort-line wall/door tile, this is a standing capture slot, not routine perimeter upkeep.
+#define AI_HUMAN_CAP_BUILD_CHANCE 3
+/// Hard ceiling on how many hive wall caps a single hive is allowed to have built at once (hive.human_cap_structures) - keeps the AI from spamming an unbounded number of capture slots regardless of build-chance rolls.
+#define AI_XENO_MAX_HUMAN_CAPS 4
+/// Search radius attempt_cap_drag_victim() scans for the nearest empty hive wall cap once a drag has reached the hive's own weeds.
+#define AI_HUMAN_CAP_SEARCH_RADIUS 12
 /// Health fraction below which an idle xeno seeks out a planted resin fruit to eat (attempt_eat_fruit()). Starting point for playtesting.
 #define AI_XENO_EAT_FRUIT_HEALTH_PERCENT 0.6
 /// How far an idle hurt xeno scans for an edible planted fruit.
@@ -180,6 +192,8 @@
 #define AI_HUGGER_COVER_SEARCH_RADIUS 8
 /// How often check_movement_progress() samples distance to the approach goal.
 #define AI_XENO_STUCK_CHECK_INTERVAL 6 SECONDS
+/// How long hive_status's get_cached_ai_roster() reuses its last GLOB.ai_xeno_list snapshot before rebuilding - see that proc's doc comment. Every same-hive AI controller shares one rebuild per this window instead of each independently re-scanning the whole list every heartbeat, which is what actually scales with population size as a round goes on (not any single mob's own age).
+#define AI_HIVE_SCAN_CACHE_INTERVAL (0.5 SECONDS) // Short enough that pack/social/escort decisions never read meaningfully stale, long enough to actually amortize the scan cost across a hive's whole population.
 /// Consecutive no-improvement samples (see AI_XENO_STUCK_CHECK_INTERVAL) before check_movement_progress() gives up on the current target - real net progress resets this even while blocked_attempts itself keeps getting reset by successful smash-attacks that never actually close the distance.
 #define AI_XENO_STUCK_GIVEUP_TICKS 4
 /// How far an idle xeno will wander from its anchor while patrolling.

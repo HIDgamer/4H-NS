@@ -97,8 +97,8 @@
 		data["ai_debug_pathing"] = GLOB.ai_debug_pathing
 
 		data["spawner_enabled"] = GLOB.xeno_spawner_enabled
-		data["spawner_target_population"] = spawner_target_population()
 		var/datum/hive_status/spawner_hive = GLOB.xeno_spawner_hive ? GLOB.hive_datum[GLOB.xeno_spawner_hive] : null
+		data["spawner_target_population"] = spawner_target_population(spawner_hive)
 		data["spawner_hive_name"] = spawner_hive ? spawner_hive.name : "None"
 		data["spawner_phase"] = SSxeno_spawner.hive_phase
 

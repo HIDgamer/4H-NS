@@ -38,6 +38,8 @@
 	var/last_progress_check_time = 0
 	/// Consecutive no-progress checks (see AI_XENO_STUCK_CHECK_INTERVAL) where distance to approach_goal didn't shrink - unlike blocked_attempts, this isn't reset by a successful smash-attack, only by actual positional progress, so it catches "endlessly bashing one obstacle while a building blocks the real route" instead of only a fully-enclosed dead end.
 	var/no_progress_ticks = 0
+	/// TRUE once attempt_dig_through_stuck() has already had its one swing at whatever's blocking this particular stuck episode - see check_movement_progress()'s doc comment. Cleared the moment real distance progress resumes (same reset point as no_progress_ticks), so a genuinely new stuck episode always gets its own attempt rather than this staying latched forever after the first one.
+	var/dig_attempted_this_stuck = FALSE
 	/// world.time a pack-staging hold ends (see check_pack_staging(), xeno_ai_movement.dm) - 0 whenever not holding.
 	var/staged_until = 0
 	/// world.time this pilot may start another staging hold - set on every commit so a chase never turns into repeated stop-and-go.
@@ -64,6 +66,8 @@
 	var/next_path_attempt = 0
 	/// world.time advance_along_path() may next SUCCESSFULLY replan against a drifted goal (PATH_REPLAN_MIN_INTERVAL) - within the window the existing route keeps being consumed instead of re-solving the whole map every tick a live target moves.
 	var/next_replan_time = 0
+	/// Consecutive compute_path_global()/compute_path() failures against the current goal - see compute_path()'s doc comment on margin escalation. Reset on any successful solve and whenever the goal itself changes (acquire_target()/drop_target()), so a fresh target never inherits a stale streak from whatever was being chased before.
+	var/path_fail_streak = 0
 	/// Debug-only path visualization markers currently shown to admins - see update_debug_path_visual() (xeno_ai_movement.dm). Null whenever GLOB.ai_debug_pathing is off or path_queue is empty.
 	var/list/image/debug_path_images
 	/// Obstacle (wall/structure) currently committed to smashing through - see attack_blocking_obstacle()/get_blocking_obstacle(). Keeps a target shifting behind cover from making a different obstacle line up as "the" blocking one every tick, abandoning whatever damage was already dealt to the old one.
@@ -98,6 +102,8 @@
 	var/last_ability_time = 0
 	/// Random flavor callsign, drawn from a pool matching the pilot's caste role (see get_codename_pool()) - assigned once at attach. Lets the hive status roster (event_tab.dm's admin panel) tell a screen full of same-caste xenos apart at a glance instead of just listing "Drone" over and over, and gives a boss-tier xeno a suitably grander name than a builder gets.
 	var/codename
+	/// Perimeter turf currently committed to for attempt_build_human_cap() (human_cap.dm) - same "commit once, walk there across multiple idle ticks" pattern build_target_turf already uses for attempt_build_defense(), kept as a separate var rather than reusing that one since a Drone/Hivelord could in principle have both build behaviors available. Null whenever not mid-walk to a cap build site.
+	var/turf/human_cap_build_turf
 	/// Turf this xeno is traveling to (or already holding) for attempt_ambush_hide()'s "hide near the LZ" idle behavior - null whenever not mid-ambush.
 	var/turf/ambush_turf
 	/// TRUE once actually settled and xenohidden at ambush_turf, as opposed to still walking there - see attempt_ambush_hide().
@@ -556,10 +562,12 @@ GLOBAL_LIST_INIT(ai_codenames_brawler, list("Red Death", "Hail Mary", "Grim Tall
 
 /// Nearest other idle/patrolling same-hive xeno within pack range - see respond_to_pack_cohesion().
 /datum/xeno_ai_controller/proc/find_pack_buddy()
+	if(!pilot?.hive)
+		return null
 	var/mob/living/carbon/xenomorph/best
 	var/best_dist = INFINITY
-	for(var/mob/living/carbon/xenomorph/ally as anything in GLOB.ai_xeno_list)
-		if(ally == pilot || ally.stat == DEAD || ally.hivenumber != pilot.hivenumber)
+	for(var/mob/living/carbon/xenomorph/ally as anything in pilot.hive.get_cached_ai_roster())
+		if(ally == pilot || ally.stat == DEAD)
 			continue
 		if(ally.caste_type == XENO_CASTE_QUEEN || ally.caste_type == XENO_CASTE_KING)
 			continue
@@ -631,10 +639,12 @@ GLOBAL_LIST_INIT(ai_codenames_brawler, list("Red Death", "Hail Mary", "Grim Tall
 
 /// Nearest other truly-idle same-hive xeno within AI_XENO_SOCIAL_RANGE - see attempt_social_interaction(). Much tighter range than find_pack_buddy() - a "bumped into each other" vignette only reads right at point-blank range.
 /datum/xeno_ai_controller/proc/find_social_buddy()
+	if(!pilot?.hive)
+		return null
 	var/mob/living/carbon/xenomorph/best
 	var/best_dist = INFINITY
-	for(var/mob/living/carbon/xenomorph/ally as anything in GLOB.ai_xeno_list)
-		if(ally == pilot || ally.stat == DEAD || ally.hivenumber != pilot.hivenumber)
+	for(var/mob/living/carbon/xenomorph/ally as anything in pilot.hive.get_cached_ai_roster())
+		if(ally == pilot || ally.stat == DEAD)
 			continue
 		if(ally.caste_type == XENO_CASTE_QUEEN || ally.caste_type == XENO_CASTE_KING)
 			continue
@@ -1122,6 +1132,90 @@ GLOBAL_LIST_INIT(ai_codenames_brawler, list("Red Death", "Hail Mary", "Grim Tall
 		return pick(fallback_candidates)
 	return null
 
+/// Site check shared by both phases of attempt_build_human_cap() - open ground, not already sitting on another special hive structure or a working door.
+/datum/xeno_ai_controller/proc/is_valid_human_cap_site(turf/candidate)
+	if(!candidate || candidate.density)
+		return FALSE
+	if(locate(/obj/effect/alien/resin/special) in candidate)
+		return FALSE
+	if(locate(/obj/structure/machinery/door) in candidate)
+		return FALSE
+	return TRUE
+
+/**
+ * "Capturing of humans, dragged to the hive and captured to a wall as a cap
+ * for the hive" - the build half; attempt_cap_drag_victim() below is the
+ * delivery half (human_cap.dm has the full feature doc comment). Same
+ * two-call "commit to a site, walk there, build on the next call" pattern
+ * attempt_build_defense() already uses (a Drone/Hivelord's max_build_dist is
+ * 0, so building has to wait until she's actually standing on the site) -
+ * kept as its own separate commitment var (human_cap_build_turf) rather than
+ * reusing build_target_turf/build_target_wall_type, since nothing stops a
+ * caste from having both build behaviors rolling independently. Capped at
+ * AI_XENO_MAX_HUMAN_CAPS total per hive (hive.human_cap_structures) so this
+ * never spams an unbounded number of capture slots.
+ */
+/datum/xeno_ai_controller/proc/attempt_build_human_cap()
+	if(!pilot?.hive || !anchor_turf)
+		return FALSE
+	if(length(pilot.hive.human_cap_structures) >= AI_XENO_MAX_HUMAN_CAPS)
+		return FALSE
+
+	if(human_cap_build_turf)
+		if(!is_valid_human_cap_site(human_cap_build_turf))
+			human_cap_build_turf = null
+		else if(get_dist(pilot, human_cap_build_turf) > pilot.caste.max_build_dist)
+			travel_to(human_cap_build_turf, TRAVEL_FLAG_FORCE_OBSTACLES|TRAVEL_FLAG_AVOID_MOBS|TRAVEL_FLAG_STATIC_GOAL)
+			return TRUE
+		else
+			new /obj/effect/alien/resin/special/nest/human_cap(human_cap_build_turf, pilot.hive)
+			SSxeno_pathfinding?.flush_deltas() // See attempt_build_fort_line()'s identical call for why.
+			human_cap_build_turf = null
+			return TRUE
+
+	var/turf/build_turf = pick_defense_perimeter_turf()
+	if(!build_turf || !is_valid_human_cap_site(build_turf))
+		return FALSE
+
+	human_cap_build_turf = build_turf
+	return TRUE
+
+/**
+ * Delivery half - called from process_drag() every drag tick, not just on
+ * arrival (see that proc's doc comment on why the search radius alone is
+ * enough to gate this naturally). Finds the nearest already-built, still-
+ * empty hive wall cap and buckles drag_victim into it via buckle_mob()
+ * directly - same "skip the click-only entry point, call the real mechanics
+ * proc" pattern attempt_start_drag() already uses for do_pull() - rather
+ * than inventing a new capture mechanic; this just retargets the existing
+ * Predator-nest buckle flow (xeno_nest.dm) at a captured human. Returns
+ * FALSE (caller falls back to the old isolation-only release) if no empty
+ * cap exists within range - a hive with no caps built yet, or every existing
+ * one already occupied, still isolates exactly as before.
+ */
+/datum/xeno_ai_controller/proc/attempt_cap_drag_victim()
+	if(!pilot?.hive || !drag_victim)
+		return FALSE
+	var/obj/structure/bed/nest/structure/best
+	var/best_dist = INFINITY
+	for(var/obj/effect/alien/resin/special/nest/human_cap/cap as anything in pilot.hive.human_cap_structures)
+		if(QDELETED(cap) || QDELETED(cap.pred_nest) || cap.pred_nest.buckled_mob)
+			continue
+		var/dist = get_dist(pilot, cap)
+		if(dist > AI_HUMAN_CAP_SEARCH_RADIUS)
+			continue
+		if(dist < best_dist)
+			best_dist = dist
+			best = cap.pred_nest
+	if(!best)
+		return FALSE
+	if(!pilot.Adjacent(best))
+		travel_to(best, TRAVEL_FLAG_FORCE_OBSTACLES|TRAVEL_FLAG_AVOID_MOBS)
+		return TRUE
+	best.buckle_mob(drag_victim, pilot)
+	end_drag() // Whichever way buckle_mob() resolved (secured, or a rejected precondition/interrupted windup) this drag attempt is finished - a failed cap just falls back to a normal release via end_drag()'s own pull-stop.
+	return TRUE
+
 /**
  * Start-turf picker for a FRESH fort line (start_fort_line() only) - distinct
  * from pick_defense_perimeter_turf() above (still used as-is by the older
@@ -1211,6 +1305,8 @@ GLOBAL_LIST_INIT(ai_codenames_brawler, list("Red Death", "Hail Mary", "Grim Tall
 		return FALSE
 	if(would_block_passage(candidate))
 		return FALSE
+	if(would_seal_known_gate(candidate))
+		return FALSE
 	return TRUE
 
 /// Cheap, direct self-trap check: would placing a wall on candidate leave the pilot's own current tile with zero other open (non-dense) cardinal exits? The pilot is always within max_build_dist (<=1) of candidate, so this one tile is the case most likely to matter - no search needed.
@@ -1267,6 +1363,29 @@ GLOBAL_LIST_INIT(ai_codenames_brawler, list("Red Death", "Hail Mary", "Grim Tall
 		frontier = next_frontier
 		steps++
 	return length(to_reach) > 0 // Anything still unreached without going through candidate is cut off by it.
+
+/**
+ * "Common sense in building" continued - live-reported hivelords/drones
+ * walling off a gate they themselves just built a moment earlier, most often
+ * right after a turn_fort_line() corner. would_block_passage() above can't
+ * catch this on its own: a resin door defaults to closed (and only ever
+ * opens dynamically, e.g. for the marine/xeno actually walking through it),
+ * so it reads as plain turf density to that proc's live BFS the same as a
+ * solid wall - it never sees a nearby gate as a route worth protecting in
+ * the first place. This checks the explicit registry register_fort_gate()
+ * builds instead (hive_status.dm's fort_gate_approach_tiles), which knows
+ * which tiles are a gate's real walk-through approach regardless of whether
+ * the door happens to be open or closed at the moment this is called.
+ * Live-validates the door is still actually standing before rejecting -
+ * building near where a gate USED to be (destroyed since) is fine.
+ */
+/datum/xeno_ai_controller/proc/would_seal_known_gate(turf/candidate)
+	if(!pilot?.hive || !length(pilot.hive.fort_gate_approach_tiles))
+		return FALSE
+	var/turf/protected_gate_turf = pilot.hive.fort_gate_approach_tiles[candidate]
+	if(!protected_gate_turf)
+		return FALSE
+	return (locate(/obj/structure/mineral_door/resin) in protected_gate_turf) ? TRUE : FALSE
 
 /**
  * "Standard defense construction for xenos" - a real repeating wall line
@@ -1479,11 +1598,17 @@ GLOBAL_LIST_INIT(ai_codenames_brawler, list("Red Death", "Hail Mary", "Grim Tall
 	fort_line_last_built_turf = null
 	fort_line_gate_pending_turf = null
 
-/// Records a completed gate pair onto the hive so find_cover_turf()/find_defensible_turf() (xeno_ai_movement.dm) can find and prefer it - see hive_status.dm's fort_gates doc comment.
+/// Records a completed gate pair onto the hive so find_cover_turf()/find_defensible_turf() (xeno_ai_movement.dm) can find and prefer it - see hive_status.dm's fort_gates doc comment. Also records both gates' approach tiles (see hive_status.dm's fort_gate_approach_tiles doc comment) so a later wall placement can't seal this gate off - fort_line_dir is still this controller's own live build direction at the moment a gate pair completes (advance_fort_line() calls this from the same tick the second door tile is placed), so "perpendicular to the line" is well-defined here even though nothing downstream could reconstruct it later.
 /datum/xeno_ai_controller/proc/register_fort_gate(turf/gate_a, turf/gate_b)
 	if(!pilot?.hive)
 		return
 	pilot.hive.fort_gates += list(gate_a, gate_b)
+	var/perpendicular = turn(fort_line_dir, 90)
+	for(var/turf/gate_turf in list(gate_a, gate_b))
+		for(var/side_dir in list(perpendicular, turn(perpendicular, 180)))
+			var/turf/approach = get_step(gate_turf, side_dir)
+			if(approach)
+				pilot.hive.fort_gate_approach_tiles[approach] = gate_turf
 
 /**
  * "Drones and hivelords should plant eggs in the hive too" / "carrier will
@@ -1640,11 +1765,11 @@ GLOBAL_LIST_INIT(ai_codenames_brawler, list("Red Death", "Hail Mary", "Grim Tall
 
 /// Same-hive living xenos already within radius of a point, regardless of state - a crude "how crowded is it there already" gauge.
 /datum/xeno_ai_controller/proc/count_nearby_hive_members(turf/center_turf, radius)
-	if(!pilot || !center_turf)
+	if(!pilot?.hive || !center_turf)
 		return 0
 	var/count = 0
-	for(var/mob/living/carbon/xenomorph/hive_member as anything in GLOB.ai_xeno_list)
-		if(hive_member == pilot || hive_member.hivenumber != pilot.hivenumber || hive_member.stat == DEAD)
+	for(var/mob/living/carbon/xenomorph/hive_member as anything in pilot.hive.get_cached_ai_roster())
+		if(hive_member == pilot || hive_member.stat == DEAD)
 			continue
 		if(get_dist(hive_member, center_turf) <= radius)
 			count++
@@ -1936,11 +2061,11 @@ GLOBAL_LIST_INIT(ai_codenames_brawler, list("Red Death", "Hail Mary", "Grim Tall
 
 /// Living, non-fleeing same-hive AI xenos within radius tiles - used by should_flee() to judge whether backup is close enough that disengaging isn't necessary.
 /datum/xeno_ai_controller/proc/count_nearby_hive_allies(radius)
-	if(!pilot)
+	if(!pilot?.hive)
 		return 0
 	var/count = 0
-	for(var/mob/living/carbon/xenomorph/ally as anything in GLOB.ai_xeno_list)
-		if(ally == pilot || ally.stat == DEAD || ally.hivenumber != pilot.hivenumber)
+	for(var/mob/living/carbon/xenomorph/ally as anything in pilot.hive.get_cached_ai_roster())
+		if(ally == pilot || ally.stat == DEAD)
 			continue
 		if(ally.ai_controller?.ai_state == AI_STATE_RETURNING)
 			continue // Already disengaging itself - doesn't count as backup.
@@ -2140,6 +2265,18 @@ GLOBAL_LIST_INIT(ai_codenames_brawler, list("Red Death", "Hail Mary", "Grim Tall
 	if(!drag_victim.is_mob_incapacitated() && drag_victim.body_position != LYING_DOWN)
 		end_drag()
 		return FALSE
+
+	// Try delivering into an existing hive wall cap first (attempt_cap_drag_victim())
+	// - its own AI_HUMAN_CAP_SEARCH_RADIUS naturally gates this to only ever
+	// matter once the drag has actually gotten close to the hive, so this is
+	// safe to try every tick rather than needing a separate "have we arrived
+	// yet" state. Returns FALSE outright whenever nothing's reachable (no cap
+	// built yet, every existing one already occupied, or still too far away),
+	// so a hive with no caps falls straight through to the old isolation-only
+	// release below exactly as before.
+	if(attempt_cap_drag_victim())
+		return TRUE
+
 	if(drag_start_turf && get_dist(drag_start_turf, pilot) >= AI_DRAG_MAX_DIST)
 		end_drag()
 		return FALSE
@@ -2169,6 +2306,7 @@ GLOBAL_LIST_INIT(ai_codenames_brawler, list("Red Death", "Hail Mary", "Grim Tall
 	no_progress_ticks = 0
 	stale_attack_ticks = 0
 	staged_until = 0
+	path_fail_streak = 0
 	ai_state = AI_STATE_APPROACHING
 	pilot.emote("hiss") // Fires exactly once on first contact, not every tick spent chasing - a quiet patrol suddenly noticing prey.
 	if(pilot.resting)
@@ -2407,6 +2545,7 @@ GLOBAL_LIST_INIT(ai_codenames_brawler, list("Red Death", "Hail Mary", "Grim Tall
 	blocked_attempts = 0
 	path_queue = null
 	path_goal = null
+	path_fail_streak = 0
 	last_sidestep_dir = null
 	fallback_walk_dir = null
 	if(should_search && last_seen_turf)

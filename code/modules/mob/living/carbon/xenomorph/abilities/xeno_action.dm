@@ -3,7 +3,6 @@
 	var/plasma_cost = 0
 	var/macro_path
 	/// Descriptive name of the ability, distinct from the action's display name
-	var/ability_name
 	var/action_type = XENO_ACTION_CLICK // Determines how macros interact with this action. Defines are in xeno.dm in the defines folder.
 	var/ability_primacy = XENO_NOT_PRIMARY_ACTION // Determines how the default ability macros handle this.
 

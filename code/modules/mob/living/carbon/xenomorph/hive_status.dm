@@ -9,6 +9,10 @@
 
 	var/hivenumber = XENO_HIVE_NORMAL
 	var/mob/living/carbon/xenomorph/queen/living_xeno_queen
+	/// Last GLOB.ai_xeno_list snapshot for this hive - see get_cached_ai_roster().
+	var/list/mob/living/carbon/xenomorph/cached_ai_roster = list()
+	/// world.time cached_ai_roster was last rebuilt.
+	var/cached_ai_roster_time = 0
 	var/egg_planting_range = 15
 	var/slashing_allowed = XENO_SLASH_ALLOWED //This initial var allows the queen to turn on or off slashing. Slashing off means harm intent does much less damage.
 	var/construction_allowed = NORMAL_XENO //Who can place construction nodes for special structures
@@ -60,6 +64,10 @@
 	var/mob/living/carbon/xenomorph/queen_escort_boss
 	/// world.time SSxeno_spawner can next attempt to auto-replace a dead Queen for this hive - see xeno_spawner.dm's spawner_ensure_queen(). Throttles retry attempts rather than hammering a failing spawn every subsystem tick.
 	var/next_queen_spawn_attempt = 0
+	/// The Drone currently mid-ascension to Queen - see start_queen_evolution()/finish_queen_evolution(). Null whenever no evolution is in progress.
+	var/mob/living/carbon/xenomorph/drone/evolving_to_queen = null
+	/// Every built /obj/effect/alien/resin/special/nest/human_cap belonging to this hive (human_cap.dm) - registered/unregistered on Initialize()/Destroy(), same lifecycle discipline as fort_gates. See count_active_human_caps().
+	var/list/obj/effect/alien/resin/special/nest/human_cap/human_cap_structures = list()
 	/// Persistent rally point set by a Hive Leader/admin command console (xeno_command_console.dm) - freshly spawned/evolved AI xenos anchor here instead of their spawn point (see xeno_ai_lifecycle.dm's attach_xeno_ai()) once set. Null means "no rally point, use the default spawn-point anchor" - unlike the alert/escort broadcasts above, this deliberately has no staleness window; a commander's staging point should hold until explicitly changed.
 	var/turf/rally_turf
 	/// Autonomous "the hive's frontier has advanced here" turf - set by SSxeno_spawner (update_hive_phase()) when an assault phase ends with the hive holding the LZ and no immediate hostile threat nearby. Distinct from rally_turf (a player's deliberate staging order, never auto-overwritten by this) - this is the AI's own signal that ground was actually won and should be treated as new home territory, not just a transient LZ push. Null until the hive has actually banked a frontier advance. See attach_xeno_ai()'s anchor precedence (xeno_ai_lifecycle.dm).
@@ -71,6 +79,9 @@
 
 	/// Turfs of completed AI-built fort gates (paired resin doors flanked by wall runs - see xeno_ai_controller.dm's attempt_build_fort_line()/register_fort_gate()). Checked by find_cover_turf()/find_defensible_turf() (xeno_ai_movement.dm) so fleeing/kiting/cautious-approach xenos prefer a real built ambush pocket over an ad hoc tile. Entries aren't pruned if the gate is later destroyed - a stale entry just fails the caller's own can-still-use-this check, same tolerance as committed_cover_turf elsewhere.
 	var/list/turf/fort_gates = list()
+
+	/// approach turf -> the gate turf it belongs to, for every completed AI-built fort gate (see register_fort_gate()) - the two tiles immediately perpendicular to the line's build direction on either side of each door, i.e. the tiles something actually stands on to walk through the gate. is_valid_ai_build_site()/would_seal_known_gate() (xeno_ai_controller.dm) reject a later wall placement here so a corner turn or continuing segment can't seal a gate's own approach shut - a closed resin door reads as plain density to would_block_passage()'s live BFS, so that check alone never protects a gate it can't see through. Live-validated at check time (the gate turf still needs an actual resin door on it), same "don't bother pruning, just re-check" tolerance as fort_gates above.
+	var/list/turf/fort_gate_approach_tiles = list()
 
 	var/tier_slot_multiplier = 1
 	var/larva_gestation_multiplier = 1
@@ -221,6 +232,25 @@
 		addtimer(CALLBACK(src, PROC_REF(ensure_roundstart_queen)), XENO_ROUNDSTART_QUEEN_GUARANTEE_DELAY)
 
 /**
+ * "The queen spawns at the start of the round even if the [AI] spawner is
+ * disabled" - live-reported specifically against PVE Hive: an admin
+ * disabling the Xeno Spawner from the Hive Command Console mid-lobby (or
+ * before round start) expects NO xenos at all, but this guarantee ignored
+ * that and spawned a Queen anyway. Scoped narrowly to PVE Hive rather than a
+ * blanket GLOB.xeno_spawner_enabled check - every OTHER gamemode forces that
+ * flag off by design (game_mode.dm's base pre_setup()) since the AI Spawner
+ * subsystem only ever runs in PVE Hive at all, so a bare flag check here
+ * would silently kill this guarantee - the only thing that gives a normal
+ * Distress Signal-style round a Queen at all when nobody picks the antag
+ * Queen role - on every single non-PVE-Hive round. Only PVE Hive's own
+ * explicit, admin-facing toggle should ever suppress this.
+ */
+/datum/hive_status/proc/should_guarantee_roundstart_queen()
+	if(!istype(SSticker.mode, /datum/game_mode/colonialmarines/pve_hive))
+		return TRUE // Not PVE Hive - GLOB.xeno_spawner_enabled isn't a meaningful signal here, always guarantee.
+	return GLOB.xeno_spawner_enabled
+
+/**
  * "One queen should be automatically spawned every round start" - whether a
  * Queen ever exists is otherwise purely a player-lottery outcome
  * (cm_initialize.dm's initialize_starting_xenomorph_list() only assigns one
@@ -229,12 +259,135 @@
  * Fired once, timed after this proc's own caller (COMSIG_GLOB_MODE_POSTSETUP)
  * to run well after job assignment/character equip has already resolved any
  * player Queen pick. Reuses spawner_ensure_queen() (xeno_spawner.dm) rather
- * than a separate spawn path, and deliberately independent of
- * GLOB.xeno_spawner_enabled/GLOB.xeno_spawner_hive - this guarantee has to
- * hold even with the admin Spawner toggled off entirely.
+ * than a separate spawn path. On every gamemode except PVE Hive this holds
+ * even with GLOB.xeno_spawner_enabled off - see should_guarantee_roundstart_queen()'s
+ * doc comment for why that flag isn't a meaningful signal outside PVE Hive.
  */
 /datum/hive_status/proc/ensure_roundstart_queen()
+	if(!should_guarantee_roundstart_queen())
+		return
 	spawner_ensure_queen(src)
+
+/**
+ * "When the queen dies a drone has to evolve to the queen, not just a new
+ * queen spawning in - it's a slow process." Called by spawner_ensure_queen()
+ * (xeno_spawner.dm) whenever the Core already stands - the common "just lost
+ * the Queen, hive is otherwise fine" case - instead of that proc's old
+ * instant spawn-from-nothing. Picks a living, AI-piloted Drone (never
+ * player-controlled - a player's own Drone should never be yanked into
+ * becoming the Queen against their will, the same carve-out
+ * recover_hive_from_no_queen() (colonialmarines.dm) already makes for its
+ * own true-emergency swap) and commits her to ascending, completing the
+ * actual replace_ai_xeno_mob() swap only once xeno_queen_timer elapses - the
+ * exact same "must wait for the hive to recover from the previous Queen's
+ * death" cooldown a REAL player already has to sit out to evolve into Queen
+ * (Evolution.dm's own xeno_queen_timer check, set on every Queen death
+ * regardless of player/AI by Queen.dm's death() override), reused directly
+ * rather than inventing a separate duration. Uses a real addtimer() (not a
+ * "check again next call" poll) so the ascension completes on its own even
+ * on gamemodes where nothing calls spawner_ensure_queen() again for a long
+ * while afterward (SSxeno_spawner only ever fires automatically in PVE
+ * Hive - see that subsystem's own doc comment).
+ *
+ * Returns FALSE (caller falls through to the old instant bootstrap spawn) if
+ * no AI-piloted Drone exists to ascend at all - a hive that's lost every
+ * Drone too still needs some way back, and nothing can slowly evolve out of
+ * nothing.
+ */
+/datum/hive_status/proc/start_queen_evolution()
+	if(evolving_to_queen && !QDELETED(evolving_to_queen) && evolving_to_queen.stat != DEAD)
+		return TRUE // Already in progress - the timer already running will finish it.
+
+	var/mob/living/carbon/xenomorph/drone/candidate
+	for(var/mob/living/carbon/xenomorph/drone/drone as anything in totalXenos)
+		if(drone.stat == DEAD || drone.client || !drone.ai_controller)
+			continue
+		candidate = drone
+		break
+	if(!candidate)
+		return FALSE
+
+	evolving_to_queen = candidate
+	var/delay = max(xeno_queen_timer - world.time, 0)
+	addtimer(CALLBACK(src, PROC_REF(finish_queen_evolution), candidate), delay)
+	xeno_message(SPAN_XENOANNOUNCE("Without a Queen to lead us, one of our sisters begins the long transformation to take her place..."), hivenumber = hivenumber)
+	return TRUE
+
+/// Completes an ascension started by start_queen_evolution() once its timer elapses - a no-op if the candidate died or got claimed by a player mid-ascension (matching recover_hive_from_no_queen()'s own player-controlled carve-out) or if a Queen already returned some other way in the meantime.
+/datum/hive_status/proc/finish_queen_evolution(mob/living/carbon/xenomorph/drone/candidate)
+	if(evolving_to_queen != candidate)
+		return // Superseded or never really started - nothing to finish.
+	evolving_to_queen = null
+	if(QDELETED(candidate) || candidate.stat == DEAD || candidate.client)
+		return // Died or got claimed by a player mid-ascension - spawner_ensure_queen()'s own retry throttle picks this back up on its next call.
+	if(living_xeno_queen && living_xeno_queen.stat != DEAD)
+		return // Already replaced some other way (e.g. the true-emergency instant path) - don't double up.
+
+	var/mob_type = GLOB.RoleAuthority.get_caste_by_text(XENO_CASTE_QUEEN)
+	if(!mob_type)
+		return
+	var/mob/living/carbon/xenomorph/queen/new_queen = replace_ai_xeno_mob(candidate, mob_type)
+	if(!istype(new_queen))
+		return
+	new_queen.make_combat_effective()
+	xeno_message(SPAN_XENOANNOUNCE("The transformation is complete - a new Queen rises to lead the hive!"), hivenumber = hivenumber)
+
+/**
+ * "Capturing a human, capped to a wall, should increase the hive's total
+ * numbers by 1 for as long as that cap lives" - read live off
+ * human_cap_structures (human_cap.dm) rather than a separately maintained
+ * counter, since a captive can be freed several ways that have nothing to do
+ * with AI code at all (a marine cutting them loose, a welder burn, the cap
+ * structure itself destroyed, the captive simply dying) - a live scan can
+ * never drift out of sync with reality the way a manually-incremented/
+ * decremented var could if any one of those release paths ever missed
+ * updating it. Used by spawner_target_population() (xeno_spawner.dm) as an
+ * additive bonus to how many xenos the hive is allowed to have out at once.
+ */
+/datum/hive_status/proc/count_active_human_caps()
+	var/count = 0
+	for(var/obj/effect/alien/resin/special/nest/human_cap/cap as anything in human_cap_structures)
+		if(QDELETED(cap) || QDELETED(cap.pred_nest) || !cap.pred_nest.buckled_mob)
+			continue
+		var/mob/living/victim = cap.pred_nest.buckled_mob
+		if(!victim || victim.stat == DEAD)
+			continue
+		count++
+	return count
+
+/**
+ * "AI xenos get sluggish under lag as the round goes on" - live-diagnosed as
+ * a real cost, just not an age-based one: several xeno_ai_controller.dm/
+ * xeno_ai_movement.dm procs (count_engaged_allies(), get_pack_assault_status(),
+ * find_pack_buddy(), find_social_buddy(), count_nearby_hive_allies(),
+ * count_nearby_hive_members()) each independently walk the ENTIRE
+ * GLOB.ai_xeno_list (every AI xeno on every hive) every time they're called,
+ * which happens at normal per-mob heartbeat cadence. With N same-hive AI
+ * xenos each doing that full scan every heartbeat, the aggregate hive-wide
+ * cost is O(N^2) per heartbeat cycle and grows as the round's population
+ * grows - which reads exactly like "gets worse over time" even though no
+ * single mob's own state ever changes.
+ *
+ * This doesn't stop any individual proc from scanning - it just gives every
+ * one of them a single shared, already-hive-filtered list to scan instead of
+ * each re-deriving "which of these are actually on my hive" from the global
+ * list independently, and caps how often that shared list itself needs
+ * rebuilding (AI_HIVE_SCAN_CACHE_INTERVAL) rather than once per caller per
+ * heartbeat. Deliberately time-based staleness, not event-driven
+ * invalidation - the same "good enough, don't over-engineer" tolerance this
+ * controller already applies to committed_flank_turf/committed_cover_turf
+ * etc.; every consumer here already re-checks state/distance itself on
+ * every read, so a snapshot up to AI_HIVE_SCAN_CACHE_INTERVAL stale is a
+ * non-issue.
+ */
+/datum/hive_status/proc/get_cached_ai_roster()
+	if(world.time >= cached_ai_roster_time + AI_HIVE_SCAN_CACHE_INTERVAL)
+		cached_ai_roster = list()
+		for(var/mob/living/carbon/xenomorph/member as anything in GLOB.ai_xeno_list)
+			if(member.hivenumber == hivenumber)
+				cached_ai_roster += member
+		cached_ai_roster_time = world.time
+	return cached_ai_roster
 
 /datum/hive_status/proc/setup_evolution_announcements()
 	for(var/time in GLOB.xeno_evolve_times)

@@ -57,6 +57,9 @@
 	if(attempt_build_fort_line())
 		idle_activity = IDLE_ACTIVITY_BUILD
 		return
+	if(prob(AI_HUMAN_CAP_BUILD_CHANCE) && attempt_build_human_cap())
+		idle_activity = IDLE_ACTIVITY_BUILD
+		return
 	if(prob(AI_DRONE_BUILD_CHANCE) && attempt_plant_weeds())
 		idle_activity = IDLE_ACTIVITY_BUILD
 		return

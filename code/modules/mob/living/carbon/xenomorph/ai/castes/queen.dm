@@ -199,7 +199,7 @@
 /datum/xeno_ai_controller/queen/proc/hive_strong_enough_to_attack()
 	if(count_nearby_hive_allies(AI_QUEEN_ATTACK_ESCORT_RADIUS) < AI_QUEEN_ATTACK_MIN_ESCORT)
 		return FALSE
-	var/target_pop = spawner_target_population()
+	var/target_pop = spawner_target_population(pilot?.hive)
 	if(target_pop <= 0)
 		return TRUE
 	var/current = 0

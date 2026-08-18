@@ -182,8 +182,10 @@
 	var/inbound = 0
 	var/in_range = 0
 	var/engaged = 0
-	for(var/mob/living/carbon/xenomorph/ally as anything in GLOB.ai_xeno_list)
-		if(ally == pilot || ally.stat == DEAD || ally.hivenumber != pilot.hivenumber)
+	if(!pilot?.hive)
+		return list("inbound" = inbound, "in_range" = in_range, "engaged" = engaged)
+	for(var/mob/living/carbon/xenomorph/ally as anything in pilot.hive.get_cached_ai_roster())
+		if(ally == pilot || ally.stat == DEAD)
 			continue
 		var/datum/xeno_ai_controller/ally_controller = ally.ai_controller
 		if(!ally_controller || ally_controller.current_target != current_target)
@@ -209,6 +211,14 @@
  * AI_XENO_STUCK_GIVEUP_TICKS - should_flee() is already re-checked every
  * tick at the top of tick() itself, so a stuck pilot that's also hurt enough
  * to flee already does so on its own before this ever needs to run.
+ *
+ * "Make a path" - before actually giving up, a builder-capable caste
+ * (attempt_dig_through_stuck()) gets exactly one swing at whatever's
+ * directly blocking progress toward approach_goal, in case a real detour
+ * genuinely doesn't exist and forcing straight through is the only way out.
+ * Gated to fire at most once per stuck episode (dig_attempted_this_stuck) so
+ * a target that still can't be reached after the attempt gives up for real
+ * on the very next confirmation instead of smashing forever.
  */
 /datum/xeno_ai_controller/proc/check_movement_progress(atom/approach_goal)
 	if(!pilot || !approach_goal)
@@ -220,6 +230,7 @@
 	last_progress_check_time = world.time
 	if(isnull(last_progress_distance) || current_distance < last_progress_distance)
 		no_progress_ticks = 0
+		dig_attempted_this_stuck = FALSE
 	else
 		no_progress_ticks++
 	last_progress_distance = current_distance
@@ -228,7 +239,33 @@
 		return FALSE
 
 	no_progress_ticks = 0
-	drop_target(TRUE) // Truly stuck - go investigate the last-seen location / return to patrol instead of continuing to bash the same obstacle forever.
+	if(!dig_attempted_this_stuck)
+		dig_attempted_this_stuck = TRUE
+		if(attempt_dig_through_stuck(approach_goal))
+			return TRUE
+	drop_target(TRUE) // Truly stuck (and, if this caste can build, already tried digging through) - go investigate the last-seen location / return to patrol instead of continuing to bash the same obstacle forever.
+	return TRUE
+
+/**
+ * "Make a path or search a wider area for a way around" (search-a-wider-area
+ * half lives in compute_path()'s escalation, see path_fail_streak) - the
+ * "make a path" half. Reuses get_blocking_obstacle()/attack_blocking_obstacle(),
+ * the exact same primitive TRAVEL_FLAG_FORCE_OBSTACLES already uses for a
+ * single adjacent obstacle mid-route - this doesn't add any new smashing
+ * capability, it just also tries it from the stuck-detection path (which
+ * normally only ever routes movement, never forces combat on its own) as a
+ * genuine last resort. Scoped to castes that already have a real
+ * resin_build_order (Drone/Hivelord - the same gate get_defense_wall_type()
+ * already uses) so a non-builder caste that's truly stuck still just gives
+ * up exactly as before, rather than every caste turning into a wall-smasher.
+ */
+/datum/xeno_ai_controller/proc/attempt_dig_through_stuck(atom/approach_goal)
+	if(!pilot?.resin_build_order || !length(pilot.resin_build_order))
+		return FALSE
+	var/atom/blocking_obstacle = get_blocking_obstacle(approach_goal)
+	if(!blocking_obstacle)
+		return FALSE
+	attack_blocking_obstacle(blocking_obstacle)
 	return TRUE
 
 /**
@@ -384,11 +421,11 @@
 
 /// Same-hive AI xenos already actively approaching/attacking this exact target - see get_flanking_position()/process_movement()'s flanking check.
 /datum/xeno_ai_controller/proc/count_engaged_allies(atom/movable/target)
-	if(!pilot)
+	if(!pilot?.hive)
 		return 0
 	var/count = 0
-	for(var/mob/living/carbon/xenomorph/ally as anything in GLOB.ai_xeno_list)
-		if(ally == pilot || ally.stat == DEAD || ally.hivenumber != pilot.hivenumber)
+	for(var/mob/living/carbon/xenomorph/ally as anything in pilot.hive.get_cached_ai_roster())
+		if(ally == pilot || ally.stat == DEAD)
 			continue
 		var/datum/xeno_ai_controller/ally_controller = ally.ai_controller
 		if(!ally_controller || ally_controller.current_target != target)
@@ -619,9 +656,11 @@
 		path_goal = goal_turf
 		if(!path_queue || !length(path_queue))
 			path_failed = TRUE
+			path_fail_streak++ // See compute_path()'s doc comment - past AI_PATHFIND_ESCALATION_THRESHOLD consecutive failures against this same goal, the next attempt searches a wider local grid instead of giving up at the same fixed margin every time.
 			next_path_attempt = world.time + PATH_RETRY_COOLDOWN
 			return FALSE
 		path_failed = FALSE
+		path_fail_streak = 0
 		next_replan_time = world.time + PATH_REPLAN_MIN_INTERVAL
 
 	var/turf/pilot_turf = get_turf(pilot)
@@ -694,6 +733,15 @@
  * between two points in a room-and-corridor layout, so a wider margin is
  * what actually makes a detour through a door a few tiles off the direct
  * line visible to the solver.
+ *
+ * Once path_fail_streak (advance_along_path()) has piled up
+ * AI_PATHFIND_ESCALATION_THRESHOLD consecutive failures against essentially
+ * the same goal, both the margin cap and the cell budget widen
+ * (AI_PATHFIND_ESCALATED_MAX_MARGIN/AI_PATHFIND_ESCALATED_BUDGET_MULTIPLIER)
+ * for this one solve - "keep failing to find a path around, search a wider
+ * area for a way around." Left at the normal tighter cap otherwise so the
+ * common case (most replans succeed well within it) stays cheap; the
+ * escalated case is already rare and throttled by PATH_RETRY_COOLDOWN.
  */
 /datum/xeno_ai_controller/proc/compute_path(turf/goal_turf)
 	var/turf/pilot_turf = get_turf(pilot)
@@ -702,9 +750,11 @@
 
 	var/base_width = abs(pilot_turf.x - goal_turf.x) + 1
 	var/base_height = abs(pilot_turf.y - goal_turf.y) + 1
-	var/budget = get_pathfind_cell_budget()
+	var/escalated = path_fail_streak >= AI_PATHFIND_ESCALATION_THRESHOLD
+	var/budget = get_pathfind_cell_budget() * (escalated ? AI_PATHFIND_ESCALATED_BUDGET_MULTIPLIER : 1)
+	var/max_margin = escalated ? AI_PATHFIND_ESCALATED_MAX_MARGIN : AI_PATHFIND_MAX_MARGIN
 	var/margin = AI_PATHFIND_MIN_MARGIN
-	while(margin < AI_PATHFIND_MAX_MARGIN && (base_width + 2 * (margin + 1)) * (base_height + 2 * (margin + 1)) <= budget)
+	while(margin < max_margin && (base_width + 2 * (margin + 1)) * (base_height + 2 * (margin + 1)) <= budget)
 		margin++
 
 	var/min_x = max(min(pilot_turf.x, goal_turf.x) - margin, 1)
@@ -714,7 +764,7 @@
 
 	var/width = max_x - min_x + 1
 	var/height = max_y - min_y + 1
-	if(width <= 0 || height <= 0 || width * height > get_pathfind_cell_budget())
+	if(width <= 0 || height <= 0 || width * height > budget)
 		return null
 
 	var/list/blocked = list()

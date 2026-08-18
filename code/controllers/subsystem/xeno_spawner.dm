@@ -224,7 +224,17 @@ GLOBAL_LIST_INIT(xeno_spawner_caste_weights, list(
 	if(!hive.has_structure(XENO_STRUCTURE_CORE))
 		return
 
-	var/target = spawner_target_population()
+	// "The queen has to be alive, and the core has to be built with the queen on ovi, for
+	// xenomorphs to keep spawning" - the Core gate above only ever checked the structure, never
+	// the Queen herself; a hive could keep reinforcing indefinitely with a dead/missing Queen (the
+	// spawner_ensure_queen() call above this proc handles replacing her, but that can take a
+	// while - see spawner_ensure_queen()/next_queen_spawn_attempt) or with a live Queen who's
+	// simply not on her ovipositor (mirrors the exact ovipositor_check update_progression()
+	// already gates real player evolution progress on, life.dm's own Queen-on-ovi read).
+	if(!hive.living_xeno_queen || QDELETED(hive.living_xeno_queen) || hive.living_xeno_queen.stat == DEAD || !hive.living_xeno_queen.ovipositor)
+		return
+
+	var/target = spawner_target_population(hive)
 	var/current = 0
 	for(var/mob/living/carbon/xenomorph/xeno as anything in GLOB.ai_xeno_list)
 		if(xeno.hivenumber == hive.hivenumber && xeno.counts_for_slots)
@@ -292,19 +302,28 @@ GLOBAL_LIST_INIT(xeno_spawner_caste_weights, list(
 	strain_instance._add_to_xeno(xeno)
 
 /**
- * Auto-replaces a dead Queen whenever the Core still stands, so losing just the Queen isn't
- * a permanent loss for the hive - reuses the old Director's ensure_queen() logic and
- * reasoning essentially unchanged. Never double-spawns: add_xeno() (hive_status.dm) already
- * guards set_living_xeno_queen() behind if(!living_xeno_queen), and BYOND's single-threaded
- * execution means there's no window for a second call to run before hive.living_xeno_queen
- * is already populated by this same synchronous spawn.
+ * Bootstraps the very first Queen for a hive that never got a player one (no Core exists yet -
+ * round start, or a catastrophic collapse), OR - once the Core already stands - kicks off a slow
+ * drone-to-Queen ascension (hive_status.dm's start_queen_evolution()) instead of conjuring a
+ * fresh Queen from nothing. "When the queen dies a drone has to evolve to the queen, not just a
+ * new queen spawning in - it's a slow process": the instant spawn below is now reserved for the
+ * genuine bootstrap/no-Drone-left case; a hive that still has an AI Drone to ascend always takes
+ * the slow path instead. Never double-spawns: add_xeno() (hive_status.dm) already guards
+ * set_living_xeno_queen() behind if(!living_xeno_queen), and BYOND's single-threaded execution
+ * means there's no window for a second call to run before hive.living_xeno_queen is already
+ * populated by this same synchronous spawn.
  */
 /proc/spawner_ensure_queen(datum/hive_status/hive)
 	if(hive.living_xeno_queen && hive.living_xeno_queen.stat != DEAD)
 		return
+	if(hive.evolving_to_queen && !QDELETED(hive.evolving_to_queen) && hive.evolving_to_queen.stat != DEAD)
+		return // Already ascending - the timer already running (start_queen_evolution()) will finish it; don't queue a second attempt on top.
 	if(world.time < hive.next_queen_spawn_attempt)
 		return
 	hive.next_queen_spawn_attempt = world.time + XENO_SPAWNER_QUEEN_RETRY_INTERVAL
+
+	if(hive.has_structure(XENO_STRUCTURE_CORE) && hive.start_queen_evolution())
+		return // A candidate Drone is now slowly ascending - see start_queen_evolution()'s doc comment. Falls through to the instant bootstrap spawn below only when the Core doesn't exist yet, or no AI Drone is left to ascend.
 
 	var/turf/spawn_turf = spawner_pick_spawn_turf() || (hive.hive_location ? get_turf(hive.hive_location) : null)
 	if(!spawn_turf)
@@ -322,10 +341,16 @@ GLOBAL_LIST_INIT(xeno_spawner_caste_weights, list(
  * this across the codebase; alive + not-afk + marine-faction is "living, non-AFK marines
  * right now." Reuses GLOB.ai_difficulty_multiplier (the existing admin difficulty slider) as
  * the one and only difficulty knob rather than adding a second, competing setting.
+ *
+ * hive is optional (existing callers elsewhere in the codebase may not have one handy) - when
+ * passed, adds hive.count_active_human_caps() (hive_status.dm) as a flat bonus on top: "capping
+ * a human to a wall increases the hive's total numbers by 1 for as long as that cap lives."
  */
-/proc/spawner_target_population()
+/proc/spawner_target_population(datum/hive_status/hive)
 	var/marines_awake = get_active_player_count(TRUE, TRUE, TRUE, FACTION_MARINE)
 	var/target = XENO_SPAWNER_BASE_POP + round(marines_awake * XENO_SPAWNER_POP_PER_MARINE * GLOB.ai_difficulty_multiplier)
+	if(hive)
+		target += hive.count_active_human_caps()
 	return min(target, XENO_SPAWNER_MAX_POP)
 
 /// Flat weighted-random caste pick against GLOB.xeno_spawner_caste_weights, skipping any caste already at its admin-set per-caste cap (GLOB.ai_xeno_max_per_caste, untouched/orthogonal to this Spawner).

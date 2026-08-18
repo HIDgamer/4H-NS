@@ -598,7 +598,15 @@
 		// Called directly here too so losing just the Queen is never a
 		// permanent loss regardless of that admin toggle.
 		spawner_ensure_queen(dying_hive)
-		return dying_hive.living_xeno_queen ? TRUE : FALSE
+		if(dying_hive.living_xeno_queen)
+			return TRUE
+		if(dying_hive.evolving_to_queen && !QDELETED(dying_hive.evolving_to_queen))
+			// A sister is now slowly ascending (hive_status.dm's
+			// start_queen_evolution()/finish_queen_evolution()) rather than a
+			// Queen already existing outright - the round shouldn't end
+			// mid-transformation just because it isn't instant any more.
+			return TRUE
+		return FALSE
 
 	// Core is also gone - the hive can still recover if a living, AI-piloted
 	// Drone exists to ascend. A player-controlled Drone is deliberately never
