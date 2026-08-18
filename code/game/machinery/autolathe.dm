@@ -447,7 +447,7 @@
 		S.amount = multiplier
 
 /obj/structure/machinery/autolathe/proc/get_wire_descriptions()
-	return list(
+	return alist(
 		AUTOLATHE_WIRE_HACK = "Item template controller",
 		AUTOLATHE_WIRE_SHOCK = "Ground safety"
 	)

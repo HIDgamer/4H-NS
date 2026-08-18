@@ -2,9 +2,9 @@
 ARG BYOND_BASE_IMAGE=ubuntu:focal
 ARG UTILITY_BASE_IMAGE=alpine:3
 ARG PROJECT_NAME=colonialmarines
-ARG BYOND_MAJOR=514
-ARG BYOND_MINOR=1575
-ARG NODE_VERSION=16
+ARG BYOND_MAJOR=516
+ARG BYOND_MINOR=1687
+ARG NODE_VERSION=24
 ARG BYOND_UID=1000
 
 # BUILD_TYPE=standalone to build with juke in docker
@@ -36,13 +36,13 @@ COPY tools/docker/apt-node-prefs /etc/apt/preferences/
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y nodejs yarn g++-multilib && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # TGUI deps pre-caching, thin out files to serve as basis for layer caching
-FROM node:${NODE_VERSION}-buster AS tgui-thin
+FROM node:${NODE_VERSION}-bookworm AS tgui-thin
 COPY tgui /tgui
 RUN rm -rf docs public
 RUN find packages \! -name "package.json" -mindepth 2 -maxdepth 2 -print | xargs rm -rf
 
 # TGUI deps cache layer, actually gets the deps
-FROM node:${NODE_VERSION}-buster AS tgui-deps
+FROM node:${NODE_VERSION}-bookworm AS tgui-deps
 COPY --from=tgui-thin tgui /tgui
 WORKDIR /tgui
 RUN yarn install --immutable

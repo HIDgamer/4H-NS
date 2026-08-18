@@ -969,7 +969,7 @@ GLOBAL_LIST_EMPTY_TYPED(total_vending_machines, /obj/structure/machinery/vending
 	return 1
 
 /obj/structure/machinery/vending/proc/get_wire_descriptions()
-	return list(
+	return alist(
 		VENDING_WIRE_EXTEND = "Inventory control computer",
 		VENDING_WIRE_IDSCAN = "ID scanner",
 		VENDING_WIRE_SHOCK  = "Ground safety",
