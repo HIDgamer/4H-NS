@@ -115,6 +115,8 @@ GLOBAL_LIST_INIT(be_special_flags, list(
 	//Synthetic specific preferences
 	var/synthetic_name = "Undefined"
 	var/synthetic_type = SYNTH_GEN_THREE
+	//Synthetic K9 specific preference
+	var/k9_name = "Undefined"
 	//Predator specific preferences.
 	var/predator_name = "Undefined"
 	var/predator_gender = MALE

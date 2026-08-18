@@ -112,6 +112,8 @@
 	var/time_to_unequip = 0
 	/// Used to override hardcoded ON-MOB clothing dmis in human clothing proc (i.e. not the icon_state sprites).
 	var/icon_override = null
+	/// If TRUE, this item can still be worn by a species with species.restrict_to_k9_clothing (e.g. Synthetic K9 gear). Ignored for any other species.
+	var/k9_exclusive_wear = FALSE
 
 	var/list/sprite_sheets
 	var/list/item_icons
@@ -534,6 +536,14 @@
 			mob_equip = human.hud_used.equip_slots
 
 		if(human.species && !(slot in mob_equip))
+			return FALSE
+
+		//A K9's chassis can't fit normal human clothing - only items built for it (k9_exclusive_wear) can
+		//go in a visible clothing slot. Hands/ID/ears/pockets/restraints are unaffected - those aren't
+		//shaped to a body type the way a uniform or boots are.
+		if(human.species?.restrict_to_k9_clothing && !k9_exclusive_wear && (slot in list(WEAR_BODY, WEAR_JACKET, WEAR_HANDS, WEAR_FEET, WEAR_WAIST, WEAR_HEAD, WEAR_FACE, WEAR_EYES, WEAR_BACK, WEAR_J_STORE)))
+			if(!disable_warning)
+				to_chat(human, SPAN_WARNING("[src] wouldn't fit your chassis properly."))
 			return FALSE
 
 		if(uniform_restricted)

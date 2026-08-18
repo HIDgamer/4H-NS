@@ -1347,7 +1347,13 @@
 
 /obj/item/storage/belt/gun/proc/update_gun_icon(slot) //We do not want to use regular update_icon as it's called for every item inserted. Not worth the icon math.
 	var/mob/living/carbon/human/user = loc
-	var/obj/item/weapon/gun/current_gun = holster_slots[slot]["gun"]
+
+	// SAFETY CHECK: Ensure the slot list actually exists before reading from it
+	var/list/slot_data = holster_slots[slot]
+	if(!istype(slot_data))
+		return
+
+	var/obj/item/weapon/gun/current_gun = slot_data["gun"]
 	if(current_gun)
 		/*
 		Have to use a workaround here, otherwise images won't display properly at all times.
@@ -1368,19 +1374,19 @@
 					gun_underlay = image('icons/obj/items/clothing/belts/holstered_guns.dmi', "c_" + current_gun.base_gun_icon)
 				if("urban")
 					gun_underlay = image('icons/obj/items/clothing/belts/holstered_guns.dmi', "u_" + current_gun.base_gun_icon)
-		gun_underlay.pixel_x = holster_slots[slot]["icon_x"]
-		gun_underlay.pixel_y = holster_slots[slot]["icon_y"]
+		gun_underlay.pixel_x = slot_data["icon_x"]
+		gun_underlay.pixel_y = slot_data["icon_y"]
 		gun_underlay.color = current_gun.color
-		gun_underlay.transform = holster_slots[slot]["underlay_transform"]
-		holster_slots[slot]["underlay_sprite"] = gun_underlay
+		gun_underlay.transform = slot_data["underlay_transform"]
+		slot_data["underlay_sprite"] = gun_underlay
 		underlays += gun_underlay
 
 		icon_state += "_g"
 		item_state = icon_state
 	else
 		playsound(src, sheatheSound, 7, TRUE)
-		underlays -= holster_slots[slot]["underlay_sprite"]
-		holster_slots[slot]["underlay_sprite"] = null
+		underlays -= slot_data["underlay_sprite"]
+		slot_data["underlay_sprite"] = null
 
 		icon_state = copytext(icon_state,1,-2)
 		item_state = icon_state
@@ -1399,7 +1405,10 @@
 
 	if(isgun(W))
 		for(var/slot in holster_slots)
-			if(!holster_slots[slot]["gun"]) //Open holster.
+			var/list/slot_data = holster_slots[slot]
+			if(!istype(slot_data))
+				continue
+			if(!slot_data["gun"]) //Open holster.
 				return
 
 		if(!stop_messages) //No open holsters.
@@ -1418,9 +1427,12 @@
 	if(isgun(W))
 		holstered_guns += W
 		for(var/slot in holster_slots)
-			if(holster_slots[slot]["gun"])
+			var/list/slot_data = holster_slots[slot]
+			if(!istype(slot_data))
 				continue
-			holster_slots[slot]["gun"] = W
+			if(slot_data["gun"])
+				continue
+			slot_data["gun"] = W
 			update_gun_icon(slot)
 			break
 	..()
@@ -1429,9 +1441,12 @@
 	if(isgun(W))
 		holstered_guns -= W
 		for(var/slot in holster_slots)
-			if(holster_slots[slot]["gun"] != W)
+			var/list/slot_data = holster_slots[slot]
+			if(!istype(slot_data))
 				continue
-			holster_slots[slot]["gun"] = null
+			if(slot_data["gun"] != W)
+				continue
+			slot_data["gun"] = null
 			update_gun_icon(slot)
 			break
 	..()
@@ -1865,7 +1880,13 @@
 /obj/item/storage/belt/gun/m44/gunslinger/Initialize()
 	var/matrix/M = matrix()
 	M.Scale(-1, 1) //Flip the sprite of the second gun.
-	holster_slots["2"]["underlay_transform"] = M
+	if(!holster_slots)
+		holster_slots = list()
+	if(!holster_slots["2"])
+		holster_slots["2"] = list()
+	var/list/slot_data = holster_slots["2"]
+	if(istype(slot_data))
+		slot_data["underlay_transform"] = M
 	. = ..()
 
 /obj/item/storage/belt/gun/m44/gunslinger/full/fill_preset_inventory()

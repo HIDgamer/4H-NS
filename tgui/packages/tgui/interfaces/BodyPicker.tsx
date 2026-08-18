@@ -15,27 +15,21 @@ type PickerData = {
   icon: string;
   body_types: { name: string; icon: string }[];
   skin_colors: { name: string; icon: string; color: string }[];
-  body_sizes: { name: string; icon: string }[];
 
   body_type: string;
   skin_color: string;
-  body_size: string;
+  gender: string;
 };
 
 export const BodyPicker = () => {
-  const { data } = useBackend<PickerData>();
+  const { act, data } = useBackend<PickerData>();
 
-  const { icon, body_size, body_type, skin_color, body_types, body_sizes } =
-    data;
+  const { icon, gender, body_type, skin_color, body_types } = data;
 
-  const [picker, setPicker] = useState<'type' | 'size' | undefined>();
+  const [picker, setPicker] = useState<'type' | undefined>();
 
   const unselectedBodyType = body_types.filter(
     (val) => val.icon !== body_type,
-  )[0];
-
-  const unselectedBodySize = body_sizes.filter(
-    (val) => val.icon !== body_size,
   )[0];
 
   return (
@@ -43,7 +37,7 @@ export const BodyPicker = () => {
       <Window.Content className="BodyPicker">
         {picker && (
           <Modal m={1}>
-            <TypePicker picker={setPicker} toUse={picker} />
+            <TypePicker picker={setPicker} />
           </Modal>
         )}
         <Stack>
@@ -52,7 +46,7 @@ export const BodyPicker = () => {
               <Stack.Item>
                 <DmIcon
                   icon={icon}
-                  icon_state={`${skin_color}_torso_${body_size}_${body_type}`}
+                  icon_state={`${skin_color}_torso_${body_type}_${gender}`}
                   width={'128px'}
                   mt={-5}
                 />
@@ -71,7 +65,7 @@ export const BodyPicker = () => {
                         <DmIcon
                           position="relative"
                           icon={icon}
-                          icon_state={`${skin_color}_torso_${body_size}_${unselectedBodyType.icon}`}
+                          icon_state={`${skin_color}_torso_${unselectedBodyType.icon}_${gender}`}
                           width={'80px'}
                           right={'22px'}
                           bottom={'18px'}
@@ -82,18 +76,12 @@ export const BodyPicker = () => {
                 </Stack.Item>
                 <Stack.Item>
                   <Button width={'4em'} height={'4em'}>
-                    <Tooltip
-                      content={'Change Body Size'}
-                      position="bottom-start"
-                    >
-                      <Box
-                        position="relative"
-                        onClick={() => setPicker('size')}
-                      >
+                    <Tooltip content={'Toggle Gender'} position="bottom-start">
+                      <Box position="relative" onClick={() => act('gender')}>
                         <DmIcon
                           position="relative"
                           icon={icon}
-                          icon_state={`${skin_color}_torso_${unselectedBodySize.icon}_${body_type}`}
+                          icon_state={`${skin_color}_torso_${body_type}_${gender === 'male' ? 'female' : 'male'}`}
                           width={'80px'}
                           right={'22px'}
                           bottom={'18px'}
@@ -114,41 +102,29 @@ export const BodyPicker = () => {
   );
 };
 
-const TypePicker = (props: {
-  readonly picker: (_) => void;
-  readonly toUse: 'type' | 'size';
-}) => {
+const TypePicker = (props: { readonly picker: (_) => void }) => {
   const { data, act } = useBackend<PickerData>();
 
-  const { picker, toUse } = props;
+  const { picker } = props;
 
-  const { body_type, body_types, skin_color, body_size, body_sizes, icon } =
-    data;
-
-  const toIterate = toUse === 'type' ? body_types : body_sizes;
-
-  const active = toUse === 'type' ? body_type : body_size;
+  const { body_type, body_types, skin_color, gender, icon } = data;
 
   return (
     <Stack>
-      {toIterate.map((type) => (
+      {body_types.map((type) => (
         <Stack.Item key={type.name}>
           <Tooltip content={type.name}>
             <Box
               onClick={() => {
                 picker(undefined);
-                act(toUse, { name: type.name });
+                act('type', { name: type.name });
               }}
               position="relative"
-              className={`typePicker ${active === type.icon ? 'active' : ''}`}
+              className={`typePicker ${body_type === type.icon ? 'active' : ''}`}
             >
               <DmIcon
                 icon={icon}
-                icon_state={
-                  toUse === 'type'
-                    ? `${skin_color}_torso_${body_size}_${type.icon}`
-                    : `${skin_color}_torso_${type.icon}_${body_type}`
-                }
+                icon_state={`${skin_color}_torso_${type.icon}_${gender}`}
                 width={'80px'}
               />
             </Box>

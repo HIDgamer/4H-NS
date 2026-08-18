@@ -1,22 +1,25 @@
 import { useState } from 'react';
-import { useBackend } from 'tgui/backend';
-import { Button, Input, Section, Stack, Tabs } from 'tgui/components';
-import { Window } from 'tgui/layouts';
+
+import { useBackend } from '../backend';
+import { Button, Input, Section, Stack, Tabs } from '../components';
+import { Window } from '../layouts';
+
+type Transmitter = {
+  phone_category: string;
+  phone_color: string;
+  phone_id: string;
+  phone_icon: string | null;
+};
 
 type Data = {
   availability: number;
   last_caller: string | null;
-  available_transmitters: string[];
-  transmitters: {
-    phone_category: string;
-    phone_color: string;
-    phone_id: string;
-    phone_icon: string;
-  }[];
+  available_transmitters: Record<string, unknown>;
+  transmitters: Transmitter[];
 };
 
 export const PhoneMenu = (props) => {
-  const { act, data } = useBackend();
+  const { act, data } = useBackend<Data>();
   return (
     <Window width={500} height={400}>
       <Window.Content>
@@ -26,7 +29,7 @@ export const PhoneMenu = (props) => {
   );
 };
 
-const GeneralPanel = (props) => {
+export const GeneralPanel = (props) => {
   const { act, data } = useBackend<Data>();
   const { availability, last_caller } = data;
   const available_transmitters = Object.keys(data.available_transmitters);
@@ -43,8 +46,17 @@ const GeneralPanel = (props) => {
   }
 
   const [currentSearch, setSearch] = useState('');
-  const [selectedPhone, setSelectedPhone] = useState('');
-  const [currentCategory, setCategory] = useState(categories[0]);
+  const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
+  // Not just useState(categories[0]): if the very first render happens before any transmitters
+  // are reachable yet (e.g. right as the tab opens), that would lock currentCategory to undefined
+  // forever — useState's initial value only runs once on mount, so it would never pick up
+  // categories that show up on a later poll. Falling back here instead means a stale/invalid
+  // selection self-heals on the next render rather than permanently hiding every phone.
+  const [rawCategory, setCategory] = useState<string | undefined>(undefined);
+  const currentCategory =
+    rawCategory && categories.includes(rawCategory)
+      ? rawCategory
+      : categories[0];
 
   let dnd_tooltip = 'Do Not Disturb is DISABLED';
   let dnd_locked = 'No';
@@ -91,7 +103,7 @@ const GeneralPanel = (props) => {
               {transmitters.map((val) => {
                 if (
                   val.phone_category !== currentCategory ||
-                  !val.phone_id.toLowerCase().match(currentSearch)
+                  !val.phone_id.toLowerCase().includes(currentSearch)
                 ) {
                   return;
                 }
@@ -112,7 +124,7 @@ const GeneralPanel = (props) => {
                         ? (document.activeElement as HTMLElement).blur()
                         : false
                     }
-                    icon={val.phone_icon}
+                    icon={val.phone_icon ?? undefined}
                   >
                     {val.phone_id}
                   </Tabs.Tab>

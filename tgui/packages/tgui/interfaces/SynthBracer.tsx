@@ -9,6 +9,14 @@ import {
 } from 'tgui/components';
 import { Window } from 'tgui/layouts';
 
+import { CameraContent } from './CameraConsole';
+import {
+  DropshipDisabledScreen,
+  DropshipNavigationProps,
+  RenderScreen,
+} from './DropshipFlightControl';
+import { GeneralPanel } from './PhoneMenu';
+
 type Data = {
   current_menu: string;
   logged_in: string;
@@ -16,11 +24,28 @@ type Data = {
   access_level: number;
   battery_charge: number;
   battery_charge_max: number;
+  // / Fraction of max charge below which the bracer is actually in SIMI_STATUS_LOWPOWER (static data).
+  battery_low_ratio: number;
   phone_ringing: boolean;
   is_on_ship: boolean;
   is_on_colony: boolean;
   has_tactical_map: boolean;
   owner_name: string | null;
+  active_ability: string;
+  active_utility: string;
+  motion_detector_active: boolean;
+  abilities: Ability[];
+};
+
+type Ability = {
+  ref: string;
+  name: string;
+  category: string;
+  charge_cost: number;
+  cooldown_s: number;
+  cooldown_remaining_s: number;
+  is_active: boolean;
+  can_afford: boolean;
 };
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -70,10 +95,17 @@ const SIMIStyles = () => (
       97% { opacity:0.7; }
     }
 
-    /* Root wrapper ─ static, so fixed-position overlays work correctly */
+    /* Root wrapper ─ static, so fixed-position overlays work correctly.
+       height:100% + flex column so pages that need to actually fill the window (Stack fill/grow,
+       e.g. the Cameras tab's live ByondUi view) have a real box to size against instead of
+       collapsing to auto/content height — without this, ByondUi measures a near-zero bounding
+       box and the embedded BYOND map control renders tiny regardless of window size. */
     .simi-root {
       background: ${C.bg};
+      height: 100%;
       min-height: 100%;
+      display: flex;
+      flex-direction: column;
       position: relative;
     }
 
@@ -98,10 +130,17 @@ const SIMIStyles = () => (
       z-index:9001;
     }
 
-    /* Content sits above overlays; boot animation lives here */
+    /* Content sits above overlays; boot animation lives here. flex:1 + min-height:0 completes the
+       fill chain from .simi-root down to whatever the current page renders — min-height:0 is the
+       standard fix for a flex child otherwise refusing to shrink below its content's natural size,
+       which would break both scrolling and the Cameras tab's fill/grow sizing. */
     .simi-content {
       position:relative;
       z-index:1;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
       animation:simi-boot 0.32s ease-out forwards;
     }
 
@@ -274,81 +313,6 @@ const Corners = ({ color = C.accent }: { readonly color?: string }) => (
   </>
 );
 
-// ─── External-window banner ───────────────────────────────────────────────────
-// Used by any page that launches an interface in a separate popup window.
-
-const ExternalWindowPanel = (props: {
-  readonly icon: string;
-  readonly label: string;
-  readonly statusLine: string;
-  readonly statusColor?: string;
-  readonly reopenAction: string;
-  readonly reopenLabel?: string;
-}) => {
-  const { act } = useBackend<Data>();
-  const {
-    icon,
-    label,
-    statusLine,
-    statusColor = 'good',
-    reopenAction,
-    reopenLabel = 'Reopen Window',
-  } = props;
-
-  return (
-    <Flex direction="column" align="center" mt={2} mb={2} gap={2}>
-      <Box
-        fontFamily="monospace"
-        fontSize="0.82rem"
-        color="label"
-        textAlign="center"
-        style={{
-          border: `1px solid ${C.border}`,
-          padding: '4px 10px',
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-        }}
-      >
-        {label}
-      </Box>
-
-      <Box
-        fontFamily="monospace"
-        fontSize="1.15rem"
-        bold
-        color={statusColor}
-        className="simi-pulse"
-      >
-        ● {statusLine}
-      </Box>
-
-      <Box
-        fontFamily="monospace"
-        fontSize="0.78rem"
-        color="label"
-        textAlign="center"
-        mt={1}
-      >
-        Interface launched in external window.
-        <br />
-        If the window closed, use the button below to reopen it.
-      </Box>
-
-      <Button
-        icon={icon}
-        width="210px"
-        textAlign="center"
-        p="0.5rem"
-        fontSize="0.85rem"
-        mt={1}
-        onClick={() => act(reopenAction)}
-      >
-        {reopenLabel}
-      </Button>
-    </Flex>
-  );
-};
-
 // ─── Page registry ────────────────────────────────────────────────────────────
 
 const PAGES: Record<string, () => React.ComponentType> = {
@@ -359,14 +323,32 @@ const PAGES: Record<string, () => React.ComponentType> = {
   dropship: () => DropshipControl,
   tactical: () => TacticalMap,
   phone: () => Phone,
+  abilities: () => Abilities,
+};
+
+// The Cameras and Dropship tabs embed genuinely data/visual-heavy content (a live camera feed
+// with a selector list side-by-side; a full flight computer screen) that doesn't fit comfortably
+// in the compact size the rest of the wrist computer's pages use — size the window per-page
+// instead of picking one compromise size for everything.
+// Sized generously above each embedded component's own native standalone-window size (Camera
+// 850x708, Dropship 700x500, WorkingJoe 1250x725 before trimming) to leave headroom for the
+// bracer's own NavHeader + simi-root/simi-content wrapper stacked on top of it — content designed
+// to fill an entire dedicated window on its own needs more than that window's exact size once
+// something else is sharing space above it.
+const WINDOW_SIZES: Record<string, [number, number]> = {
+  cameras: [900, 780],
+  dropship: [760, 660],
+  phone: [500, 540],
+  ati_maint: [720, 700],
 };
 
 export const SynthBracer = (props) => {
   const { data } = useBackend<Data>();
   const PageComponent = PAGES[data.current_menu]?.() ?? Login;
+  const [width, height] = WINDOW_SIZES[data.current_menu] ?? [460, 520];
 
   return (
-    <Window theme="ntos" width={460} height={520}>
+    <Window theme="ntos" width={width} height={height}>
       <SIMIStyles />
       <Window.Content scrollable>
         <Box className="simi-root">
@@ -389,11 +371,13 @@ const NavHeader = () => {
     current_menu,
     battery_charge,
     battery_charge_max,
+    battery_low_ratio,
     phone_ringing,
   } = data;
 
   const pct = battery_charge / battery_charge_max;
-  const batteryColor = pct > 0.6 ? 'good' : pct > 0.2 ? 'average' : 'bad';
+  const batteryColor =
+    pct > 0.6 ? 'good' : pct > battery_low_ratio ? 'average' : 'bad';
   const onMain = current_menu === 'main';
 
   return (
@@ -633,6 +617,15 @@ const MainMenu = () => {
         </Stack>
       </Section>
 
+      <Section title="Systems & Abilities">
+        <MenuButton
+          icon="bolt"
+          label="Installed Abilities"
+          tooltip="View and activate installed ability modules — anchor, protect, repair, and any chip-installed utilities."
+          action="page_abilities"
+        />
+      </Section>
+
       <Section title="Flight Operations">
         <MenuButton
           icon="helicopter"
@@ -655,42 +648,496 @@ const MainMenu = () => {
   );
 };
 
-// ─── AI Comms (Apollo PDA) ────────────────────────────────────────────────────
+// ─── Abilities ────────────────────────────────────────────────────────────────
+// Lists every action granted by this bracer (inherent + chip-installed) and
+// lets the wearer trigger them from here. Triggering routes through the same
+// can_use_action()/action_activate() entry point a hotbar click uses
+// (code/_onclick/hud/screen_objects.dm), so existing validation, chat
+// feedback, cooldowns and charge costs all behave identically either way —
+// this is a second control surface for the same abilities, not a reimplementation.
 
-const AIComms = () => {
+const AbilityRow = (props: { readonly ability: Ability }) => {
+  const { act } = useBackend<Data>();
+  const { ability } = props;
+  const {
+    ref,
+    name,
+    charge_cost,
+    cooldown_remaining_s,
+    is_active,
+    can_afford,
+  } = ability;
+
+  const onCooldown = cooldown_remaining_s > 0;
+  const disabled = onCooldown || (!can_afford && !is_active);
+
+  let statusLabel = 'Ready';
+  let statusColor: string = C.textDim;
+  if (is_active) {
+    statusLabel = 'Active';
+    statusColor = C.accent;
+  } else if (onCooldown) {
+    statusLabel = `Cooldown ${cooldown_remaining_s}s`;
+    statusColor = 'average';
+  } else if (!can_afford) {
+    statusLabel = `Needs ${charge_cost} charge`;
+    statusColor = 'bad';
+  }
+
+  return (
+    <Flex
+      align="center"
+      p="0.5rem 0.6rem"
+      mb={1}
+      style={{
+        border: `1px solid ${is_active ? C.accent : C.border}`,
+        background: is_active ? C.panelHover : C.panel,
+      }}
+    >
+      <Flex.Item grow={1}>
+        <Box fontFamily="monospace" fontSize="0.88rem" bold color={C.text}>
+          {name}
+        </Box>
+        <Box fontFamily="monospace" fontSize="0.75rem" color={statusColor}>
+          ● {statusLabel}
+          {charge_cost > 0 ? ` — ${charge_cost} charge/use` : ''}
+        </Box>
+      </Flex.Item>
+      <Flex.Item>
+        <Button
+          icon={is_active ? 'stop' : 'bolt'}
+          color={is_active ? 'bad' : undefined}
+          disabled={!is_active && disabled}
+          tooltip={
+            is_active
+              ? 'Deactivate'
+              : onCooldown
+                ? `On cooldown (${cooldown_remaining_s}s remaining)`
+                : !can_afford
+                  ? 'Not enough charge'
+                  : 'Activate'
+          }
+          onClick={() => act('trigger_ability', { action_ref: ref })}
+        >
+          {is_active ? 'Stop' : 'Use'}
+        </Button>
+      </Flex.Item>
+    </Flex>
+  );
+};
+
+const Abilities = () => {
   const { data } = useBackend<Data>();
-  const { logged_in, access_level } = data;
-  const connected = access_level > 0;
+  const { abilities = [] } = data;
+
+  const primary = abilities.filter((a) => a.category === 'primary');
+  const secondary = abilities.filter((a) => a.category !== 'primary');
 
   return (
     <>
       <NavHeader />
-      <Section title="ARES AI Core — Apollo Interface">
-        {connected ? (
-          <ExternalWindowPanel
-            icon="microchip"
-            label={`Secure uplink — ${(logged_in ?? '').toUpperCase()}`}
-            statusLine="ARES LINK ESTABLISHED"
-            statusColor="good"
-            reopenAction="reopen_ati"
-            reopenLabel="Reopen Apollo Interface"
-          />
+      <Section title="Primary Abilities">
+        {primary.length === 0 ? (
+          <Box fontFamily="monospace" fontSize="0.8rem" color={C.textDim}>
+            No primary ability modules installed.
+          </Box>
         ) : (
-          <Flex direction="column" align="center" mt={3} mb={3}>
-            <Box fontFamily="monospace" fontSize="1.15rem" bold color="bad">
-              ● NOT AUTHENTICATED
-            </Box>
-            <Box
-              fontFamily="monospace"
-              fontSize="0.82rem"
-              color="label"
-              textAlign="center"
-              mt={2}
-            >
-              Insufficient access level for ARES uplink.
-            </Box>
-          </Flex>
+          primary.map((ability) => (
+            <AbilityRow key={ability.ref} ability={ability} />
+          ))
         )}
+      </Section>
+      <Section title="Utility & Integrated Abilities">
+        {secondary.length === 0 ? (
+          <Box fontFamily="monospace" fontSize="0.8rem" color={C.textDim}>
+            No utility modules installed.
+          </Box>
+        ) : (
+          secondary.map((ability) => (
+            <AbilityRow key={ability.ref} ability={ability} />
+          ))
+        )}
+      </Section>
+    </>
+  );
+};
+
+// ─── AI Comms (Apollo PDA, trimmed) ────────────────────────────────────────────
+//
+// Embeds a deliberately reduced subset of WorkingJoe.tsx's pages — login, maintenance
+// reporting/management, the wearer's own access-ticket requests, and read-only logs. Excludes
+// the facility-wide admin/destructive controls (approving other people's access tickets, nerve
+// gas release, AI core lockdown) — see ALLOWED_APOLLO_ACTIONS in bracer_ui.dm for the
+// server-enforced side of this trim (these pages simply never render buttons for the excluded
+// actions; the server also refuses to forward them regardless of what any client sends).
+
+type MaintenanceTicket = {
+  id: number;
+  time: string;
+  priority_status: boolean;
+  category: string;
+  details: string;
+  status: string;
+  submitter: string;
+  assignee: string | null;
+  lock_status: string;
+  ref: string;
+};
+
+type AccessTicket = {
+  id: number;
+  time: string;
+  priority_status: boolean;
+  title: string;
+  details: string;
+  status: string;
+  submitter: string;
+  assignee: string | null;
+  lock_status: string;
+  ref: string;
+};
+
+type ApolloData = {
+  local_current_menu: string;
+  local_last_page: string;
+  local_logged_in: string | null;
+  local_access_text: string;
+  local_access_level: number;
+  apollo_log: string[];
+  apollo_access_log: string[];
+  maintenance_tickets: MaintenanceTicket[];
+  access_tickets: AccessTicket[];
+};
+
+const ApolloNavHeader = () => {
+  const { data, act } = useBackend<ApolloData>();
+  const { local_last_page, local_current_menu } = data;
+  return (
+    <Flex align="center" mb={1}>
+      <Box>
+        <Button
+          icon="arrow-left"
+          tooltip="Go back"
+          disabled={local_last_page === local_current_menu}
+          onClick={() => act('apollo_go_back')}
+        />
+        <Button
+          icon="house"
+          ml={1}
+          tooltip="Apollo Menu"
+          disabled={local_current_menu === 'main'}
+          onClick={() => act('apollo_home')}
+        />
+      </Box>
+      <Box ml="auto">
+        <Button.Confirm
+          icon="circle-user"
+          tooltip="Log out of Apollo"
+          confirmContent="Log out of Apollo?"
+          onClick={() => act('apollo_logout')}
+        >
+          Logout
+        </Button.Confirm>
+      </Box>
+    </Flex>
+  );
+};
+
+const ApolloMain = () => {
+  const { data, act } = useBackend<ApolloData>();
+  const { local_access_level } = data;
+
+  return (
+    <Section title="ARES AI Core — Apollo Interface">
+      <Stack vertical>
+        {local_access_level <= 2 && (
+          <Stack.Item>
+            <Button
+              icon="bullhorn"
+              fluid
+              textAlign="center"
+              onClick={() => act('page_request')}
+            >
+              Request Access Ticket
+            </Button>
+          </Stack.Item>
+        )}
+        {local_access_level === 3 && (
+          <Stack.Item>
+            <Button.Confirm
+              icon="eye"
+              fluid
+              textAlign="center"
+              onClick={() => act('return_access')}
+            >
+              Surrender Access Ticket
+            </Button.Confirm>
+          </Stack.Item>
+        )}
+        <Stack.Item>
+          <Button
+            icon="comments"
+            fluid
+            textAlign="center"
+            onClick={() => act('page_report')}
+          >
+            Maintenance Tickets
+          </Button>
+        </Stack.Item>
+        {local_access_level >= 5 && (
+          <Stack.Item>
+            <Button
+              icon="cart-shopping"
+              fluid
+              textAlign="center"
+              onClick={() => act('page_maintenance')}
+            >
+              Manage Maintenance Tickets
+            </Button>
+          </Stack.Item>
+        )}
+        {local_access_level >= 4 && (
+          <>
+            <Stack.Item>
+              <Button
+                icon="clipboard"
+                fluid
+                textAlign="center"
+                onClick={() => act('page_apollo')}
+              >
+                View Apollo Log
+              </Button>
+            </Stack.Item>
+            <Stack.Item>
+              <Button
+                icon="users"
+                fluid
+                textAlign="center"
+                onClick={() => act('page_logins')}
+              >
+                View Access Log
+              </Button>
+            </Stack.Item>
+          </>
+        )}
+      </Stack>
+    </Section>
+  );
+};
+
+const ApolloLogPage = () => {
+  const { data } = useBackend<ApolloData>();
+  return (
+    <Section title="Apollo Log" fill scrollable>
+      {data.apollo_log.map((line, i) => (
+        <Box key={i} className="candystripe" p="0.5rem">
+          {line}
+        </Box>
+      ))}
+    </Section>
+  );
+};
+
+const LoginRecordsPage = () => {
+  const { data } = useBackend<ApolloData>();
+  return (
+    <Section title="Login Records" fill scrollable>
+      {data.apollo_access_log.map((line, i) => (
+        <Box key={i} className="candystripe" p="0.5rem">
+          {line}
+        </Box>
+      ))}
+    </Section>
+  );
+};
+
+const MaintReportsPage = () => {
+  const { data, act } = useBackend<ApolloData>();
+  const { maintenance_tickets, local_logged_in } = data;
+  return (
+    <Section title="Maintenance Reports" fill scrollable>
+      <Button
+        icon="exclamation-circle"
+        mb={1}
+        onClick={() => act('new_report')}
+      >
+        New Report
+      </Button>
+      {maintenance_tickets.map((ticket) => (
+        <Flex
+          key={ticket.ref}
+          className="candystripe"
+          p="0.5rem"
+          align="center"
+        >
+          <Flex.Item
+            bold
+            width="3rem"
+            color={ticket.priority_status ? 'bad' : undefined}
+          >
+            #{ticket.id}
+          </Flex.Item>
+          <Flex.Item grow>{ticket.details}</Flex.Item>
+          <Flex.Item width="6rem" color="label">
+            {ticket.status}
+          </Flex.Item>
+          <Flex.Item>
+            <Button.Confirm
+              icon="file-circle-xmark"
+              tooltip="Cancel Ticket"
+              disabled={
+                ticket.submitter !== local_logged_in ||
+                ticket.lock_status === 'CLOSED'
+              }
+              onClick={() => act('cancel_ticket', { ticket: ticket.ref })}
+            />
+          </Flex.Item>
+        </Flex>
+      ))}
+    </Section>
+  );
+};
+
+const MaintManagementPage = () => {
+  const { data, act } = useBackend<ApolloData>();
+  const { maintenance_tickets, local_logged_in } = data;
+  return (
+    <Section title="Maintenance Ticket Management" fill scrollable>
+      {maintenance_tickets.map((ticket) => (
+        <Flex
+          key={ticket.ref}
+          className="candystripe"
+          p="0.5rem"
+          align="center"
+        >
+          <Flex.Item
+            bold
+            width="3rem"
+            color={ticket.priority_status ? 'bad' : undefined}
+          >
+            #{ticket.id}
+          </Flex.Item>
+          <Flex.Item grow>{ticket.details}</Flex.Item>
+          <Flex.Item width="8rem" color="label">
+            {ticket.assignee ?? 'Unassigned'}
+          </Flex.Item>
+          <Flex.Item width="6rem" color="label">
+            {ticket.status}
+          </Flex.Item>
+          <Flex.Item>
+            <Button.Confirm
+              icon="user-lock"
+              tooltip="Claim Ticket"
+              disabled={ticket.lock_status === 'CLOSED'}
+              onClick={() => act('claim_ticket', { ticket: ticket.ref })}
+            />
+            <Button.Confirm
+              icon="user-gear"
+              tooltip="Mark Ticket"
+              disabled={
+                ticket.lock_status === 'CLOSED' ||
+                (ticket.assignee !== local_logged_in &&
+                  ticket.assignee !== null)
+              }
+              onClick={() => act('mark_ticket', { ticket: ticket.ref })}
+            />
+          </Flex.Item>
+        </Flex>
+      ))}
+    </Section>
+  );
+};
+
+const AccessRequestsPage = () => {
+  const { data, act } = useBackend<ApolloData>();
+  const { access_tickets, local_logged_in, local_access_level } = data;
+  return (
+    <Section title="Request Access" fill scrollable>
+      <Button
+        icon="exclamation-circle"
+        mb={1}
+        disabled={local_access_level > 2}
+        onClick={() => act('new_access')}
+      >
+        Create Ticket
+      </Button>
+      {access_tickets.map((ticket) => (
+        <Flex
+          key={ticket.ref}
+          className="candystripe"
+          p="0.5rem"
+          align="center"
+        >
+          <Flex.Item bold width="3rem">
+            #{ticket.id}
+          </Flex.Item>
+          <Flex.Item grow>{ticket.details}</Flex.Item>
+          <Flex.Item width="6rem" color="label">
+            {ticket.status}
+          </Flex.Item>
+          <Flex.Item>
+            <Button.Confirm
+              icon="file-circle-xmark"
+              tooltip="Cancel Ticket"
+              disabled={
+                ticket.submitter !== local_logged_in ||
+                ticket.lock_status === 'CLOSED'
+              }
+              onClick={() => act('cancel_ticket', { ticket: ticket.ref })}
+            />
+          </Flex.Item>
+        </Flex>
+      ))}
+    </Section>
+  );
+};
+
+const APOLLO_PAGES: Record<string, () => JSX.Element> = {
+  main: ApolloMain,
+  apollo: ApolloLogPage,
+  login_records: LoginRecordsPage,
+  maint_reports: MaintReportsPage,
+  maint_claim: MaintManagementPage,
+  access_requests: AccessRequestsPage,
+};
+
+const AIComms = () => {
+  const { data, act } = useBackend<Data & ApolloData>();
+  const { local_current_menu, local_logged_in, local_access_text } = data;
+
+  if (!local_current_menu || local_current_menu === 'login') {
+    return (
+      <>
+        <NavHeader />
+        <Section title="ARES AI Core — Apollo Interface">
+          <Flex direction="column" align="center" mt={3} mb={3} gap={2}>
+            <Box fontFamily="monospace" fontSize="1.05rem" bold>
+              APOLLO Maintenance Controller
+            </Box>
+            <Box fontFamily="monospace" fontSize="0.8rem" color="label">
+              Separate ARES credentials required — scan your ID.
+            </Box>
+            <Button
+              icon="id-card"
+              width="60%"
+              onClick={() => act('apollo_login')}
+            >
+              Login
+            </Button>
+          </Flex>
+        </Section>
+      </>
+    );
+  }
+
+  const ApolloPage = APOLLO_PAGES[local_current_menu] ?? ApolloMain;
+
+  return (
+    <>
+      <NavHeader />
+      <Section title={`Apollo — ${local_logged_in}, ${local_access_text}`}>
+        <ApolloNavHeader />
+        <ApolloPage />
       </Section>
     </>
   );
@@ -699,113 +1146,56 @@ const AIComms = () => {
 // ─── Camera Feed ──────────────────────────────────────────────────────────────
 
 const CameraFeed = () => {
-  const { data, act } = useBackend<Data>();
-  const { is_on_ship, is_on_colony } = data;
-
   return (
-    <>
-      <NavHeader />
-      <Section title="Camera Surveillance Networks">
-        <Flex direction="column" align="center" mt={1} mb={1} gap={1}>
-          <Box
-            fontFamily="monospace"
-            fontSize="0.8rem"
-            color="label"
-            mb={1}
-            style={{ textAlign: 'center', letterSpacing: '0.08em' }}
-          >
-            AVAILABLE NETWORKS
-          </Box>
-
-          {/* Network availability grid */}
-          <Flex wrap="wrap" gap={1} justify="center" mb={2}>
-            {[
-              { label: 'Almayer — Main Deck', available: is_on_ship },
-              { label: 'Almayer — Brig', available: is_on_ship },
-              { label: 'Almayer — ARES Core', available: is_on_ship },
-              { label: 'Alamo — Dropship', available: is_on_ship },
-              { label: 'Colony — Ground', available: is_on_colony },
-            ].map((net) => (
-              <Box
-                key={net.label}
-                fontFamily="monospace"
-                fontSize="0.75rem"
-                color={net.available ? 'good' : 'bad'}
-                style={{
-                  border: `1px solid ${net.available ? C.good + '44' : C.bad + '33'}`,
-                  padding: '2px 8px',
-                  borderRadius: '2px',
-                  opacity: net.available ? '1' : '0.5',
-                }}
-              >
-                {net.available ? '●' : '○'} {net.label}
-              </Box>
-            ))}
-          </Flex>
-
-          <Box
-            fontFamily="monospace"
-            fontSize="0.78rem"
-            color="label"
-            textAlign="center"
-            mb={2}
-          >
-            Camera console opens in an external window.
-          </Box>
-
-          <Button
-            icon="camera"
-            width="210px"
-            textAlign="center"
-            p="0.5rem"
-            fontSize="0.9rem"
-            onClick={() => act('open_cameras')}
-          >
-            Open Camera Console
-          </Button>
-        </Flex>
-      </Section>
-    </>
+    <Stack vertical fill>
+      <Stack.Item>
+        <NavHeader />
+      </Stack.Item>
+      <Stack.Item grow>
+        <CameraContent />
+      </Stack.Item>
+    </Stack>
   );
 };
 
 // ─── Dropship Control ─────────────────────────────────────────────────────────
 
 const DropshipControl = () => {
-  const { data } = useBackend<Data>();
-  const { is_on_ship } = data;
+  const { data } = useBackend<Data & DropshipNavigationProps>();
+  const { is_on_ship, is_disabled } = data;
 
   return (
-    <>
-      <NavHeader />
-      <Section title="Dropship Flight Computer — Remote">
+    <Stack vertical fill>
+      <Stack.Item>
+        <NavHeader />
+      </Stack.Item>
+      <Stack.Item grow>
         {is_on_ship ? (
-          <ExternalWindowPanel
-            icon="helicopter"
-            label="Almayer Flight Control — CIC Mode"
-            statusLine="REMOTE LINK ESTABLISHED"
-            statusColor="good"
-            reopenAction="reopen_dropship"
-            reopenLabel="Reopen Flight Computer"
-          />
+          is_disabled === 0 ? (
+            <RenderScreen />
+          ) : (
+            <DropshipDisabledScreen />
+          )
         ) : (
-          <Flex direction="column" align="center" mt={3} mb={3}>
-            <Box fontFamily="monospace" fontSize="1.15rem" bold color="bad">
-              ● LINK UNAVAILABLE
-            </Box>
-            <Box
-              fontFamily="monospace"
-              fontSize="0.82rem"
-              color="label"
-              textAlign="center"
-              mt={2}
-            >
-              Dropship remote access requires ship-side proximity.
-            </Box>
-          </Flex>
+          <Section fill>
+            <Flex direction="column" align="center" mt={3} mb={3}>
+              <Box fontFamily="monospace" fontSize="1.15rem" bold color="bad">
+                ● LINK UNAVAILABLE
+              </Box>
+              <Box
+                fontFamily="monospace"
+                fontSize="0.82rem"
+                color="label"
+                textAlign="center"
+                mt={2}
+              >
+                Dropship remote access requires ship-side proximity.
+              </Box>
+            </Flex>
+          </Section>
         )}
-      </Section>
-    </>
+      </Stack.Item>
+    </Stack>
   );
 };
 
@@ -866,22 +1256,14 @@ const TacticalMap = () => {
 // ─── Phone ────────────────────────────────────────────────────────────────────
 
 const Phone = () => {
-  const { data } = useBackend<Data>();
-  const { phone_ringing } = data;
-
   return (
-    <>
-      <NavHeader />
-      <Section title="Internal Communications">
-        <ExternalWindowPanel
-          icon="phone"
-          label={phone_ringing ? 'INCOMING CALL' : 'Internal Phone'}
-          statusLine={phone_ringing ? 'INCOMING CALL' : 'LINE OPEN'}
-          statusColor={phone_ringing ? 'bad' : 'good'}
-          reopenAction="reopen_phone"
-          reopenLabel="Reopen Phone Interface"
-        />
-      </Section>
-    </>
+    <Stack vertical fill>
+      <Stack.Item>
+        <NavHeader />
+      </Stack.Item>
+      <Stack.Item grow>
+        <GeneralPanel />
+      </Stack.Item>
+    </Stack>
   );
 };

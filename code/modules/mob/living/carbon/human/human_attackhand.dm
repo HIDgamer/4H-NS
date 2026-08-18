@@ -28,7 +28,11 @@
 
 			// If unconscious with oxygen damage, do CPR. If dead, we do CPR
 			if(!(stat == UNCONSCIOUS && getOxyLoss() > 0) && !(stat == DEAD))
-				help_shake_act(attacking_mob)
+				if(isk9synth(src))
+					attacking_mob.visible_message(SPAN_NOTICE("[attacking_mob] pets [src]."), SPAN_NOTICE("You pet [src]."), null, 4)
+					open_mouth()
+				else
+					help_shake_act(attacking_mob)
 				return 1
 
 			if(cpr_attempt_timer >= world.time)

@@ -22,6 +22,8 @@
 				return "[ethnicity]_[limb_name]_[get_gender_name(gender)]"
 
 			if ("groin")
+				if(S.group == SPECIES_YAUTJA)
+					return "[ethnicity]_[limb_name]_[body_type]_[get_gender_name(gender)]"
 				return "[ethnicity]_[limb_name]_[get_gender_name(gender)]"
 
 			if("synthetic head")

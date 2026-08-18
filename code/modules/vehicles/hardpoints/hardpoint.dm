@@ -574,7 +574,11 @@
 		to_chat(user, SPAN_WARNING("<b>\The [name] is broken!</b>"))
 		return NONE
 
-	if(ammo && ammo.current_rounds <= 0)
+	// "Cannot read null.default_ammo"/"Cannot read null.current_rounds" - no
+	// magazine loaded at all (ammo null) fell through to firing anyway,
+	// since `ammo && ...` short-circuits to FALSE when ammo is null rather
+	// than treating "no magazine" the same as "empty magazine."
+	if(!ammo || ammo.current_rounds <= 0)
 		click_empty(user)
 		return NONE
 

@@ -13,6 +13,16 @@
 	var/deform = 'icons/mob/humans/species/r_def_human.dmi' // Mutated icon set.
 	var/icobase_source // if we want to use sourcing system
 	var/deform_source
+
+	/*
+		If set, /mob/living/carbon/human/proc/update_body() draws this single full-body sprite instead of
+		compositing the normal per-limb body (torso/head/arms/legs) - for a species whose body art was never
+		built as a limb-segmented sheet (e.g. Synthetic K9, which reuses a real human synthetic underneath
+		for stats/limbs/equipment, but shows one dog-shaped sprite instead of a human silhouette).
+	*/
+	var/body_sprite_icon
+	///Default (alive, standing) icon_state on body_sprite_icon - see /mob/living/carbon/human/proc/get_body_sprite_state(), overridable per-mob for things like an open/closed mouth variant.
+	var/body_sprite_prefix
 	var/eyes = "eyes_s"   // Icon for eyes.
 	var/special_body_types = FALSE
 	var/uses_ethnicity = FALSE  //Set to TRUE to load proper ethnicities and what have you
@@ -70,6 +80,9 @@
 	var/burn_mod = null  // Burn damage reduction/malus.
 
 	var/flags = 0    // Various specific features.
+
+	///If TRUE, this species can only wear clothing flagged /obj/item/var/k9_exclusive_wear - see the check in /obj/item/proc/mob_can_equip(). Currently only used by the Synthetic K9 species to keep it out of normal human clothing.
+	var/restrict_to_k9_clothing = FALSE
 
 	var/list/abilities = list() // For species-derived or admin-given powers
 

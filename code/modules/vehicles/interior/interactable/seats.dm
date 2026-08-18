@@ -65,6 +65,8 @@
 
 // Pass movement relays to the vehicle
 /obj/structure/bed/chair/comfy/vehicle/relaymove(mob/user, direction)
+	if(!vehicle) // The vehicle this seat belonged to was destroyed but the seat/occupant never got cleaned up - same guard handle_afterbuckle() already has.
+		return
 	vehicle.relaymove(user, direction)
 
 // Driver's seat

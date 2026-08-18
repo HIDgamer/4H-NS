@@ -29,6 +29,9 @@
 	var/ethnicity = "Western" // Ethnicity
 	var/body_type = "Mesomorphic (Average)" // Body Type
 
+	///world.time the mouth should stay in its "open" single-sprite-body state until - see open_mouth() in update_icons.dm. Only meaningful for species with body_sprite_icon set (e.g. Synthetic K9); harmless no-op for everyone else.
+	var/mouth_open_until = 0
+
 	//Skin color
 	var/r_skin = 0
 	var/g_skin = 0

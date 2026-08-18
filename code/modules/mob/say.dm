@@ -232,7 +232,7 @@ for it but just ignore it.
 
 /// Clears timed typing indicators
 /mob/proc/timed_typing_clear()
-	if(client.typing_indicators)
+	if(client?.typing_indicators) // The player can disconnect before this timer fires.
 		// Check it's one of ours
 		if(hud_typing == -1)
 			return

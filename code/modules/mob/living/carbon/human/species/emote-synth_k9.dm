@@ -19,6 +19,12 @@
 /datum/emote/living/carbon/human/synthetic/synth_k9/bark/get_sound(mob/living/user)
 	return pick('sound/voice/barkstrong1.ogg','sound/voice/barkstrong2.ogg','sound/voice/barkstrong3.ogg')
 
+/datum/emote/living/carbon/human/synthetic/synth_k9/bark/run_emote(mob/user, params, type_override, intentional = FALSE)
+	. = ..()
+	if(. && ishuman(user))
+		var/mob/living/carbon/human/H = user
+		H.open_mouth()
+
 //Threatening Growl
 /datum/emote/living/carbon/human/synthetic/synth_k9/growl
 	key = "growl"
@@ -29,3 +35,9 @@
 
 /datum/emote/living/carbon/human/synthetic/synth_k9/growl/get_sound(mob/living/user)
 	return pick('sound/voice/growl1.ogg','sound/voice/growl2.ogg','sound/voice/growl3.ogg','sound/voice/growl4.ogg')
+
+/datum/emote/living/carbon/human/synthetic/synth_k9/growl/run_emote(mob/user, params, type_override, intentional = FALSE)
+	. = ..()
+	if(. && ishuman(user))
+		var/mob/living/carbon/human/H = user
+		H.open_mouth()

@@ -149,3 +149,8 @@
 	desc = "Insert this into a synthetic experimental tools vendor in order to access a variety of experimental support tools."
 	icon_state = "coin_synth"
 	token_type = VEND_TOKEN_SYNTH
+
+/obj/item/coin/marine/synth/sam
+	name = "Sam's token"
+	desc = "A one-of-a-kind experimental tool redemption token. It's worth quite a bit more than the standard issue."
+	icon_state = "coin_synth"

@@ -116,6 +116,10 @@ There are several things that need to be remembered:
 
 	appearance_flags |= KEEP_TOGETHER // sanity
 
+	if(species.body_sprite_icon)
+		update_body_single_sprite()
+		return
+
 	update_damage_overlays()
 
 	var/list/needs_update = list()
@@ -162,6 +166,39 @@ There are several things that need to be remembered:
 				undershirt_icon.layer = -UNDERSHIRT_LAYER
 				overlays_standing[UNDERSHIRT_LAYER] = undershirt_icon
 				apply_overlay(UNDERSHIRT_LAYER)
+
+//Draws one full-body sprite instead of compositing per-limb art - see species.body_sprite_icon. Skips
+//damage/underwear overlays entirely (there's nothing in a single-sprite sheet to draw those onto); the
+//mob underneath is still a real human with real limbs for every other system (damage, surgery, equipment).
+/mob/living/carbon/human/proc/update_body_single_sprite()
+	remove_overlay(BODYPARTS_LAYER)
+	remove_overlay(DAMAGE_LAYER)
+	remove_overlay(UNDERSHIRT_LAYER)
+	remove_overlay(UNDERWEAR_LAYER)
+
+	var/image/body_image = image(icon = species.body_sprite_icon, icon_state = get_body_sprite_state(), layer = -BODYPARTS_LAYER)
+	overlays_standing[BODYPARTS_LAYER] = body_image
+	apply_overlay(BODYPARTS_LAYER)
+
+///Overridable hook for the icon_state used by update_body_single_sprite(). Dead uses "dead"; otherwise "<prefix>_open" or "<prefix>_closed" depending on mouth_open_until (see open_mouth()) - e.g. Synthetic K9's "K9_open"/"K9_closed".
+/mob/living/carbon/human/proc/get_body_sprite_state()
+	if(stat == DEAD)
+		return "dead"
+	return "[species.body_sprite_prefix]_[mouth_open_until > world.time ? "open" : "closed"]"
+
+///Briefly switches the single-sprite body to its "open" mouth state (e.g. for a bark/growl emote), then reverts on its own once duration elapses. No-op for species that don't use body_sprite_icon.
+/mob/living/carbon/human/proc/open_mouth(duration = 1 SECONDS)
+	if(!species.body_sprite_icon)
+		return
+	var/was_open = mouth_open_until > world.time
+	mouth_open_until = world.time + duration
+	if(!was_open)
+		update_body()
+		addtimer(CALLBACK(src, PROC_REF(close_mouth_if_expired)), duration)
+
+/mob/living/carbon/human/proc/close_mouth_if_expired()
+	if(mouth_open_until <= world.time)
+		update_body()
 
 /// Recalculates and reapplies damage overlays to every limb
 /mob/living/carbon/human/proc/update_damage_overlays()
