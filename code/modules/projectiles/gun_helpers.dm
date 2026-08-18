@@ -436,6 +436,8 @@ DEFINES in setup.dm, referenced here.
 	return 0
 
 /obj/item/weapon/gun/proc/update_mag_overlay()
+	if(!attachable_overlays)
+		return
 	var/image/gun_image = attachable_overlays["mag"]
 	if(istype(gun_image))
 		overlays -= gun_image

@@ -1,5 +1,3 @@
-/datum/admins/var/static/create_mob_html = null
-
 // ---- TGUI Admin Spawner ----
 
 /datum/admin_spawner
@@ -71,11 +69,7 @@
 		return TRUE
 
 /datum/admins/proc/create_mob(mob/user)
-	if (!create_mob_html)
-		var/mobjs = null
-		mobjs = jointext(typesof(/mob), ";")
-		create_mob_html = file2text('html/create_object.html')
-		create_mob_html = replacetext(create_mob_html, "null /* object types */", "\"[mobjs]\"")
-		create_mob_html = replacetext(create_mob_html, "/* href token */", RawHrefToken(forceGlobal = TRUE))
-
-	show_browser(user, replacetext(create_mob_html, "/* ref src */", "\ref[src]"), "Create Mob", "create_mob", width = 450, height = 525)
+	if (!check_rights(R_MOD, 0))
+		return
+	var/datum/admin_spawner/spawner = new(src)
+	spawner.tgui_interact(user || usr)

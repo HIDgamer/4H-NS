@@ -929,9 +929,10 @@ GLOBAL_LIST_EMPTY_TYPED(crew_monitor, /datum/crewmonitor)
 			if(id_card.assignment in jobs)
 				entry["ijob"] = jobs[id_card.assignment]
 
-		// Binary living/dead status
+		// Living/dead status — stat: 0=alive, 1=unconscious, 2=dead
 		if (C.sensor_mode >= SENSOR_LIVING)
 			entry["life_status"] = !tracked_mob.stat
+			entry["stat"] = tracked_mob.stat
 
 		// Damage
 		if (C.sensor_mode >= SENSOR_VITALS)

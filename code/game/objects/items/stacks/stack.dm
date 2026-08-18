@@ -80,7 +80,9 @@ Also change the icon to reflect the amount of sheets, if possible.*/
 
 /obj/item/stack/attack_self(mob/user)
 	..()
-	list_recipes(user)
+	if(!recipes)
+		return
+	tgui_interact(user)
 
 /obj/item/stack/proc/list_recipes(mob/user, recipes_sublist)
 	if(!recipes)
@@ -431,3 +433,206 @@ Also change the icon to reflect the amount of sheets, if possible.*/
 	src.title = title
 	src.recipes = recipes
 	src.req_amount = req_amount
+
+// ---- TGUI Construction Menu ----
+
+/obj/item/stack/tgui_interact(mob/user, datum/tgui/ui)
+	ui = SStgui.try_update_ui(user, src, ui)
+	if (!ui)
+		ui = new(user, src, "ConstructionMenu", "Construction Menu")
+		ui.open()
+
+/obj/item/stack/ui_state(mob/user)
+	return GLOB.default_state
+
+/obj/item/stack/ui_data(mob/user)
+	var/list/data = list()
+	data["name"] = name
+	data["amount"] = amount
+	data["singular"] = singular_name
+
+	var/list/items = list()
+	_stack_recipes_to_list(recipes, items, null)
+	data["recipes"] = items
+	return data
+
+/obj/item/stack/proc/_stack_recipes_to_list(list/recipe_list, list/out, cat_id)
+	for (var/i = 1; i <= length(recipe_list); i++)
+		var/E = recipe_list[i]
+		if (isnull(E))
+			out += list(list("type" = "separator"))
+			continue
+		if (istype(E, /datum/stack_recipe_list))
+			var/datum/stack_recipe_list/srl = E
+			var/list/sub = list()
+			_stack_recipes_to_list(srl.recipes, sub, "[i]")
+			out += list(list(
+				"type" = "category",
+				"title" = srl.title,
+				"req_amount" = srl.req_amount,
+				"can_enter" = (amount >= srl.req_amount),
+				"cat_id" = "[i]",
+				"recipes" = sub
+			))
+			continue
+		if (istype(E, /datum/stack_recipe))
+			var/datum/stack_recipe/R = E
+			var/max_mult = floor(amount / R.req_amount)
+			// Clamp max multiplier by stack output limit if result is a stack
+			var/effective_max_res = R.max_res_amount
+			if (effective_max_res <= 1 && ispath(R.result_type, /obj/item/stack))
+				var/obj/item/stack/proto = R.result_type
+				effective_max_res = initial(proto.max_amount)
+			var/display_max_mult = R.max_res_amount > 1 ? min(max_mult, floor(effective_max_res / R.res_amount)) : 1
+			out += list(list(
+				"type" = "recipe",
+				"idx" = i,
+				"cat_id" = cat_id,
+				"title" = R.title,
+				"req_amount" = R.req_amount,
+				"res_amount" = R.res_amount,
+				"max_res_amount" = effective_max_res,
+				"time" = R.time,
+				"on_floor" = R.on_floor,
+				"can_build" = (max_mult > 0),
+				"max_multiplier" = display_max_mult
+			))
+
+/obj/item/stack/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
+	. = ..()
+	if (.)
+		return
+
+	var/mob/user = ui.user
+
+	switch (action)
+		if ("make")
+			if (user.is_mob_restrained() || user.stat || user.get_active_hand() != src)
+				return
+
+			var/recipe_idx = text2num(params["idx"])
+			if (!isnum(recipe_idx) || (recipe_idx != recipe_idx)) // NaN check
+				return
+			recipe_idx = round(recipe_idx)
+
+			var/multiplier = max(1, round(text2num(params["multiplier"]) || 1))
+
+			var/datum/stack_recipe/R
+			var/cat_id = params["cat_id"]
+			if (cat_id && length(cat_id))
+				var/cat_idx = text2num(cat_id)
+				if (!isnum(cat_idx) || cat_idx < 1 || cat_idx > length(recipes))
+					return
+				var/datum/stack_recipe_list/srl = recipes[round(cat_idx)]
+				if (!istype(srl, /datum/stack_recipe_list))
+					return
+				if (recipe_idx < 1 || recipe_idx > length(srl.recipes))
+					return
+				R = srl.recipes[recipe_idx]
+			else
+				if (recipe_idx < 1 || recipe_idx > length(recipes))
+					return
+				R = recipes[recipe_idx]
+
+			if (!istype(R, /datum/stack_recipe))
+				return
+
+			if (R.max_res_amount <= 1)
+				multiplier = 1
+			else
+				multiplier = min(multiplier, floor(R.max_res_amount / R.res_amount))
+
+			if (R.skill_lvl)
+				if (ishuman(user) && !skillcheck(user, R.skill_req, R.skill_lvl))
+					to_chat(user, SPAN_WARNING("You are not trained to build this..."))
+					return
+
+			if (amount < R.req_amount * multiplier)
+				to_chat(user, SPAN_WARNING("You need more [name] to build that!"))
+				return
+
+			if (check_one_per_turf(R, user))
+				return
+
+			if (R.on_floor && istype(user.loc, /turf/open))
+				var/turf/open/OT = user.loc
+				var/obj/structure/blocker/anti_cade/AC = locate(/obj/structure/blocker/anti_cade) in user.loc
+				if (!OT.allow_construction)
+					to_chat(user, SPAN_WARNING("The [R.title] must be constructed on a proper surface!"))
+					return
+				if (AC)
+					to_chat(user, SPAN_WARNING("The [R.title] cannot be built here!"))
+					return
+				var/obj/structure/tunnel/tunnel = locate(/obj/structure/tunnel) in user.loc
+				if (tunnel)
+					to_chat(user, SPAN_WARNING("The [R.title] cannot be constructed on a tunnel!"))
+					return
+				if (R.one_per_turf != ONE_TYPE_PER_BORDER)
+					for (var/obj/object in user.loc)
+						if (object.density || istype(object, /obj/structure/machinery/door/airlock))
+							to_chat(user, SPAN_WARNING("[object] is blocking you from constructing \the [R.title]!"))
+							return
+
+			if ((R.flags & RESULT_REQUIRES_SNOW) && !(istype(user.loc, /turf/open/snow) || istype(user.loc, /turf/open/auto_turf/snow)))
+				to_chat(user, SPAN_WARNING("The [R.title] must be built on snow!"))
+				return
+
+			if (R.time)
+				if (user.action_busy)
+					return
+				var/time_mult = skillcheck(user, SKILL_CONSTRUCTION, 2) ? 1 : 2
+				user.visible_message(SPAN_NOTICE("[user] starts assembling \a [R.title]."),
+					SPAN_NOTICE("You start assembling \a [R.title]."))
+				if (!do_after(user, max(R.time * time_mult, R.min_time), INTERRUPT_NO_NEEDHAND|BEHAVIOR_IMMOBILE, BUSY_ICON_BUILD))
+					return
+				if (amount < R.req_amount * multiplier)
+					return
+				if (check_one_per_turf(R, user))
+					return
+
+			var/atom/new_item
+			if (ispath(R.result_type, /turf))
+				var/turf/current_turf = get_turf(user)
+				if (!current_turf)
+					return
+				new_item = current_turf.ChangeTurf(R.result_type)
+			else
+				new_item = new R.result_type(user.loc, user)
+
+			user.visible_message(SPAN_NOTICE("[user] assembles \a [new_item]."),
+				SPAN_NOTICE("You assemble \a [new_item]."))
+			new_item.setDir(user.dir)
+			if (R.max_res_amount > 1)
+				var/obj/item/stack/new_stack = new_item
+				new_stack.amount = R.res_amount * multiplier
+			amount -= R.req_amount * multiplier
+			update_icon()
+
+			if (amount <= 0)
+				var/oldsrc = src
+				src = null
+				user.drop_inv_item_on_ground(oldsrc)
+				qdel(oldsrc)
+
+			if (istype(new_item, /obj/item/stack))
+				var/obj/item/stack/stack_item = new_item
+				for (var/obj/item/stack/found_item in user.loc)
+					if (stack_item.stack_id == found_item.stack_id && stack_item != found_item)
+						var/diff = found_item.max_amount - found_item.amount
+						if (stack_item.amount < diff)
+							found_item.amount += stack_item.amount
+							qdel(stack_item)
+						else
+							stack_item.amount -= diff
+							found_item.amount += diff
+						break
+
+			new_item?.add_fingerprint(user)
+
+			if (isstorage(new_item))
+				for (var/obj/item/found_item in new_item)
+					qdel(found_item)
+
+			if (!QDELETED(src))
+				SStgui.update_uis(src)
+			return TRUE

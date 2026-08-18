@@ -44,8 +44,15 @@ export const AdminSoundPanel = () => {
   const { cliented_mobs, last_status, last_error, resolved_title, is_playing } =
     data;
 
-  const [sourceMode, setSourceMode] = useState<'web' | 'upload'>('web');
+  const [sourceMode, setSourceMode] = useState<'web' | 'upload' | 'direct'>(
+    'web',
+  );
   const [webUrl, setWebUrl] = useState('');
+  const [directUrl, setDirectUrl] = useState('');
+  const [directTitle, setDirectTitle] = useState('');
+  const [directArtist, setDirectArtist] = useState('');
+  const [directAlbum, setDirectAlbum] = useState('');
+  const [showBlurb, setShowBlurb] = useState(false);
   const [audience, setAudience] = useState('Globally');
   const [selectedMobKey, setSelectedMobKey] = useState('');
   const [soundType, setSoundType] = useState('Meme');
@@ -76,14 +83,20 @@ export const AdminSoundPanel = () => {
         sound_type: soundType,
         show_title: showTitle,
       });
-    } else {
-      act('play_upload', {
+    } else if (sourceMode === 'direct') {
+      act('play_direct', {
+        url: directUrl.trim(),
+        title: directTitle.trim(),
+        artist: directArtist.trim(),
+        album: directAlbum.trim(),
+        show_blurb: showBlurb,
         audience,
         target_ref,
         sound_type: soundType,
         show_title: showTitle,
       });
     }
+    // Upload has no Play step here - selecting a file in the picker plays it immediately (see the "Choose File…" button below).
   };
 
   const handleStop = () => {
@@ -115,7 +128,66 @@ export const AdminSoundPanel = () => {
                     Upload File
                   </Button>
                 </Stack.Item>
+                <Stack.Item>
+                  <Button
+                    icon="link"
+                    selected={sourceMode === 'direct'}
+                    onClick={() => setSourceMode('direct')}
+                    tooltip="Plays a raw https:// link directly, skipping the yt-dlp/cobalt resolver - useful if the resolver is unavailable or blocked on this host"
+                  >
+                    Direct Link
+                  </Button>
+                </Stack.Item>
               </Stack>
+
+              {sourceMode === 'direct' && (
+                <Stack vertical mb={0.5}>
+                  <Stack.Item>
+                    <Input
+                      fluid
+                      placeholder="https://… direct audio link"
+                      value={directUrl}
+                      onInput={(e, value) => setDirectUrl(value)}
+                    />
+                  </Stack.Item>
+                  <Stack.Item>
+                    <Stack>
+                      <Stack.Item grow>
+                        <Input
+                          fluid
+                          placeholder="Title (optional - defaults to the URL)"
+                          value={directTitle}
+                          onInput={(e, value) => setDirectTitle(value)}
+                        />
+                      </Stack.Item>
+                      <Stack.Item grow>
+                        <Input
+                          fluid
+                          placeholder="Artist (optional)"
+                          value={directArtist}
+                          onInput={(e, value) => setDirectArtist(value)}
+                        />
+                      </Stack.Item>
+                      <Stack.Item grow>
+                        <Input
+                          fluid
+                          placeholder="Album (optional)"
+                          value={directAlbum}
+                          onInput={(e, value) => setDirectAlbum(value)}
+                        />
+                      </Stack.Item>
+                    </Stack>
+                  </Stack.Item>
+                  <Stack.Item>
+                    <Button.Checkbox
+                      checked={showBlurb}
+                      onClick={() => setShowBlurb(!showBlurb)}
+                    >
+                      Show on-screen song blurb
+                    </Button.Checkbox>
+                  </Stack.Item>
+                </Stack>
+              )}
 
               {sourceMode === 'web' ? (
                 <Stack align="center">
@@ -140,24 +212,26 @@ export const AdminSoundPanel = () => {
                   </Stack.Item>
                 </Stack>
               ) : (
-                <Button
-                  icon="file-audio"
-                  onClick={() => {
-                    const target_ref =
-                      audience === 'Single Mob'
-                        ? cliented_mobs.find((m) => m.key === selectedMobKey)
-                            ?.ref ?? ''
-                        : '';
-                    act('open_file_picker', {
-                      audience,
-                      target_ref,
-                      sound_type: soundType,
-                      show_title: showTitle,
-                    });
-                  }}
-                >
-                  Choose File…
-                </Button>
+                sourceMode === 'upload' && (
+                  <Button
+                    icon="file-audio"
+                    onClick={() => {
+                      const target_ref =
+                        audience === 'Single Mob'
+                          ? cliented_mobs.find((m) => m.key === selectedMobKey)
+                              ?.ref ?? ''
+                          : '';
+                      act('open_file_picker', {
+                        audience,
+                        target_ref,
+                        sound_type: soundType,
+                        show_title: showTitle,
+                      });
+                    }}
+                  >
+                    Choose File…
+                  </Button>
+                )
               )}
 
               {resolved_title && (
@@ -227,7 +301,11 @@ export const AdminSoundPanel = () => {
                 <Button.Confirm
                   icon="play"
                   color="good"
-                  disabled={sourceMode === 'web' && !webUrl.trim()}
+                  disabled={
+                    (sourceMode === 'web' && !webUrl.trim()) ||
+                    (sourceMode === 'direct' && !directUrl.trim()) ||
+                    sourceMode === 'upload'
+                  }
                   confirmContent={`Play to ${audience}?`}
                   onClick={handlePlay}
                 >
