@@ -9873,7 +9873,7 @@
 /obj/structure/surface/table/almayer,
 /obj/item/prop{
 	desc = "Predecessor to the M56 the M38 was known for its extreme reliability in the field. This particular M38D is fondly remembered for its stalwart defence of the hangar bay during the Arcturian commando raid of the USS Almayer on Io.";
-	icon = 'icons/obj/items/weapons/guns/guns_by_faction/USCM/hmg.dmi';
+	icon = 'icons/obj/items/weapons/guns/guns_by_faction/USCM/machineguns.dmi';
 	icon_state = "M56D_gun_e";
 	layer = 3.1;
 	name = "\improper M38D heavy machine gun 'Bess'";
@@ -31690,7 +31690,7 @@
 /obj/effect/decal/warning_stripes{
 	icon_state = "W"
 	},
-/obj/structure/largecrate/random/case/double,
+/obj/structure/machinery/cm_vending/clothing/synth/snowflake,
 /turf/open/floor/almayer/plate,
 /area/blackgold/upper/rooms/commandbunks/synth)
 "fvu" = (
@@ -35433,6 +35433,9 @@
 /area/blackgold/underdeck/vehicle)
 "jnr" = (
 /obj/structure/platform/metal/ship/east,
+/obj/structure/machinery/cm_vending/clothing/k9_synth/snowflake{
+	pixel_x = -4
+	},
 /turf/open/floor/plating/plating_catwalk,
 /area/blackgold/upper/rooms/commandbunks/synth)
 "jnU" = (
@@ -41528,6 +41531,7 @@
 /turf/open/floor/prison/kitchen,
 /area/blackgold/upper/rooms/captain_mess)
 "pDH" = (
+/obj/effect/landmark/start/synth_k9,
 /turf/open/floor/plating/plating_catwalk,
 /area/blackgold/upper/rooms/commandbunks/synth)
 "pDI" = (
@@ -43791,7 +43795,9 @@
 	icon_state = "S";
 	layer = 3.3
 	},
-/obj/structure/surface/rack,
+/obj/structure/machinery/cm_vending/clothing/k9_synth{
+	pixel_y = 16
+	},
 /turf/open/floor/almayer/plate,
 /area/blackgold/upper/rooms/commandbunks/synth)
 "rZT" = (
