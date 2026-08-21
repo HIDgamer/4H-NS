@@ -126,27 +126,32 @@
 		var/client/C = mob?.client
 		if (!C)
 			continue
-		if (C.prefs?.toggles_sound & sound_type_flag)
-			if (asset_name && SSassets.transport.send_assets(C, asset_name))
-				// send_assets() only fire-and-forgets a browse_rsc() push - the client's own asset
-				// registry doesn't actually have the file until asset_cache_update_json() runs, which
-				// the transport itself schedules 1 second later (asset_transport.dm). Calling
-				// play_music() on the same tick as send_assets() races that: the client's embedded
-				// player gets told to fetch a local asset URL before the browser has finished
-				// receiving it, which is why "Upload File" could silently play for nobody - worse the
-				// slower the client's connection. Wait for the same window before actually starting playback.
-				addtimer(CALLBACK(src, PROC_REF(start_playback), C, web_url, music_extra_data, show_title), 1.5 SECONDS)
+		try
+			if (C.prefs?.toggles_sound & sound_type_flag)
+				if (asset_name && SSassets.transport.send_assets(C, asset_name))
+					// send_assets() only fire-and-forgets a browse_rsc() push - the client's own asset
+					// registry doesn't actually have the file until asset_cache_update_json() runs, which
+					// the transport itself schedules 1 second later (asset_transport.dm). Calling
+					// play_music() on the same tick as send_assets() races that: the client's embedded
+					// player gets told to fetch a local asset URL before the browser has finished
+					// receiving it, which is why "Upload File" could silently play for nobody - worse the
+					// slower the client's connection. Wait for the same window before actually starting playback.
+					addtimer(CALLBACK(src, PROC_REF(start_playback), C, web_url, music_extra_data, show_title), 1.5 SECONDS)
+				else
+					start_playback(C, web_url, music_extra_data, show_title)
 			else
-				start_playback(C, web_url, music_extra_data, show_title)
-		else
-			C.tgui_panel?.stop_music()
+				C.tgui_panel?.stop_music()
+		catch (var/exception/e)
+			// A single malformed field (bad title/artist/album text, an unexpected client state, etc.)
+			// must not abort the loop and silently deny the sound to every client after this one.
+			last_error = "Playback failed for one client: [e]"
 
 /datum/admin_sound_panel/proc/start_playback(client/C, web_url, list/music_extra_data, show_title)
 	if (QDELETED(C))
 		return
 	C.tgui_panel?.play_music(web_url, music_extra_data)
 	if (show_title)
-		to_chat(C, SPAN_BOLDANNOUNCE("An admin played: [music_extra_data["title"]]"), confidential = TRUE)
+		to_chat(C, SPAN_BOLDANNOUNCE("An admin played: [adminscrub(music_extra_data["title"], 200)]"), confidential = TRUE)
 
 /datum/admin_sound_panel/proc/upload_and_play(audience, target_ref, sound_type, show_title)
 	var/soundfile = input(owner?.mob, "Choose a sound file to play", "Upload Sound") as null|file
@@ -240,22 +245,27 @@
 			return TRUE
 
 		if ("play_direct")
-			var/url = trim(params["url"] || "")
-			if (!url)
+			var/url = trim(sanitize_text(params["url"], ""))
+			if (!url || length(url) > 2048)
+				last_error = "BLOCKED: Missing or absurdly long content URL."
+				SStgui.update_uis(src)
 				return TRUE
 			if (!findtext(url, GLOB.is_http_protocol))
 				last_error = "BLOCKED: Content URL not using http(s) protocol."
 				SStgui.update_uis(src)
 				return TRUE
 
-			var/audience = params["audience"] || "Globally"
-			var/target_ref = params["target_ref"] || ""
+			var/audience = sanitize_inlist(params["audience"], list("Globally", "Xenos", "Marines", "Ghosts", "All In View Range", "Single Mob"), "Globally")
+			var/target_ref = sanitize_text(params["target_ref"], "")
 			var/sound_type_flag = (params["sound_type"] == "Atmospheric") ? SOUND_ADMIN_ATMOSPHERIC : SOUND_ADMIN_MEME
 			var/show_title = !!params["show_title"]
 			var/show_blurb = !!params["show_blurb"]
-			var/title = params["title"] || url
-			var/artist = params["artist"] || "Unknown Artist"
-			var/album = params["album"] || "Unknown Album"
+			// These are free-typed admin text that end up in raw HTML (to_chat/show_blurb) - cap the length
+			// and drop them to a safe default rather than let a stray "<" or an oversized paste wedge the
+			// broadcast loop (see the try/catch in broadcast_sound()) or corrupt chat for every recipient.
+			var/title = copytext(trim(sanitize_text(params["title"], "")), 1, 100) || url
+			var/artist = copytext(trim(sanitize_text(params["artist"], "")), 1, 100) || "Unknown Artist"
+			var/album = copytext(trim(sanitize_text(params["album"], "")), 1, 100) || "Unknown Album"
 
 			resolved_url = url
 			resolved_title = title
@@ -312,5 +322,5 @@
 
 /// Shows a two-line song info blurb - title, then "Artist - Album" underneath. Used by the Direct Link source mode's optional on-screen blurb.
 /proc/show_blurb_song(title = "Song Name", additional = "Song Artist - Song Album")
-	var/message_to_display = "<b>[title]</b>\n[additional]"
+	var/message_to_display = "<b>[adminscrub(title, 100)]</b>\n[adminscrub(additional, 200)]"
 	show_blurb(GLOB.player_list, 10 SECONDS, "[message_to_display]", screen_position = "LEFT+0:16,BOTTOM+1:16", text_alignment = "left", text_color = "#FFFFFF", blurb_key = "song[title]", ignore_key = TRUE, speed = 1)

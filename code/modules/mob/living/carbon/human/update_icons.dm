@@ -167,12 +167,12 @@ There are several things that need to be remembered:
 				overlays_standing[UNDERSHIRT_LAYER] = undershirt_icon
 				apply_overlay(UNDERSHIRT_LAYER)
 
-//Draws one full-body sprite instead of compositing per-limb art - see species.body_sprite_icon. Skips
-//damage/underwear overlays entirely (there's nothing in a single-sprite sheet to draw those onto); the
-//mob underneath is still a real human with real limbs for every other system (damage, surgery, equipment).
+//Draws one full-body sprite instead of compositing per-limb art - see species.body_sprite_icon. The
+//underwear layers are skipped (nothing in a single-sprite sheet to draw those onto); the mob underneath
+//is still a real human with real limbs for every other system (damage, surgery, equipment) - its overall
+//damage still gets shown via update_body_sprite_damage_overlay() below, just not per-limb.
 /mob/living/carbon/human/proc/update_body_single_sprite()
 	remove_overlay(BODYPARTS_LAYER)
-	remove_overlay(DAMAGE_LAYER)
 	remove_overlay(UNDERSHIRT_LAYER)
 	remove_overlay(UNDERWEAR_LAYER)
 
@@ -180,11 +180,33 @@ There are several things that need to be remembered:
 	overlays_standing[BODYPARTS_LAYER] = body_image
 	apply_overlay(BODYPARTS_LAYER)
 
-///Overridable hook for the icon_state used by update_body_single_sprite(). Dead uses "dead"; otherwise "<prefix>_open" or "<prefix>_closed" depending on mouth_open_until (see open_mouth()) - e.g. Synthetic K9's "K9_open"/"K9_closed".
+	update_body_sprite_damage_overlay()
+
+///Overridable hook for the icon_state used by update_body_single_sprite(). Dead uses "dead"; otherwise "<prefix>_open"/"<prefix>_closed" depending on mouth_open_until (see open_mouth()), plus a "_rest" suffix while lying down (e.g. Synthetic K9's "K9_open"/"K9_closed"/"K9_open_rest"/"K9_closed_rest") - so a resting single-sprite mob gets its own art instead of the generic rotate-when-lying-down transform every other human uses (see set_lying_angle()).
 /mob/living/carbon/human/proc/get_body_sprite_state()
 	if(stat == DEAD)
 		return "dead"
-	return "[species.body_sprite_prefix]_[mouth_open_until > world.time ? "open" : "closed"]"
+	var/pose_suffix = (body_position == LYING_DOWN) ? "_rest" : ""
+	return "[species.body_sprite_prefix]_[mouth_open_until > world.time ? "open" : "closed"][pose_suffix]"
+
+///Damage overlay for single-full-body-sprite species (see species.body_sprite_icon/body_sprite_damage_icon) - a single low/med/high tier overlay picked from overall brute+burn damage across every limb (mirroring the 16.67%/50% brackets /obj/limb/proc/damage_state_text() uses per-limb), instead of the per-limb wound/burn overlays update_damage_overlays() draws for normal humans - there's no per-limb art in a single-sprite sheet to hang those on. No-op (just clears the layer) if the species didn't define body_sprite_damage_icon/body_sprite_damage_prefix.
+/mob/living/carbon/human/proc/update_body_sprite_damage_overlay()
+	remove_overlay(DAMAGE_LAYER)
+
+	if(!species.body_sprite_damage_icon || !species.body_sprite_damage_prefix)
+		return
+
+	var/total_damage = getBruteLoss() + getFireLoss()
+	if(total_damage <= 0)
+		return
+
+	var/damage_cap = species.total_health || maxHealth
+	var/tier = (total_damage < damage_cap * 0.1667) ? "l" : ((total_damage < damage_cap * 0.5) ? "m" : "h")
+	var/pose_infix = (stat == DEAD) ? "d_" : ((body_position == LYING_DOWN) ? "r_" : "")
+
+	var/image/damage_overlay = image(icon = species.body_sprite_damage_icon, icon_state = "[species.body_sprite_damage_prefix]_[pose_infix][tier]", layer = -DAMAGE_LAYER)
+	overlays_standing[DAMAGE_LAYER] = damage_overlay
+	apply_overlay(DAMAGE_LAYER)
 
 ///Briefly switches the single-sprite body to its "open" mouth state (e.g. for a bark/growl emote), then reverts on its own once duration elapses. No-op for species that don't use body_sprite_icon.
 /mob/living/carbon/human/proc/open_mouth(duration = 1 SECONDS)
@@ -202,6 +224,10 @@ There are several things that need to be remembered:
 
 /// Recalculates and reapplies damage overlays to every limb
 /mob/living/carbon/human/proc/update_damage_overlays()
+	if(species.body_sprite_icon)
+		update_body_sprite_damage_overlay()
+		return
+
 	remove_overlay(DAMAGE_LAYER)
 
 	var/list/damage_overlays = list()

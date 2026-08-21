@@ -1354,6 +1354,12 @@
 	icon_state = "k9_dogtags"
 	worn_state = "k9_dogtags"
 	flags_jumpsuit = FALSE
+	// WEAR_BODY is one of the slots mob_can_equip() (items.dm) blocks
+	// outright for a restrict_to_k9_clothing species unless the item sets
+	// this - without it, equip_to_slot_or_del() (mob.dm, which itself calls
+	// mob_can_equip()) would silently delete this on spawn instead of
+	// equipping it, same as every other K9-specific item (k9_gear.dm).
+	k9_exclusive_wear = TRUE
 
 /obj/item/clothing/under/rank/frontier
 	name = "\improper frontier jumpsuit"

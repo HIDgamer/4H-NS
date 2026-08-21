@@ -23,6 +23,10 @@
 	var/body_sprite_icon
 	///Default (alive, standing) icon_state on body_sprite_icon - see /mob/living/carbon/human/proc/get_body_sprite_state(), overridable per-mob for things like an open/closed mouth variant.
 	var/body_sprite_prefix
+	///Icon file holding this species' overall-damage overlay states for body_sprite_icon (e.g. Synthetic K9's k9_dam_l/m/h) - see /mob/living/carbon/human/proc/update_body_sprite_damage_overlay(). Null (the default) skips the overlay entirely, same as any species that doesn't use body_sprite_icon.
+	var/body_sprite_damage_icon
+	///icon_state prefix on body_sprite_damage_icon - suffixed with "_l"/"_m"/"_h" for low/medium/high overall damage, with an extra "r_"/"d_" infix for the resting/dead pose variants - see update_body_sprite_damage_overlay().
+	var/body_sprite_damage_prefix
 	var/eyes = "eyes_s"   // Icon for eyes.
 	var/special_body_types = FALSE
 	var/uses_ethnicity = FALSE  //Set to TRUE to load proper ethnicities and what have you

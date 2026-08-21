@@ -498,6 +498,14 @@
 	icon_override = 'icons/mob/humans/species/synth_k9/onmob/synth_k9_overlays.dmi'
 	icon_state = null
 	uniform_restricted = list(/obj/item/clothing/under/rank/synthetic/synth_k9) //K9 Synth only
+	// Without this, mob_can_equip()'s species-chassis check (items.dm - any
+	// WEAR_BACK item without k9_exclusive_wear is rejected outright for
+	// restrict_to_k9_clothing species, "[src] wouldn't fit your chassis
+	// properly") blocked this from ever going into the K9's back slot at
+	// all, before uniform_restricted above was ever even reached. Every
+	// other K9-specific item (k9_gear.dm) already sets this; the backpacks
+	// were simply missed.
+	k9_exclusive_wear = TRUE
 	force_overlays_on = TRUE
 	flags_atom = FPRINT|NO_GAMEMODE_SKIN // same sprite for all gamemodes
 
