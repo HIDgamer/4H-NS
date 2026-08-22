@@ -249,6 +249,7 @@
 	ADD_TRAIT(mob, TRAIT_NESTED, TRAIT_SOURCE_BUCKLE)
 	ADD_TRAIT(mob, TRAIT_NO_STRAY, TRAIT_SOURCE_BUCKLE)
 	SEND_SIGNAL(mob, COMSIG_MOB_NESTED, user)
+	attempt_infect_buckled(mob, user)
 
 	if(!human)
 		return TRUE
@@ -263,6 +264,10 @@
 		human.do_ghost()
 
 	return TRUE
+
+/// No-op on a plain (player-built) nest and on a Predator-capture nest - only the human_cap-linked /obj/structure/bed/nest/structure subtype infects (see its own override below), so an ordinary nested marine and a captured Predator are both left alone here.
+/obj/structure/bed/nest/proc/attempt_infect_buckled(mob/living/mob, mob/user)
+	return
 
 /obj/structure/bed/nest/send_buckling_message(mob/M, mob/user)
 	M.visible_message(SPAN_XENONOTICE("[user] secretes a thick, vile resin, securing [M] into [src]!"),
@@ -367,6 +372,24 @@
 	if(linked_structure)
 		linked_structure.pred_nest = null
 		QDEL_NULL(linked_structure)
+
+/**
+ * Completes the capping loop's missing infection step - the same bed type
+ * also backs a Predator capture (pred_nest.dm), so linked_structure's own
+ * type is what discriminates "this is actually a hive wall cap" rather than
+ * anything about the buckled mob itself. can_hug() already covers every
+ * other rejection case (already hosting, dead, synthetic, etc) so nothing
+ * further needs checking here.
+ */
+/obj/structure/bed/nest/structure/attempt_infect_buckled(mob/living/mob, mob/user)
+	if(!istype(linked_structure, /obj/effect/alien/resin/special/nest/human_cap))
+		return
+	if(!ishuman(mob) || isyautja(mob))
+		return
+	if(!can_hug(mob, hivenumber))
+		return
+	var/obj/item/clothing/mask/facehugger/hugger = new(loc, hivenumber)
+	hugger.attach(mob, silent = FALSE)
 
 /obj/structure/bed/nest/structure/attack_hand(mob/user)
 	if(!isxeno(user))

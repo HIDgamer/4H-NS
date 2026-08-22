@@ -52,6 +52,10 @@
 /datum/xeno_ai_controller/runner/get_flee_threshold()
 	return AI_RUNNER_FLEE_HEALTH_PERCENT
 
+/// See attempt_opportunistic_drag()'s doc comment (xeno_ai_controller.dm) - pure refactor, same chance she's always rolled for this.
+/datum/xeno_ai_controller/runner/get_drag_chance()
+	return AI_RUNNER_DRAG_CHANCE
+
 /**
  * Same duplication tradeoff as crusher.dm/ravager.dm - attempting the dash
  * before falling through to the inherited approach chain is different
@@ -159,14 +163,14 @@
 	. = ..()
 	if(!pilot || !current_target || ai_state != AI_STATE_ATTACKING)
 		return
-	// The signature Runner play: a marine she's knocked down gets dragged
-	// out of their squad's cover fire to be finished off alone (isolation
-	// only, never nesting - process_drag() owns the tow from here).
-	if(ishuman(current_target))
-		var/mob/living/carbon/human/downed = current_target
-		if((downed.is_mob_incapacitated() || downed.body_position == LYING_DOWN) && prob(AI_RUNNER_DRAG_CHANCE) && attempt_start_drag(downed))
-			drop_target()
-			return
+	// The signature Runner play: a marine she's knocked down gets dragged out
+	// of their squad's cover fire to be finished off alone. The drag itself
+	// now lives centrally in attempt_opportunistic_drag() (xeno_ai_controller.dm),
+	// already tried above (inside ..()'s own execute_attack() call) before
+	// this proc even reaches here - see get_drag_chance()'s override below
+	// for her AI_RUNNER_DRAG_CHANCE. If it just fired, current_target is gone
+	// (drop_target() inside attempt_opportunistic_drag()) and the guard above
+	// already returned.
 	var/took_damage = (last_known_health != null) && (pilot.health < last_known_health)
 	last_known_health = pilot.health
 	if(!took_damage && !prob(AI_RUNNER_REPOSITION_CHANCE))

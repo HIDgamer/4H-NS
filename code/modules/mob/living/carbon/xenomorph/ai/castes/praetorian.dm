@@ -12,6 +12,10 @@
 	/// Vanguard-strain-only, set the first time attempt_toggle_cleave() runs - Toggle Cleave has no cooldown of its own, so without a one-time latch the AI would flip-flop the root/fling stance uselessly on every patrol() tick instead of picking one and sticking with it.
 	var/cleave_stance_set = FALSE
 
+/// See attempt_opportunistic_drag()'s doc comment (xeno_ai_controller.dm).
+/datum/xeno_ai_controller/praetorian/get_drag_chance()
+	return AI_XENO_OPPORTUNISTIC_DRAG_CHANCE
+
 /**
  * "Using a few abilities would send the casts into daydreaming and doing
  * nothing... one or two ability uses makes the AI stop in its tracks" -

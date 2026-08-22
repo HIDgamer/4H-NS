@@ -37,6 +37,10 @@
 /datum/xeno_ai_controller/crusher/get_flee_threshold()
 	return AI_CRUSHER_FLEE_HEALTH_PERCENT
 
+/// See attempt_opportunistic_drag()'s doc comment (xeno_ai_controller.dm).
+/datum/xeno_ai_controller/crusher/get_drag_chance()
+	return AI_XENO_OPPORTUNISTIC_DRAG_CHANCE
+
 /**
  * Duplicates the base controller's adjacency-to-attacking transition and
  * obstacle-handling tail (see xeno_ai_movement.dm's process_movement())

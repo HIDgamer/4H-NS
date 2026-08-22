@@ -18,6 +18,10 @@
 	. = ..()
 	circle_dir = pick(90, -90)
 
+/// See attempt_opportunistic_drag()'s doc comment (xeno_ai_controller.dm).
+/datum/xeno_ai_controller/warrior/get_drag_chance()
+	return AI_XENO_OPPORTUNISTIC_DRAG_CHANCE
+
 /**
  * Same duplication tradeoff as crusher.dm/ravager.dm/runner.dm - attempting
  * Lunge before falling through to the inherited approach chain differs

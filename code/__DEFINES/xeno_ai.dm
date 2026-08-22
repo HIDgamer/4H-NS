@@ -158,6 +158,14 @@
 #define AI_RUNNER_DRAG_CHANCE 40
 /// Same as AI_RUNNER_DRAG_CHANCE, but for a Burrower - "slashing and hacking or even kidnapping a human... before burrowing back to safety" is an occasional, not constant, play pattern for her (she's a build/ambush hybrid, not a harasser), so this starts lower than Runner's. Starting point for playtesting.
 #define AI_BURROWER_DRAG_CHANCE 25
+/// get_drag_chance() (xeno_ai_controller.dm) for every melee caste that isn't a dedicated isolation specialist (Runner/Burrower, above) but can plausibly end up standing over a target she just downed - a side hustle for a caste whose real job is fighting, not a Runner-tier dedicated kit, so this is well below both dedicated drag chances.
+#define AI_XENO_OPPORTUNISTIC_DRAG_CHANCE 10
+/// Radius pick_burrower_flank_turf() (burrower.dm) scans around the target for allies already fighting them, to score which flank side is still unclaimed - deliberately small and separate from AI_XENO_FLEE_ALLY_RADIUS (a different, unrelated tuning knob) since this only cares about immediate melee-range crowding around one specific target, not general nearby backup.
+#define AI_BURROWER_FLANK_ALLY_SCAN_RADIUS 5
+/// Percent chance per idle tick that a Burrower attempts attempt_build_hive_tunnel() (burrower.dm) - a low-priority infrastructure roll, checked last among her own build options, similar rarity band to AI_HUMAN_CAP_BUILD_CHANCE.
+#define AI_BURROWER_TUNNEL_BUILD_CHANCE 4
+/// Minimum distance (tiles) a new autonomous tunnel site must be from every existing hive.tunnels node - see is_hive_tunnel_network_sparse_near() (burrower.dm). Keeps the AI from spamming redundant entrances close together instead of genuinely extending the network's reach.
+#define AI_BURROWER_TUNNEL_MIN_SPACING 20
 /// Acid fraction (of max) at which an Acider counts as charged and switches to the deliberate detonation-run pattern.
 #define AI_ACIDER_CHARGED_PERCENT 0.8
 /// Distance band at which a charged Acider holds before committing her detonation run.
@@ -222,6 +230,8 @@
 #define AI_XENO_LONG_PATROL_RADIUS_MAX 60
 /// Percent chance per idle tick that an AI Drone attempts a build action (plant weeds) instead of wandering. Kept low - every Drone in the hive rolls this independently on its own idle heartbeat, so even a modest chance adds up fast across a full population ("weeding everywhere").
 #define AI_DRONE_BUILD_CHANCE 8
+/// Percent chance per idle tick, for ANY caste with no current_target (truly free, not mid-fight), that a xeno detours to dig blocking snow instead of its normal idle behavior - checked once at the single shared tick()/patrol() dispatch point (xeno_ai_controller.dm) rather than per-caste, so every caste opportunistically clears a path for the hive's weeds/structures, not just the dedicated builders. Kept low for the same "adds up fast across a full population" reasoning as AI_DRONE_BUILD_CHANCE.
+#define AI_SNOW_CLEAR_CHANCE 5
 /// Percent chance per idle tick that an eligible builder caste (Drone/Hivelord/Burrower) attempts a defensive resin wall at the hive perimeter instead of just weeding - see attempt_build_defense().
 #define AI_DEFENSE_BUILD_CHANCE 6
 /// Nearest a defensive perimeter wall is allowed to anchor_turf - keeps walls from boxing in the hive core itself.
@@ -292,6 +302,8 @@
 #define AI_XENO_COVER_VARIETY_TOLERANCE 2
 /// How long get_or_pick_cover_turf()/get_or_pick_flank_turf() (xeno_ai_movement.dm) stay committed to whatever cover/flank tile they last picked before allowing a fresh re-roll - find_cover_turf()'s own near-tied randomization (AI_XENO_COVER_VARIETY_TOLERANCE, above) re-picking every single uncached tick read as visibly oscillating in place. Shorter than AI_XENO_OBSTACLE_COMMIT_DURATION since a retreat/flank position should still adapt reasonably quickly to a real fight shifting, just not every tick.
 #define AI_XENO_COVER_COMMIT_DURATION 3 SECONDS
+/// How long get_or_pick_z_transition() (xeno_ai_controller.dm) stays committed to whatever stairs/ladder it last picked before allowing a fresh re-scan of GLOB.multiz_stairs_list/GLOB.ladder_list - longer than AI_XENO_COVER_COMMIT_DURATION since reaching a chosen transition point (unlike a nearby cover/flank tile) can genuinely take a while to walk to across a whole deck, and re-scanning every few seconds mid-walk would just find the same nearest transition again anyway.
+#define AI_XENO_Z_TRANSITION_COMMIT_DURATION 15 SECONDS
 /// How long other hive members will respond to the Queen's last hive-alert broadcast before it goes stale (see hive_status.dm's queen_alert_turf).
 #define AI_XENO_HIVE_ALERT_WINDOW 30 SECONDS
 /// How far away a hive-alert will actually pull an idle builder off what she's doing - a fight on the far side of the map shouldn't empty out every drone's weeding queue.
@@ -493,3 +505,17 @@
 #define AI_PRIORITY_RESCAN_INTERVAL 3 SECONDS
 /// Consecutive process_attack() ticks against the same current_target with zero recorded health-delta before the controller gives up and drops it - process_attack() otherwise has no timeout at all, unlike movement (blocked_attempts) and search (AI_XENO_SEARCH_TIMEOUT), so a target the pilot mechanically can't damage was fought forever.
 #define AI_PRIORITY_STALE_ATTACK_GIVEUP 4
+
+// Vent-crawling (xeno_ai_ventcrawl.dm) - see attempt_ventcrawl_travel()'s doc comment for the overall shape.
+/// Hard cap on nodes visited by find_vent_path()'s BFS - a malformed/huge duct network degrades to "no route" instead of hanging the coroutine, same philosophy as XENO_PATHFIND_MAX_CELLS for the turf-grid solver.
+#define AI_VENT_PATHFIND_MAX_NODES 400
+/// world.time slept between each forceMove() hop of ai_ventcrawl_traverse() - NOT mimicking relaymove()'s own timing (intermediate pipe-to-pipe movement is instant there, no do_after at all - only entering/exiting a vent has a real channel). This is a deliberate AI-only pacing choice: fast enough to read as a quick crawl rather than a stall, but non-zero so the whole route doesn't resolve in a single tick and the per-hop safety re-checks (segment welded/destroyed mid-transit) are actually meaningful rather than vacuous.
+#define AI_VENT_HOP_DELAY 3
+/// Minimum direct-walk distance before a vent-crawl route is even considered - same role as AI_TUNNEL_MIN_TRIP for the tunnel network.
+#define AI_VENT_MIN_TRIP 20
+/// Tiles of advantage a vent route (entry walk + resolved hop count + exit walk) must have over the direct walk distance to be worth it - hop count stands in for pipe-transit cost since duct runs don't follow open terrain, so this needs more slack than a guaranteed-direct tunnel hop.
+#define AI_VENT_TRIP_OVERHEAD 15
+/// Hard cap on a resolved pipe route's length (hops) - beyond this a "technically shorter than walking" route is almost certainly a pathological duct layout, not a real shortcut worth taking.
+#define AI_VENT_MAX_HOPS 60
+/// Percent chance per approach tick that an eligible caste already closing on a target instead detours to vent-crawl into ambush range - kept low, same reasoning as AI_XENO_AMBUSH_CHANCE/AI_BURROWER_AMBUSH_CHANCE.
+#define AI_VENT_AMBUSH_CHANCE 8

@@ -28,6 +28,10 @@
 	. = ..()
 	circle_dir = pick(90, -90)
 
+/// See attempt_opportunistic_drag()'s doc comment (xeno_ai_controller.dm).
+/datum/xeno_ai_controller/predalien/get_drag_chance()
+	return AI_XENO_OPPORTUNISTIC_DRAG_CHANCE
+
 /// Eviscerate/Devastate (feralfrenzy, predalien_powers.dm) "immobilizes both her and the target for a windup" per this file's own header - a real gap missed until now, no override existed at all despite that already being documented.
 /datum/xeno_ai_controller/predalien/can_act_while_immobilized()
 	if(..())

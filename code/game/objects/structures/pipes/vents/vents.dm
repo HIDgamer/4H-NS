@@ -23,6 +23,8 @@
 		assign_uid()
 		id_tag = num2text(uid)
 
+	GLOB.vent_list += src
+
 /obj/structure/pipes/vents/proc/assign_uid()
 	uid = gl_uid
 	gl_uid++
@@ -123,6 +125,7 @@
 		qdel(src)
 
 /obj/structure/pipes/vents/Destroy()
+	GLOB.vent_list -= src
 	qdel(gas_holder)
 	if(initial_loc)
 		initial_loc.air_vent_info -= id_tag

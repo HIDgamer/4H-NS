@@ -86,6 +86,12 @@
 	var/turf/committed_escort_turf
 	/// world.time committed_escort_turf can be abandoned for a fresh pick even though it's still valid.
 	var/committed_escort_until = 0
+	/// Stairs or ladder currently committed to for crossing toward a specific z-level - see get_or_pick_z_transition(). Same "don't re-derive every tick" reasoning as committed_flank_turf, but also invalidated the moment the pilot's own z changes (a stale commit pointing at a transition on the level just left is worse than useless) or the target z it was picked for changes.
+	var/atom/committed_z_transition
+	/// world.time committed_z_transition can be abandoned for a fresh pick even though it's still valid.
+	var/committed_z_transition_until = 0
+	/// The target z-level committed_z_transition was picked for - a fresh pick toward a DIFFERENT z (e.g. the goal moved to yet another deck) invalidates the old commit even if it hasn't expired yet.
+	var/committed_z_transition_target_z = 0
 	/// world.time this controller (Queen/King only) can next re-evaluate its combat pheromone choice - see attempt_periodic_combat_pheromones().
 	var/next_combat_phero_check = 0
 	/// Absolute direction of the last successful navigate_around() sidestep - tried again first next time, so the pilot commits to going around one side of an obstacle instead of flip-flopping as target_dir shifts tick to tick.
@@ -104,6 +110,10 @@
 	var/codename
 	/// Perimeter turf currently committed to for attempt_build_human_cap() (human_cap.dm) - same "commit once, walk there across multiple idle ticks" pattern build_target_turf already uses for attempt_build_defense(), kept as a separate var rather than reusing that one since a Drone/Hivelord could in principle have both build behaviors available. Null whenever not mid-walk to a cap build site.
 	var/turf/human_cap_build_turf
+	/// Snow turf currently committed to for attempt_clear_snow() - same "commit once, walk there across multiple idle ticks" pattern human_cap_build_turf uses. Null whenever not mid-walk to a dig site. Typed /turf/open (not the base /turf) since bleed_layer only exists there.
+	var/turf/open/snow_dig_turf
+	/// Site currently committed to for attempt_build_hive_tunnel() (burrower.dm) - same "commit once, walk there across multiple idle ticks" pattern human_cap_build_turf uses. Unlike human_cap building, build_tunnel/use_ability() digs at the pilot's own exact loc (not a passed-in target), so arrival requires standing exactly on this turf, not just within build range.
+	var/turf/hive_tunnel_build_turf
 	/// Turf this xeno is traveling to (or already holding) for attempt_ambush_hide()'s "hide near the LZ" idle behavior - null whenever not mid-ambush.
 	var/turf/ambush_turf
 	/// TRUE once actually settled and xenohidden at ambush_turf, as opposed to still walking there - see attempt_ambush_hide().
@@ -406,6 +416,15 @@ GLOBAL_LIST_INIT(ai_codenames_brawler, list("Red Death", "Hail Mary", "Grim Tall
 		// so idle behavior is completely unchanged with no order pending.
 		if(respond_to_player_order())
 			idle_activity = IDLE_ACTIVITY_ORDERED
+		// Checked here, once, for every caste - same "single shared dispatch
+		// point instead of duplicated per caste override" reasoning as
+		// respond_to_player_order() just above. A xeno with no current_target
+		// is by definition free and not attacking anything, which is exactly
+		// the condition this should apply under; rolling it before patrol()
+		// (rather than folding it into patrol() itself, which several castes
+		// fully override without calling ..()) is what makes it universal.
+		else if(prob(AI_SNOW_CLEAR_CHANCE) && attempt_clear_snow())
+			idle_activity = IDLE_ACTIVITY_BUILD
 		else
 			patrol()
 		if(GLOB.ai_debug_pathing && idle_activity != last_idle_activity)
@@ -529,6 +548,13 @@ GLOBAL_LIST_INIT(ai_codenames_brawler, list("Red Death", "Hail Mary", "Grim Tall
 		patrol_turf = null
 		return
 	if(attempt_tunnel_shortcut(patrol_turf))
+		return
+	// Checked after the tunnel network specifically - a tunnel is a
+	// guaranteed-direct fixed hop when one's available, vents are the next-
+	// cheapest option (still gated on genuinely beating a plain walk, see
+	// attempt_ventcrawl_travel()'s own distance-savings check) before falling
+	// to ordinary walking.
+	if(attempt_ventcrawl_travel(patrol_turf))
 		return
 	if(!travel_to(patrol_turf, TRAVEL_FLAG_FORCE_OBSTACLES|TRAVEL_FLAG_AVOID_MOBS))
 		patrol_turf = null // Truly stuck - drop it rather than grinding against the same obstacle forever.
@@ -1004,6 +1030,55 @@ GLOBAL_LIST_INIT(ai_codenames_brawler, list("Red Death", "Hail Mary", "Grim Tall
 	if(!action)
 		return FALSE
 	action.use_ability(pilot)
+	return TRUE
+
+/**
+ * Clears blocking snow (bleed_layer > 0) so weed expansion / structure
+ * placement can actually reach that ground - is_weedable() returns
+ * NOT_WEEDABLE on any snow tile until dug bare (turf.dm/auto_turf.dm), and
+ * general_powers.dm's own build/weed placement gates all key off the same
+ * check. Digging is a melee interaction (attack_alien() under INTENT_DISARM
+ * specifically - HARM misses, HELP no-ops, see auto_turf.dm's
+ * /turf/open/auto_turf/snow and attack_alien.dm's /turf/open/snow variants,
+ * both of which fully clear a tile bare in one call via their own internal
+ * do_after loop), so this needs the same "commit to a site, walk there, act"
+ * two-call shape attempt_build_human_cap() uses, not attempt_plant_weeds()'s
+ * self-tile-only shortcut.
+ */
+/datum/xeno_ai_controller/proc/attempt_clear_snow()
+	if(!pilot || !anchor_turf)
+		return FALSE
+
+	if(snow_dig_turf)
+		if(snow_dig_turf.density || !snow_dig_turf.bleed_layer)
+			snow_dig_turf = null
+		else if(!pilot.Adjacent(snow_dig_turf))
+			travel_to(snow_dig_turf, TRAVEL_FLAG_FORCE_OBSTACLES|TRAVEL_FLAG_AVOID_MOBS|TRAVEL_FLAG_STATIC_GOAL)
+			return TRUE
+		else
+			pilot.a_intent = INTENT_DISARM // Only intent auto_turf.dm's/attack_alien.dm's snow attack_alien() actually digs under - HARM misses, HELP no-ops.
+			snow_dig_turf.attack_alien(pilot) // The do_after loop inside blocks this tick's coroutine safely, same as attempt_eat_fruit().
+			snow_dig_turf = null
+			return TRUE
+
+	// Prefer snow adjacent to the hive's existing weed frontier - clearing a
+	// path where expansion is actually about to reach, not random snow
+	// anywhere in range.
+	var/list/frontier_candidates = list()
+	var/list/other_candidates = list()
+	for(var/turf/open/candidate in range(AI_XENO_DEFENSE_PERIMETER_MAX_RADIUS, get_turf(pilot)))
+		if(!istype(candidate, /turf/open/snow) && !istype(candidate, /turf/open/auto_turf/snow))
+			continue
+		if(candidate.density || !candidate.bleed_layer)
+			continue
+		if(locate(/obj/effect/alien/weeds) in orange(1, candidate))
+			frontier_candidates += candidate
+		else
+			other_candidates += candidate
+	var/list/pick_from = length(frontier_candidates) ? frontier_candidates : other_candidates
+	if(!length(pick_from))
+		return FALSE
+	snow_dig_turf = pick(pick_from)
 	return TRUE
 
 /**
@@ -2214,12 +2289,44 @@ GLOBAL_LIST_INIT(ai_codenames_brawler, list("Red Death", "Hail Mary", "Grim Tall
 	best.attack_alien(pilot) // The do_after windup inside blocks this tick's coroutine the same safe way do_climb() already does.
 	return TRUE
 
+/// Virtual - percent chance per attack tick (execute_attack()) that a caste already in melee with a downed human opportunistically drags them off instead of continuing to attack. 0 by default (most castes have no business dragging); overridden per caste that plausibly downs a target mid-fight. See attempt_opportunistic_drag().
+/datum/xeno_ai_controller/proc/get_drag_chance()
+	return 0
+
+/**
+ * Centralized "spot a downed human while already adjacent, opportunistically
+ * drag them off" roll - called once from execute_attack() (xeno_ai_attack.dm)
+ * for every caste, rather than duplicated per caste. Runner/Burrower used to
+ * roll this inline with their own dedicated chance defines
+ * (AI_RUNNER_DRAG_CHANCE/AI_BURROWER_DRAG_CHANCE); they now just override
+ * get_drag_chance() to return those same values, so behavior for both is
+ * unchanged, while every other melee caste (Warrior, Ravager, Praetorian,
+ * Predalien, Crusher, Defender, King) gets a shared, lower-priority
+ * AI_XENO_OPPORTUNISTIC_DRAG_CHANCE roll it never had before - a caste whose
+ * real job is fighting doesn't need its own dedicated isolation kit to
+ * occasionally start a drag. attempt_cap_drag_victim()/process_drag() (both
+ * already caste-agnostic) pick up delivery from here regardless of which
+ * caste actually started the drag, so no hive-level tracking is needed on
+ * top of this.
+ */
+/datum/xeno_ai_controller/proc/attempt_opportunistic_drag(mob/living/target)
+	if(!ishuman(target))
+		return FALSE
+	var/mob/living/carbon/human/downed = target
+	if(!downed.is_mob_incapacitated() && downed.body_position != LYING_DOWN)
+		return FALSE
+	if(!prob(get_drag_chance()))
+		return FALSE
+	if(!attempt_start_drag(downed))
+		return FALSE
+	drop_target()
+	return TRUE
+
 /**
  * Grabs a downed/stunned marine to drag away from their squad - the
- * signature Runner isolation play (per user decision: isolation drags only,
- * never nesting). Calls do_pull() directly (mob.dm) rather than
- * start_pulling(), whose !usr guard makes it player-click-only - do_pull()
- * is the underlying mechanics with no client dependency, the same
+ * signature Runner isolation play. Calls do_pull() directly (mob.dm) rather
+ * than start_pulling(), whose !usr guard makes it player-click-only -
+ * do_pull() is the underlying mechanics with no client dependency, the same
  * direct-proc pattern do_climb()/flip() already use. Validation mirrors
  * start_pulling()'s own checks.
  */
@@ -2705,17 +2812,14 @@ GLOBAL_LIST_INIT(ai_codenames_brawler, list("Red Death", "Hail Mary", "Grim Tall
 		return
 
 	if(pilot_turf.z != last_seen_turf.z)
-		var/obj/structure/ladder/target_ladder = find_ladder_towards(last_seen_turf.z)
-		if(!target_ladder)
+		// advance_towards_z() tries stairs first, then ladders - a strict
+		// superset of what this used to do inline (ladder-only), same give-up
+		// telemetry/UX preserved below.
+		if(!advance_towards_z(last_seen_turf.z))
 			if(GLOB.ai_debug_pathing)
-				log_debug("XENO AI SEARCH STUCK: [pilot] ([pilot.type]) no ladder connects toward z=[last_seen_turf.z], giving up search - [get_ai_debug_snapshot()]")
+				log_debug("XENO AI SEARCH STUCK: [pilot] ([pilot.type]) no z-transition connects toward z=[last_seen_turf.z], giving up search - [get_ai_debug_snapshot()]")
 			last_seen_turf = null
 			ai_state = AI_STATE_IDLE
-			return
-		if(get_dist(pilot, target_ladder) <= 0)
-			target_ladder.ai_use(pilot, (last_seen_turf.z > pilot_turf.z) ? "up" : "down")
-		else
-			travel_to(target_ladder, TRAVEL_FLAG_FORCE_OBSTACLES)
 		return
 
 	if(get_dist(pilot, last_seen_turf) <= 1)
@@ -2752,6 +2856,114 @@ GLOBAL_LIST_INIT(ai_codenames_brawler, list("Red Death", "Hail Mary", "Grim Tall
 			best_dist = d
 			best = candidate
 	return best
+
+/// Nearest /obj/structure/stairs/multiz on the pilot's current z-level whose direction actually leads toward target_z, or null if none does. Same shape as find_ladder_towards() just above - stairs use a single direction (UP or DOWN) rather than two separate up/down references.
+/datum/xeno_ai_controller/proc/find_stairs_towards(target_z)
+	if(!pilot)
+		return null
+	var/turf/pilot_turf = get_turf(pilot)
+	if(!pilot_turf)
+		return null
+
+	var/obj/structure/stairs/multiz/best
+	var/best_dist = INFINITY
+	for(var/obj/structure/stairs/multiz/candidate as anything in GLOB.multiz_stairs_list)
+		var/turf/stairs_turf = get_turf(candidate)
+		if(!stairs_turf || stairs_turf.z != pilot_turf.z)
+			continue
+		if(target_z > pilot_turf.z && candidate.direction != UP)
+			continue
+		if(target_z < pilot_turf.z && candidate.direction != DOWN)
+			continue
+		var/d = get_dist(pilot, candidate)
+		if(d < best_dist)
+			best_dist = d
+			best = candidate
+	return best
+
+/**
+ * Commit-cached wrapper around find_stairs_towards()/find_ladder_towards() -
+ * same "don't re-derive every tick" reasoning as get_or_pick_flank_turf()
+ * (xeno_ai_movement.dm), but with two extra invalidation checks neither of
+ * those simpler pickers need: the commit is only reused while the pilot is
+ * still on the same z it was picked from (a stale commit pointing at a
+ * transition on the level just left is worse than useless - it would send
+ * her straight back the way she came) and only while it was picked for the
+ * same target_z (the goal moving to yet another deck mid-commit needs a
+ * fresh pick even if the old one hasn't expired). Stairs are preferred over
+ * ladders when both connect the right way - fully automatic (no busy/
+ * do_after commitment to interrupt if she's under fire), see misc.dm's
+ * /obj/structure/stairs/multiz/on_premove().
+ */
+/datum/xeno_ai_controller/proc/get_or_pick_z_transition(target_z)
+	if(!pilot)
+		return null
+	var/turf/pilot_turf = get_turf(pilot)
+	if(!pilot_turf)
+		return null
+
+	if(committed_z_transition && !QDELETED(committed_z_transition) && world.time < committed_z_transition_until && committed_z_transition_target_z == target_z)
+		var/turf/committed_turf = get_turf(committed_z_transition)
+		if(committed_turf && committed_turf.z == pilot_turf.z)
+			return committed_z_transition
+
+	committed_z_transition = find_stairs_towards(target_z) || find_ladder_towards(target_z)
+	committed_z_transition_until = world.time + AI_XENO_Z_TRANSITION_COMMIT_DURATION
+	committed_z_transition_target_z = target_z
+	return committed_z_transition
+
+/**
+ * The actual cross-z bridging step, called from travel_to() (xeno_ai_movement.dm)
+ * whenever the goal is on a different z than the pilot, and from
+ * process_search() for the same reason. Returns FALSE (no known transition
+ * connects, or one exists but couldn't be advanced this tick) so callers can
+ * fall back to their own give-up handling exactly as before - this never
+ * decides to give up on the caller's behalf.
+ *
+ * Ladders and stairs are handled differently because their underlying
+ * mechanics differ:
+ * - Stairs (/obj/structure/stairs/multiz, misc.dm) need no interaction at
+ *   all - on_premove() auto-teleports ANY mob that steps off the stairs'
+ *   own turf in the correct direction. But that trigger direction is exact
+ *   (see on_premove()'s dir check) and only starts being checked once the
+ *   pilot has actually entered the stairs' turf (on_turf_entered() is what
+ *   registers the signal in the first place) - routing to a turf merely
+ *   adjacent to the stairs and hoping the pathfinder's approach angle
+ *   happens to continue through them in the right direction isn't reliable
+ *   (an open room can offer a route to that tile that never crosses the
+ *   stairs at all). So this walks the pilot onto the stairs' exact turf
+ *   first via the normal same-z router, then - only once actually standing
+ *   there - takes one explicit, guaranteed-correct-direction step with
+ *   ai_step() to trigger the teleport deterministically.
+ * - Ladders (/obj/structure/ladder, ladders.dm) require an explicit
+ *   interaction - ai_use() (the same no-alert, clientless-safe entry point
+ *   process_search() already calls) - once actually at the ladder.
+ */
+/datum/xeno_ai_controller/proc/advance_towards_z(target_z)
+	if(!pilot)
+		return FALSE
+	var/turf/pilot_turf = get_turf(pilot)
+	if(!pilot_turf || pilot_turf.z == target_z)
+		return FALSE
+
+	var/atom/transition = get_or_pick_z_transition(target_z)
+	if(!transition)
+		return FALSE
+
+	if(istype(transition, /obj/structure/stairs/multiz))
+		var/obj/structure/stairs/multiz/stairs = transition
+		var/turf/stairs_turf = get_turf(stairs)
+		if(!stairs_turf)
+			return FALSE
+		if(pilot_turf == stairs_turf)
+			var/step_dir = (stairs.direction == UP) ? stairs.dir : REVERSE_DIR(stairs.dir)
+			return ai_step(step_dir)
+		return travel_to(stairs_turf, TRAVEL_FLAG_FORCE_OBSTACLES)
+
+	var/obj/structure/ladder/ladder = transition
+	if(get_dist(pilot, ladder) <= 0)
+		return ladder.ai_use(pilot, (target_z > pilot_turf.z) ? "up" : "down")
+	return travel_to(ladder, TRAVEL_FLAG_FORCE_OBSTACLES)
 
 /**
  * Finds a specific ability instance on the pilot's action bar, for

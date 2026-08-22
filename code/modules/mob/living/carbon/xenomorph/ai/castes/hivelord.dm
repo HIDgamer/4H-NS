@@ -44,15 +44,20 @@
 	if(attempt_help_queen_build_core())
 		idle_activity = IDLE_ACTIVITY_BUILD
 		return
+	// Checked before attempt_build_fort_line() specifically - see
+	// drone_worker.dm's identical reordering for why: a fort line commits
+	// (and re-commits) on nearly every idle tick, effectively starving this
+	// roll if it's checked after. attempt_build_human_cap() already early-
+	// returns cheaply once AI_XENO_MAX_HUMAN_CAPS is hit.
+	if(prob(AI_HUMAN_CAP_BUILD_CHANCE) && attempt_build_human_cap())
+		idle_activity = IDLE_ACTIVITY_BUILD
+		return
 	// "All they do is plant eggs, never building the hive and building
 	// defenses" - building/weeding is the primary job now, checked first;
 	// egg-carrying is a lower-priority errand that only competes for a slot
 	// when there's nothing to build, and a carry already in progress always
 	// finishes regardless (is_carrying_egg() bypasses the roll below).
 	if(attempt_build_fort_line())
-		idle_activity = IDLE_ACTIVITY_BUILD
-		return
-	if(prob(AI_HUMAN_CAP_BUILD_CHANCE) && attempt_build_human_cap())
 		idle_activity = IDLE_ACTIVITY_BUILD
 		return
 	if(prob(AI_HIVELORD_BUILD_CHANCE) && attempt_plant_weeds())

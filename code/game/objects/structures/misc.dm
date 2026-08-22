@@ -303,6 +303,11 @@
 /obj/structure/stairs/multiz/Initialize(mapload, ...)
 	. = ..()
 	RegisterSignal(loc, COMSIG_TURF_ENTERED, PROC_REF(on_turf_entered))
+	GLOB.multiz_stairs_list += src
+
+/obj/structure/stairs/multiz/Destroy()
+	GLOB.multiz_stairs_list -= src
+	return ..()
 
 /obj/structure/stairs/multiz/proc/on_turf_entered(turf/source, atom/movable/enterer)
 	if(!istype(enterer, /mob))

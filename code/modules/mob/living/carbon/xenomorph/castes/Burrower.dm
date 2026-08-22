@@ -404,15 +404,23 @@
 	var/obj/structure/tunnel/tunnelobj = new(turf, xenomorph.hivenumber)
 	xenomorph.tunnel_delay = 1
 	addtimer(CALLBACK(src, PROC_REF(cooldown_end)), 4 MINUTES)
-	var/msg = strip_html(input("Add a description to the tunnel:", "Tunnel Description") as text|null)
-	msg = replace_non_alphanumeric_plus(msg)
 	var/description
-	if(msg)
-		description = msg
-		msg = "[msg] ([get_area_name(tunnelobj)])"
-		log_admin("[key_name(xenomorph)] has named a new tunnel \"[msg]\".")
-		msg_admin_niche("[xenomorph]/([key_name(xenomorph)]) has named a new tunnel \"[msg]\".")
-		tunnelobj.tunnel_desc = "[msg]"
+	// input() blocks waiting on a real player response - fine for the
+	// ordinary click-driven case (a client is always attached there), but an
+	// AI-piloted Burrower calling use_ability() directly (attempt_build_hive_tunnel(),
+	// xeno_ai_controller.dm) has no client to ever answer it, which would
+	// hang her ai_loop() coroutine forever. Skipped entirely for a clientless
+	// caller - the tunnel is still built, it just goes unnamed, same as any
+	// tunnel a player declines to name today.
+	if(xenomorph.client)
+		var/msg = strip_html(input("Add a description to the tunnel:", "Tunnel Description") as text|null)
+		msg = replace_non_alphanumeric_plus(msg)
+		if(msg)
+			description = msg
+			msg = "[msg] ([get_area_name(tunnelobj)])"
+			log_admin("[key_name(xenomorph)] has named a new tunnel \"[msg]\".")
+			msg_admin_niche("[xenomorph]/([key_name(xenomorph)]) has named a new tunnel \"[msg]\".")
+			tunnelobj.tunnel_desc = "[msg]"
 
 	if(xenomorph.hive.living_xeno_queen || xenomorph.hive.allow_no_queen_actions)
 		for(var/mob/living/carbon/xenomorph/target_for_message as anything in xenomorph.hive.totalXenos)

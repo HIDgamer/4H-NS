@@ -53,6 +53,16 @@
 
 /client/MouseUp(atom/A, turf/T, skin_ctl, params)
 	if(!A)
+		// No atom under the cursor on release (off the map edge, over UI
+		// chrome) - still deliver COMSIG_MOB_MOUSEUP so state latched on a
+		// real MouseDown/MouseDrag (hive command marquee, held-mouse gun/
+		// hardpoint fire) always gets a matching "released" notification
+		// instead of getting stuck. Every current registrant already
+		// tolerates a null atom/turf here. Click-catcher resolution and
+		// COMSIG_CLIENT_LMB_UP below still need a real atom and stay
+		// skipped, exactly as before.
+		holding_click = FALSE
+		SEND_SIGNAL(mob, COMSIG_MOB_MOUSEUP, A, T, skin_ctl, params)
 		return
 
 	var/click_catcher_click = FALSE

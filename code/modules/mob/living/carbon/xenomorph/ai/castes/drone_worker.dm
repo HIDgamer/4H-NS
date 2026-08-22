@@ -49,15 +49,24 @@
 	if(attempt_help_queen_build_core())
 		idle_activity = IDLE_ACTIVITY_BUILD
 		return
+	// Checked before attempt_build_fort_line() specifically: a fort line
+	// returns TRUE (and re-commits) on every idle tick it's mid-progress, up
+	// to AI_FORT_WALL_SEGMENT_LENGTH*several tiles, and a fresh line restarts
+	// immediately most of the time (AI_BUILDER_FORT_LINE_START_CHANCE) - left
+	// below the fort-line check, a Drone effectively never reaches this roll
+	// at all, which is why capping was never actually observed in testing
+	// despite existing. attempt_build_human_cap() itself already early-
+	// returns cheaply once AI_XENO_MAX_HUMAN_CAPS is hit, so rolling it first
+	// costs nothing once the hive has enough caps.
+	if(prob(AI_HUMAN_CAP_BUILD_CHANCE) && attempt_build_human_cap())
+		idle_activity = IDLE_ACTIVITY_BUILD
+		return
 	// "All they do is plant eggs, never building the hive and building
 	// defenses" - building/weeding is the primary job now, checked first;
 	// egg-carrying is a lower-priority errand that only competes for a slot
 	// when there's nothing to build, and a carry already in progress always
 	// finishes regardless (is_carrying_egg() bypasses the roll below).
 	if(attempt_build_fort_line())
-		idle_activity = IDLE_ACTIVITY_BUILD
-		return
-	if(prob(AI_HUMAN_CAP_BUILD_CHANCE) && attempt_build_human_cap())
 		idle_activity = IDLE_ACTIVITY_BUILD
 		return
 	if(prob(AI_DRONE_BUILD_CHANCE) && attempt_plant_weeds())

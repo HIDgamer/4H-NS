@@ -38,6 +38,10 @@
 	attack_distance = AI_KING_ATTACK_DISTANCE
 	return_distance = AI_KING_RETURN_DISTANCE
 
+/// See attempt_opportunistic_drag()'s doc comment (xeno_ai_controller.dm).
+/datum/xeno_ai_controller/king/get_drag_chance()
+	return AI_XENO_OPPORTUNISTIC_DRAG_CHANCE
+
 /// Destroy (King.dm) self-immobilizes for its leap windup - King.dm uses a bare "Destroy" string as the trait source, not the TRAIT_SOURCE_ABILITY() macro, so this has to match that literally rather than reusing the macro like every other override does.
 /datum/xeno_ai_controller/king/can_act_while_immobilized()
 	if(..())

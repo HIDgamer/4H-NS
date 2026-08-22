@@ -23,6 +23,19 @@
 	if(!pilot || !goal)
 		return FALSE
 
+	// get_dist() below ignores z entirely - a goal on a different deck but
+	// close in x/y would otherwise pass the "already close" check just below
+	// and fall into cardinal_step_towards()/handle_travel_obstacles(), neither
+	// of which know how to cross a z boundary, leaving the pilot pacing at
+	// the edge forever. Checked first, before anything else, so every caller
+	// gets cross-z bridging for free - not just AI_STATE_SEARCHING, which
+	// used to be the only place this was handled at all (see
+	// advance_towards_z()'s own doc comment, xeno_ai_controller.dm).
+	var/turf/pilot_turf = get_turf(pilot)
+	var/turf/goal_turf = get_turf(goal)
+	if(pilot_turf && goal_turf && pilot_turf.z != goal_turf.z)
+		return advance_towards_z(goal_turf.z)
+
 	// A goal already close is stepped at directly - routing to a moving
 	// nearby goal (a pack buddy, a shifting target) plans to where it WAS,
 	// walks the stale route the wrong way, replans, turns around - which is
@@ -111,6 +124,14 @@
 		var/turf/flank_turf = get_or_pick_flank_turf(current_target)
 		if(flank_turf)
 			approach_goal = flank_turf
+
+	// Opportunistic ambush detour - only reached while still closing distance
+	// (the AI_STATE_ATTACKING transition above already handles once actually
+	// adjacent), gated by a low-probability roll so the vent-registry scan
+	// inside attempt_ventcrawl_travel() isn't attempted every single approach
+	// tick regardless of whether a usable route is anywhere nearby.
+	if(prob(AI_VENT_AMBUSH_CHANCE) && attempt_ventcrawl_travel(get_turf(approach_goal)))
+		return
 
 	if(check_movement_progress(approach_goal))
 		return

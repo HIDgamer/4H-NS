@@ -1266,12 +1266,14 @@
 /**
  * "add an option to the xeno spawner which is larva and hugger human burst... clicked on a
  * living human mob, it starts a burst and then either a hugger or a larva bursts out." Larva
- * reuses the real embryo pipeline (Embryo.dm's become_larva()/chest_burst()) but skips its own
- * multi-second ghost-candidate-offering and the 20-tick autoburst wait, since this is an
- * instant admin action rather than a natural infection. Hugger has no equivalent "bursts out
- * of a human" mechanic anywhere in the codebase (huggers only ever come from eggs) so it's a
- * parallel burst built the same shape as chest_burst() (scream/shake/kill, then spawn on the
- * turf).
+ * reuses the real embryo pipeline (Embryo.dm's become_larva()/process_growth()/chest_burst())
+ * and skips only become_larva()'s own multi-second ghost-candidate-offering, since spawn_as
+ * already picks a controller for the larva up front - the embryo itself is handed off to the
+ * same stage-7 autoburst countdown a natural infection uses (set via embryo.stage = 7 below)
+ * so it stays alive and scanner-detectable for a real window instead of bursting instantly.
+ * Hugger has no equivalent "bursts out of a human" mechanic anywhere in the codebase (huggers
+ * only ever come from eggs) so it's a parallel burst built the same shape as chest_burst()
+ * (scream/shake/kill, then spawn on the turf).
  */
 /datum/admin_spawn_terminal/proc/do_burst(mob/user, mob/living/carbon/human/victim, list/params)
 	if(!victim || QDELETED(victim) || victim.stat == DEAD)
@@ -1307,7 +1309,7 @@
 	else if(spawn_as == "ai")
 		attach_xeno_ai(new_xeno, get_turf(victim))
 
-	new_xeno.chest_burst(victim) // set waitfor = 0 - kills/gibs victim after its own scream/shake delay, then forceMoves the larva onto victim's turf.
+	embryo.stage = 7 // Hand off to the same timed-burst path a real infection uses (process_growth(), Embryo.dm) instead of bursting instantly - keeps the embryo alive and scannable for the normal larva_autoburst_countdown window rather than deleting it ~6.5 seconds after chest_burst() fires immediately.
 
 	message_admins("[key_name_admin(user)] burst a larva ([xeno_hive]) out of [key_name(victim)]")
 

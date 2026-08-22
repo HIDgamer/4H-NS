@@ -48,6 +48,10 @@
 	. = ..()
 	circle_dir = pick(90, -90)
 
+/// See attempt_opportunistic_drag()'s doc comment (xeno_ai_controller.dm).
+/datum/xeno_ai_controller/ravager/get_drag_chance()
+	return AI_XENO_OPPORTUNISTIC_DRAG_CHANCE
+
 /**
  * "Using a few abilities would send the casts into daydreaming and doing
  * nothing... one or two ability uses makes the AI stop in its tracks" -

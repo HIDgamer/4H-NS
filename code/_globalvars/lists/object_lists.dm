@@ -16,6 +16,10 @@ GLOBAL_LIST_EMPTY_TYPED(portal_list, /obj/effect/portal)
 GLOBAL_LIST_EMPTY_TYPED(supply_drop_list, /obj/structure/supply_drop)
 GLOBAL_LIST_EMPTY_TYPED(brig_locker_list, /obj/structure/closet/secure_closet/brig)
 GLOBAL_LIST_EMPTY_TYPED(ladder_list, /obj/structure/ladder)
+/// Every /obj/structure/stairs/multiz on the map - unlike ladders, stairs have no interaction to bypass (they teleport any mob that steps through them in the right direction automatically, misc.dm), but the AI still needs a registry to find one connecting toward a given z-level - see find_stairs_towards() (xeno_ai_controller.dm).
+GLOBAL_LIST_EMPTY_TYPED(multiz_stairs_list, /obj/structure/stairs/multiz)
+/// Every /obj/structure/pipes/vents on the map - no equivalent registry exists for the pipe network otherwise (unlike GLOB.ladder_list), needed so AI code can find a usable entry/exit vent - see ai_ventcrawl_find_entry()/ai_ventcrawl_find_exit() (xeno_ai_ventcrawl.dm).
+GLOBAL_LIST_EMPTY_TYPED(vent_list, /obj/structure/pipes/vents)
 GLOBAL_LIST_EMPTY_TYPED(cable_list, /obj/structure/cable)
 GLOBAL_LIST_EMPTY_TYPED(closet_list, /obj/structure/closet)
 

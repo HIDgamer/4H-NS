@@ -26,6 +26,10 @@
  */
 /datum/xeno_ai_controller/defender
 
+/// See attempt_opportunistic_drag()'s doc comment (xeno_ai_controller.dm).
+/datum/xeno_ai_controller/defender/get_drag_chance()
+	return AI_XENO_OPPORTUNISTIC_DRAG_CHANCE
+
 /// Fortify is a deliberate, voluntary immobilize - she's still meant to fight (and, per process_attack() below, un-root) from where she's planted, unlike an ordinary stun/knockdown. Chains through ..() (xeno_ai_controller.dm) so the shared Pounce exemption still applies too, on the off chance she's ever given a pounce-family ability.
 /datum/xeno_ai_controller/defender/can_act_while_immobilized()
 	if(..())

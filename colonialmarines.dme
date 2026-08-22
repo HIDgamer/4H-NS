@@ -2241,6 +2241,7 @@
 #include "code\modules\mob\living\carbon\xenomorph\ai\xeno_ai_lifecycle.dm"
 #include "code\modules\mob\living\carbon\xenomorph\ai\xeno_ai_movement.dm"
 #include "code\modules\mob\living\carbon\xenomorph\ai\xeno_ai_orders.dm"
+#include "code\modules\mob\living\carbon\xenomorph\ai\xeno_ai_ventcrawl.dm"
 #include "code\modules\mob\living\carbon\xenomorph\ai\xeno_hive_difficulty.dm"
 #include "code\modules\mob\living\carbon\xenomorph\ai\castes\boiler.dm"
 #include "code\modules\mob\living\carbon\xenomorph\ai\castes\burrower.dm"

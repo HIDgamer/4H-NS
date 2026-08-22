@@ -69,6 +69,14 @@
 	var/mob/living/living_target = target
 	var/health_before = living_target.health
 
+	// Checked before caste abilities: a downed human already in melee range
+	// is a one-off opportunity (get_drag_chance()/attempt_opportunistic_drag(),
+	// xeno_ai_controller.dm) that shouldn't compete against - or be skipped
+	// in favor of - whatever the caste's own ability roll below would rather
+	// do this tick.
+	if(attempt_opportunistic_drag(living_target))
+		return
+
 	// Caste abilities are NOT gated on next_move below - a real player fires
 	// these from the action bar, a separate input path from click.dm's
 	// attack-click dispatch, gated only by the ability's own
