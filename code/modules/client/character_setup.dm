@@ -152,6 +152,19 @@
 			prefs.load_preferences()
 			prefs.load_character()
 			prefs.reload_cooldown = world.time + 50
+			// Belt-and-suspenders: the normal post-ui_act() refresh
+			// (on_act_message() -> SStgui.update_uis() -> process(force=1) ->
+			// tgui_interact() -> try_update_ui() -> ui.send_update()) drops the
+			// force flag on the way through - try_update_ui() calls
+			// send_update() with no arguments, so whether ui_data() actually
+			// gets included in that push ends up depending on this UI's
+			// current status (send_update()'s own should_update_data = force
+			// || status >= UI_UPDATE) rather than being guaranteed. Forcing an
+			// explicit, synchronous push here - right after the reload that
+			// just changed real_name/age/etc underneath the frontend's
+			// drafts - closes that gap outright instead of trusting the
+			// indirect chain to happen to resolve status correctly.
+			ui.send_update(force = TRUE)
 			return TRUE
 
 		if("load_slot")
@@ -171,6 +184,10 @@
 			var/choice = tgui_input_list(ui.user, "Select a character slot to load", "Load Character", slot_options)
 			if(choice)
 				prefs.load_character(slot_options[choice])
+				// See "reload" above - same forced, synchronous push right
+				// after the slot data actually changes, instead of relying on
+				// the indirect force-dropping refresh chain.
+				ui.send_update(force = TRUE)
 			return TRUE
 
 		if("open_hair")

@@ -40,8 +40,20 @@
 	if(!prefs)
 		return
 
-	.["has_co"] = !!owner.check_whitelist_status(WHITELIST_COMMANDER)
-	.["has_synth"] = !!owner.check_whitelist_status(WHITELIST_SYNTHETIC)
+	// Checking only the base flag hid this whole section (and so
+	// synthetic_name/commander_status - never rendered, so never saved, so
+	// spawn-time code that otherwise correctly applies them - synths.dm's
+	// load_name(), captain.dm's get_whitelist_status() - had nothing to
+	// apply) from any player holding ONLY a tier-only grant (Council/Senator/
+	// Colonel/Leader) with no base bit set - a real, admin-supported
+	// combination (see GLOB.co_flags/GLOB.syn_flags, whitelist.dm), not a
+	// contrived edge case. Matches the exact same OR'd flag sets the actual
+	// spawn-time eligibility checks already use - captain.dm's
+	// get_whitelist_status() and synthetic.dm's (civilians/support) own -
+	// so a player who can legitimately spawn as CO/Synth can also see and
+	// set these preferences in the first place.
+	.["has_co"] = !!owner.check_whitelist_status(WHITELIST_COMMANDER|WHITELIST_COMMANDER_COUNCIL|WHITELIST_COMMANDER_COUNCIL_LEGACY|WHITELIST_COMMANDER_LEADER|WHITELIST_COMMANDER_COLONEL)
+	.["has_synth"] = !!owner.check_whitelist_status(WHITELIST_SYNTHETIC|WHITELIST_SYNTHETIC_COUNCIL|WHITELIST_SYNTHETIC_COUNCIL_LEGACY|WHITELIST_SYNTHETIC_LEADER)
 
 	.["xeno_prefix"] = prefs.xeno_prefix
 	.["xeno_postfix"] = prefs.xeno_postfix

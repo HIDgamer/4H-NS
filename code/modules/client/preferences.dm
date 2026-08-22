@@ -570,7 +570,11 @@ GLOBAL_LIST_INIT(be_special_flags, list(
 
 				n++
 		if(MENU_CO)
-			if(owner.check_whitelist_status(WHITELIST_COMMANDER))
+			// Same tier-flags-included fix as WhitelistRoles.tsx's backend
+			// (whitelist_roles_setup.dm) - matches captain.dm's
+			// get_whitelist_status() so a Council/Colonel/Leader-only grant
+			// (no base WHITELIST_COMMANDER bit) can still see this section.
+			if(owner.check_whitelist_status(WHITELIST_COMMANDER|WHITELIST_COMMANDER_COUNCIL|WHITELIST_COMMANDER_COUNCIL_LEGACY|WHITELIST_COMMANDER_LEADER|WHITELIST_COMMANDER_COLONEL))
 				dat += "<div id='column1'>"
 				dat += "<h2><b><u>Commander Settings:</u></b></h2>"
 				dat += "<b>Commander Whitelist Status:</b> <a href='?_src_=prefs;preference=commander_status;task=input'><b>[commander_status]</b></a><br>"
@@ -580,7 +584,11 @@ GLOBAL_LIST_INIT(be_special_flags, list(
 			else
 				dat += "<b>You do not have the whitelist for this role.</b>"
 		if(MENU_SYNTHETIC)
-			if(owner.check_whitelist_status(WHITELIST_SYNTHETIC))
+			// Same tier-flags-included fix as WhitelistRoles.tsx's backend
+			// (whitelist_roles_setup.dm) - matches synthetic.dm's (civilians/
+			// support) get_whitelist_status() so a Council/Leader-only grant
+			// (no base WHITELIST_SYNTHETIC bit) can still see this section.
+			if(owner.check_whitelist_status(WHITELIST_SYNTHETIC|WHITELIST_SYNTHETIC_COUNCIL|WHITELIST_SYNTHETIC_COUNCIL_LEGACY|WHITELIST_SYNTHETIC_LEADER))
 				dat += "<div id='column1'>"
 				dat += "<h2><b><u>Synthetic Settings:</u></b></h2>"
 				dat += "<b>Synthetic Name:</b> <a href='?_src_=prefs;preference=synth_name;task=input'><b>[synthetic_name]</b></a><br>"

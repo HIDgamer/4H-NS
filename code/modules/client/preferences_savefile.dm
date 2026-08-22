@@ -660,6 +660,20 @@
 	S["be_special"] >> be_special
 	S["organ_data"] >> organ_data
 	S["gear"] >> gear
+	// job_loadout/job_loadout_names are ALSO written per-slot by save_character()
+	// (this file, S["job_loadout"] << save_loadout(loadout) under
+	// S.cd = "/character[default_slot]") but were never read back here - the
+	// only read existed in load_preferences()'s global "/" node, so loadout
+	// was effectively one shared, account-wide structure that never actually
+	// changed when switching character slots. Read here so a per-slot save
+	// wins over that global fallback (load_preferences() always runs before
+	// load_character() at every call site, same as every other field in this
+	// proc). A missing key (an old save predating this fix, nothing under its
+	// own character node yet) is a no-op on >>, same as it already is for
+	// every other field read here - loadout/loadout_slot_names then just keep
+	// whatever load_preferences() already populated from the global node.
+	S["job_loadout"] >> loadout
+	S["job_loadout_names"] >> loadout_slot_names
 	S["origin"] >> origin
 	S["faction"] >> faction
 	S["religion"] >> religion
@@ -736,6 +750,8 @@
 		organ_data = list()
 
 	gear = sanitize_list(gear)
+	loadout = sanitize_loadout(loadout, owner) // Same call load_preferences() makes on its own (global-node) read - needed here too now that this per-slot read can override it.
+	loadout_slot_names = sanitize_islist(loadout_slot_names, list())
 
 	traits = sanitize_list(traits)
 	read_traits = FALSE
