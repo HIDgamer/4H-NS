@@ -280,6 +280,20 @@ Defined in conflicts.dm of the #defines folder.
 	damage_falloff_mod = 0.1
 	attach_icon = pick("suppressor_a","suppressor2_a")
 
+/obj/item/attachable/suppressor/sleek
+	name = "compact suppressor"
+	desc = "A lightweight, low-profile suppressor designed specifically for SMGs and sidearms. It dampens sound and muzzle flash while marginally improving stability and accuracy, though it slightly reduces projectile velocity and terminal damage."
+	icon_state = "suppressor_sleek"
+	slot = "muzzle"
+	pixel_shift_y = 15
+	attach_icon = "suppressor_sleek_a"
+	hud_offset_mod = -3
+	gun_traits = list(TRAIT_GUN_SILENCED_ALT)
+
+/obj/item/attachable/suppressor/sleek/New()
+	..()
+	damage_falloff_mod = 0.1
+
 /obj/item/attachable/suppressor/xm40_integral
 	name = "\improper XM40 integral suppressor"
 	icon_state = "m40sd_suppressor"
@@ -472,6 +486,51 @@ Defined in conflicts.dm of the #defines folder.
 /obj/item/attachable/extended_barrel/sa80/New()
 	..()
 	accuracy_mod = HIT_ACCURACY_MULT_TIER_4
+	velocity_mod = AMMO_SPEED_TIER_1
+
+/obj/item/attachable/extended_barrel/vented
+	name = "AB-RVX extended compensator"
+	desc = "A precision-engineered vented barrel extension used by various UA forces. Greatly improves accuracy, muzzle control, and projectile velocity, but reduces terminal damage due to pressure venting."
+	desc_lore = "Designed by Armat Battlefield Systems under contract for the United Americas Colonial Marine Corps, the AB-RVX compensator is a general-purpose muzzle device intended primarily for rifles such as the M41A, though it has also been adapted for smaller-caliber weapons like the M39 submachine gun and the M10 auto pistol. Its extended ported design effectively reduces recoil and muzzle rise, enhancing shot stability and control during sustained fire. While the aggressive gas redirection slightly decreases impact force, the compensator improves overall accuracy. Due to its specialized application and manufacturing complexity."
+	slot = "muzzle"
+	icon = 'icons/obj/items/weapons/guns/attachments/barrel.dmi'
+	icon_state = "ebarrel_vented"
+	attach_icon = "ebarrel_vented_a"
+	pixel_shift_y = 15
+	hud_offset_mod = -3
+	wield_delay_mod = WIELD_DELAY_FAST
+
+/obj/item/attachable/extended_barrel/vented/Initialize(mapload, ...)
+	. = ..()
+	select_gamemode_skin(type)
+
+/obj/item/attachable/extended_barrel/vented/select_gamemode_skin(expected_type, list/override_icon_state, list/override_protection)
+	. = ..()
+	var/new_attach_icon
+	switch(SSmapping.configs[GROUND_MAP].camouflage_type)
+		if("snow")
+			attach_icon = new_attach_icon ? new_attach_icon : "s_" + attach_icon
+			. = TRUE
+		if("desert")
+			attach_icon = new_attach_icon ? new_attach_icon : "d_" + attach_icon
+			. = TRUE
+		if("classic")
+			attach_icon = new_attach_icon ? new_attach_icon : "c_" + attach_icon
+			. = TRUE
+		if("urban")
+			attach_icon = new_attach_icon ? new_attach_icon : "u_" + attach_icon
+			. = TRUE
+	return .
+
+/obj/item/attachable/extended_barrel/vented/New()
+	..()
+	accuracy_mod = HIT_ACCURACY_MULT_TIER_6
+	damage_mod = -BULLET_DAMAGE_MULT_TIER_2
+	recoil_mod = -RECOIL_AMOUNT_TIER_5
+
+	damage_falloff_mod = -0.1
+	accuracy_unwielded_mod = HIT_ACCURACY_MULT_TIER_6
+	recoil_unwielded_mod = -RECOIL_AMOUNT_TIER_5
 	velocity_mod = AMMO_SPEED_TIER_1
 
 /obj/item/attachable/heavy_barrel
@@ -760,6 +819,21 @@ Defined in conflicts.dm of the #defines folder.
 	accuracy_mod = HIT_ACCURACY_MULT_TIER_4
 	accuracy_unwielded_mod = HIT_ACCURACY_MULT_TIER_1
 	movement_onehanded_acc_penalty_mod = MOVEMENT_ACCURACY_PENALTY_MULT_TIER_5
+
+/obj/item/attachable/reddot/small
+	name = "S5-Micro dot sight"
+	desc = "A lightweight, low-profile dot optic designed for rapid target acquisition with minimal weight penalty. Optimized for submachine guns and sidearms, it's ideal for close-quarters combat where speed and agility matter most."
+	desc_lore = "Designated AN/PVQ-64(M), the Micro variant of the S5 collimator sight strips the platform down to essentials. With reduced bulk and weight, it's favored by scouts and boarding teams. Despite the mil-spec designation, it's little more than a civilian reflex sight rebranded with a price hike."
+	icon = 'icons/obj/items/weapons/guns/attachments/rail.dmi'
+	icon_state = "reddot_small"
+	attach_icon = "reddot_small_a"
+	slot = "rail"
+
+/obj/item/attachable/reddot/small/New()
+	..()
+	accuracy_mod = HIT_ACCURACY_MULT_TIER_3
+	accuracy_unwielded_mod = HIT_ACCURACY_MULT_TIER_1
+	movement_onehanded_acc_penalty_mod = MOVEMENT_ACCURACY_PENALTY_MULT_TIER_6
 
 /obj/item/attachable/reflex
 	name = "S6 reflex sight"
