@@ -305,7 +305,7 @@
 		list("M2C Box Magazine", floor(scale * 2), /obj/item/ammo_magazine/m2c, VENDOR_ITEM_REGULAR),
 		list("XM51 Magazine (16g)", floor(scale * 3), /obj/item/ammo_magazine/rifle/xm51, VENDOR_ITEM_REGULAR),
 
-		list("EXTRA SCOUT AMMUNITION", -1, null, null, null),
+		list("EXTRA DMR AMMUNITION", -1, null, null, null),
 		list("A19 High Velocity Impact Magazine (10x24mm)", round(scale * 10), /obj/item/ammo_magazine/rifle/m4ra/custom/impact, VENDOR_ITEM_REGULAR),
 		list("A19 High Velocity Incendiary Magazine (10x24mm)", round(scale * 10), /obj/item/ammo_magazine/rifle/m4ra/custom/incendiary, VENDOR_ITEM_REGULAR),
 		list("A19 High Velocity Magazine (10x24mm)", round(scale * 15), /obj/item/ammo_magazine/rifle/m4ra/custom, VENDOR_ITEM_REGULAR),
@@ -315,9 +315,10 @@
 		list("M42A Incendiary Magazine (10x28mm)", round(scale * 10), /obj/item/ammo_magazine/sniper/incendiary, VENDOR_ITEM_REGULAR),
 		list("M42A Marksman Magazine (10x28mm Caseless)", round(scale * 15), /obj/item/ammo_magazine/sniper, VENDOR_ITEM_REGULAR),
 
-		list("EXTRA DEMOLITIONIST AMMUNITION", -1, null, null, null),
+		list("EXTRA M5 RPG AMMUNITION", -1, null, null, null),
 		list("84mm Anti-Armor Rocket", round(scale * 10), /obj/item/ammo_magazine/rocket/ap, VENDOR_ITEM_REGULAR),
 		list("84mm High-Explosive Rocket", round(scale * 10), /obj/item/ammo_magazine/rocket, VENDOR_ITEM_REGULAR),
+		list("84mm High-Explosive Fragmentation Rocket", round(scale * 20), /obj/item/ammo_magazine/rocket/frag,, VENDOR_ITEM_REGULAR),
 		list("84mm White-Phosphorus Rocket", round(scale * 10), /obj/item/ammo_magazine/rocket/wp, VENDOR_ITEM_REGULAR),
 
 		list("EXTRA GRENADES", -1, null, null, null),

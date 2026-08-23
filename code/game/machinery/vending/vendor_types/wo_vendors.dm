@@ -188,6 +188,7 @@
 		list("EXTRA DEMOLITIONIST AMMUNITION", -1, null, null, null),
 		list("84mm Anti-Armor Rocket", floor(scale * 1), /obj/item/ammo_magazine/rocket/ap, VENDOR_ITEM_REGULAR),
 		list("84mm High-Explosive Rocket", floor(scale * 1), /obj/item/ammo_magazine/rocket, VENDOR_ITEM_REGULAR),
+		list("84mm High-Explosive Fragmentation Rocket", floor(scale * 2), /obj/item/ammo_magazine/rocket/frag,, VENDOR_ITEM_REGULAR),
 		list("84mm White-Phosphorus Rocket", floor(scale * 1), /obj/item/ammo_magazine/rocket/wp, VENDOR_ITEM_REGULAR),
 
 		list("EXTRA GRENADES", -1, null, null, null),
