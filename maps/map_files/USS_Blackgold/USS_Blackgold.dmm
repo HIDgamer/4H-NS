@@ -4317,9 +4317,9 @@
 "aoF" = (
 /obj/effect/decal/cleanable/dirt,
 /obj/effect/decal/cleanable/dirt,
-/obj/structure/machinery/cm_vending/clothing/k9_handler{
-	density = 0;
-	pixel_y = 32
+/obj/structure/machinery/cm_vending/sorted/uniform_supply/squad_prep{
+	pixel_y = 32;
+	density = 0
 	},
 /turf/open/floor/almayer/green/north,
 /area/blackgold/middle/rooms/squad/prep)
@@ -4782,11 +4782,9 @@
 /turf/open/floor/plating/plating_catwalk,
 /area/blackgold/lower/rooms/range)
 "aqq" = (
-/obj/effect/vehicle_spawner/jeep/plain,
-/turf/open/floor/almayer{
-	icon_state = "mono"
-	},
-/area/blackgold/underdeck/vehicle)
+/obj/structure/machinery/medical_pod/autodoc,
+/turf/open/floor/almayer/dark_sterile,
+/area/blackgold/middle/rooms/medical)
 "aqr" = (
 /obj/structure/machinery/cryopod/right,
 /turf/open/floor/almayer/cargo,
@@ -4838,7 +4836,7 @@
 	},
 /area/blackgold/upper/rooms/companycommand/charlie/cc)
 "aqF" = (
-/obj/effect/vehicle_spawner/jeep/plain,
+/obj/effect/vehicle_spawner/miltruck/miltruck_3/fixed,
 /turf/open/floor/plating/plating_catwalk,
 /area/blackgold/underdeck/vehicle)
 "aqG" = (
@@ -4942,10 +4940,9 @@
 /area/blackgold/underdeck/vehicle)
 "ard" = (
 /obj/structure/surface/rack,
-/obj/item/hardpoint/support/jeep/jeep_wheels,
-/obj/item/hardpoint/support/jeep/jeep_wheels,
-/obj/item/hardpoint/support/jeep/jeep_wheels,
-/obj/item/hardpoint/support/jeep/jeep_wheels,
+/obj/item/hardpoint/support/locomotion/atruck,
+/obj/item/hardpoint/support/locomotion/atruck,
+/obj/item/hardpoint/support/locomotion/atruck,
 /turf/open/floor/almayer{
 	icon_state = "plate"
 	},
@@ -31686,6 +31683,12 @@
 /obj/structure/platform/metal/ship/west,
 /turf/open/floor/plating/almayer/no_build,
 /area/blackgold/middle/stairs/star/mid)
+"ftS" = (
+/obj/effect/vehicle_spawner/miltruck/miltruck_2/fixed,
+/turf/open/floor/almayer{
+	icon_state = "test_floor5"
+	},
+/area/blackgold/underdeck/vehicle)
 "fuD" = (
 /obj/effect/decal/warning_stripes{
 	icon_state = "W"
@@ -33192,9 +33195,9 @@
 /area/blackgold/upper/rooms/hangar)
 "hbc" = (
 /obj/effect/decal/cleanable/dirt,
-/obj/structure/machinery/cm_vending/clothing/k9_synth{
-	density = 0;
-	pixel_y = 32
+/obj/structure/machinery/cm_vending/sorted/uniform_supply/squad_prep{
+	pixel_y = 32;
+	density = 0
 	},
 /turf/open/floor/almayer/green/north,
 /area/blackgold/middle/rooms/squad/prep)
@@ -37097,10 +37100,10 @@
 /area/blackgold/middle/rooms/orbital)
 "lif" = (
 /obj/vehicle/motorbike/green{
-	dir = 4
+	dir = 8
 	},
 /turf/open/floor/almayer{
-	icon_state = "plate"
+	icon_state = "test_floor5"
 	},
 /area/blackgold/underdeck/vehicle)
 "lip" = (
@@ -40369,6 +40372,12 @@
 	},
 /turf/open/floor/almayer/aicore/no_build/ai_floor2,
 /area/blackgold/lower/rooms/aicore)
+"ous" = (
+/obj/structure/machinery/autodoc_console{
+	dir = 1
+	},
+/turf/open/floor/almayer/dark_sterile,
+/area/blackgold/middle/rooms/medical)
 "ouO" = (
 /obj/effect/decal/warning_stripes{
 	icon_state = "S"
@@ -43869,6 +43878,14 @@
 /obj/effect/decal/cleanable/dirt,
 /turf/open/floor/plating,
 /area/blackgold/middle/maint/port/mid)
+"seh" = (
+/obj/vehicle/motorbike/green{
+	dir = 8
+	},
+/turf/open/floor/almayer{
+	icon_state = "test_floor4"
+	},
+/area/blackgold/underdeck/vehicle)
 "sei" = (
 /obj/effect/decal/warning_stripes{
 	icon_state = "W";
@@ -46681,6 +46698,10 @@
 /obj/effect/decal/cleanable/dirt,
 /turf/open/floor/almayer/green/south,
 /area/blackgold/middle/rooms/squad/prep)
+"vom" = (
+/obj/structure/machinery/cm_vending/sorted/cargo_guns/squad_prep/special,
+/turf/open/floor/almayer/plate,
+/area/blackgold/middle/rooms/squad/prep)
 "voC" = (
 /obj/structure/stairs/perspective{
 	dir = 8;
@@ -48372,11 +48393,11 @@
 /turf/open/floor/almayer/no_build/plating,
 /area/blackgold/lower/rooms/aicore)
 "xey" = (
-/obj/vehicle/motorbike/green{
-	dir = 4
+/obj/effect/vehicle_spawner/jeep/plain{
+	dir = 1
 	},
 /turf/open/floor/almayer{
-	icon_state = "mono"
+	icon_state = "test_floor5"
 	},
 /area/blackgold/underdeck/vehicle)
 "xeN" = (
@@ -57183,7 +57204,7 @@ lsW
 mWH
 mWH
 ssa
-aqq
+mWH
 mWH
 jnf
 obE
@@ -57270,7 +57291,7 @@ lsW
 mWH
 mZS
 fUq
-mZS
+ftS
 mWH
 kzN
 obE
@@ -57804,9 +57825,9 @@ pdJ
 qlE
 jnf
 mWH
-xey
-lif
-xey
+mWH
+ssa
+mWH
 egJ
 lsW
 obL
@@ -57893,7 +57914,7 @@ kzN
 mWH
 mZS
 fUq
-mZS
+xey
 mWH
 lsW
 obL
@@ -58152,9 +58173,9 @@ pdJ
 qlE
 kzN
 mWH
-mZS
-fUq
-mZS
+lif
+seh
+lif
 mWH
 lsW
 obL
@@ -98504,10 +98525,10 @@ ayh
 anE
 anE
 anE
+anE
 anK
 anK
-anK
-anK
+anE
 anE
 anE
 anE
@@ -98591,10 +98612,10 @@ ayh
 dbc
 wJN
 gSb
-ayh
+vom
 ayN
 ayN
-ayh
+vom
 ayH
 wJN
 bpd
@@ -98678,10 +98699,10 @@ ayh
 anE
 anE
 anE
-anK
+anE
 vRJ
 vRJ
-anK
+anE
 anE
 anE
 anE
@@ -107904,7 +107925,7 @@ azN
 azI
 bpl
 hOc
-hOc
+ous
 hOc
 aba
 abM
@@ -107991,7 +108012,7 @@ azO
 azJ
 bpl
 hOc
-hOc
+aqq
 hOc
 bAO
 aaX
